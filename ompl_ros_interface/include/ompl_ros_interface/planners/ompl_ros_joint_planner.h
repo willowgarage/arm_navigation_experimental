@@ -37,6 +37,7 @@
 #ifndef OMPL_ROS_JOINT_PLANNER_H_
 #define OMPL_ROS_JOINT_PLANNER_H_
 
+
 // OMPL ROS Interface
 #include <ompl_ros_interface/state_validity_checkers/ompl_ros_joint_state_validity_checker.h>
 #include <ompl_ros_interface/ompl_ros_planning_group.h>
@@ -44,6 +45,10 @@
 
 // OMPL
 #include <ompl/base/GoalLazySamples.h>
+
+// plugin
+#include <pluginlib/class_loader.h>
+#include <motion_planning_state_refinement/motion_planning_state_refinement.h>
 
 namespace ompl_ros_interface
 {
@@ -110,6 +115,8 @@ namespace ompl_ros_interface
     bool setJointGoal(motion_planning_msgs::GetMotionPlan::Request &request,
                       motion_planning_msgs::GetMotionPlan::Response &response);
     
+    bool refineState(ompl::base::ScopedState<ompl::base::CompoundStateManifold> &start);
+
     std::string kinematics_solver_name_;
 
     std::string end_effector_name_;
@@ -117,6 +124,9 @@ namespace ompl_ros_interface
     ompl_ros_interface::OmplRosIKSampler ik_sampler_;
 
     bool ik_sampler_available_;
+
+    boost::shared_ptr<pluginlib::ClassLoader<motion_planning_state_refinement::MotionPlanningStateRefinement> > state_refinement_loader_;
+    motion_planning_state_refinement::MotionPlanningStateRefinement* state_refiner_;
 
   };
 }

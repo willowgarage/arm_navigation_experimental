@@ -69,6 +69,20 @@ bool OmplRosJointPlanner::initializePlanningManifold(ompl::base::StateManifoldPt
     }
   }
 
+  std::string state_refiner_name;
+  node_handle_.param<std::string>("state_refiner",state_refiner_name,"collision_proximity_planner/CollisionProximityPlannerPlugin");
+  state_refinement_loader_.reset(new pluginlib::ClassLoader<motion_planning_state_refinement::MotionPlanningStateRefinement>("motion_planning_state_refinement","motion_planning_state_refinement::MotionPlanningStateRefinement"));
+  state_refiner_ = NULL;
+  try
+  {
+    state_refiner_ = state_refinement_loader_->createClassInstance(state_refiner_name);
+  }
+  catch(pluginlib::PluginlibException& ex)
+  {
+    ROS_ERROR("The plugin failed to load. Error: %s", ex.what());    //handle the class failing to load
+    ROS_ERROR("The state refiner could not be setup");
+    state_refiner_ = NULL;
+  }
   return true;
 }
 
@@ -191,7 +205,8 @@ bool OmplRosJointPlanner::setStart(motion_planning_msgs::GetMotionPlan::Request 
     else if(response.error_code.val == response.error_code.COLLISION_CONSTRAINTS_VIOLATED)
       response.error_code.val = response.error_code.START_STATE_IN_COLLISION;
     ROS_ERROR("Start state is invalid. Reason: %s",motion_planning_msgs::armNavigationErrorCodeToString(response.error_code).c_str());
-    return false;
+    if(!refineState(start))
+      return false;
   }
   planner_->getProblemDefinition()->clearStartStates(); 
   planner_->addStartState(start);
@@ -277,5 +292,29 @@ motion_planning_msgs::RobotTrajectory OmplRosJointPlanner::getSolutionPath()
   return robot_trajectory;
 }
 
+bool OmplRosJointPlanner::refineState(ompl::base::ScopedState<ompl::base::CompoundStateManifold> &start)
+{
+  motion_planning_msgs::RobotState group_state, robot_state;
+  motion_planning_msgs::Constraints constraints;
+  ompl_ros_interface::OmplStateToRobotStateMapping mapping;
+
+  if(!ompl_ros_interface::getOmplStateToRobotStateMapping(start,group_state,mapping))
+    return false;
+  if(!ompl_ros_interface::omplStateToRobotState(start,mapping,group_state))
+    return false;
+  planning_monitor_->getCurrentRobotState(robot_state);
+
+  bool solution_found = state_refiner_->refineState(robot_state,constraints,group_state);
+  if(solution_found)
+  {
+    if(!ompl_ros_interface::robotStateToOmplState(group_state,start,false))
+    {
+      ROS_ERROR("Could not refine start state");
+      return false;
+    }    
+    return true;
+  }
+  return false;
+}
 
 }
