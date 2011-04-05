@@ -39,6 +39,10 @@
 
 #include <ompl_ros_interface/ompl_ros_state_validity_checker.h>
 
+// plugin
+#include <pluginlib/class_loader.h>
+#include <motion_planning_state_refinement/motion_planning_state_refinement.h>
+
 namespace ompl_ros_interface
 {
 /**
@@ -56,10 +60,19 @@ public:
    */
   OmplRosJointStateValidityChecker(ompl::base::SpaceInformation *si, 
                                    planning_environment::PlanningMonitor *planning_monitor,
-                                   const ompl_ros_interface::OmplStateToKinematicStateMapping &mapping) : 
+                                   const ompl_ros_interface::OmplStateToKinematicStateMapping &mapping,
+                                   motion_planning_state_refinement::MotionPlanningStateRefinement* state_refiner,
+                                   const ompl_ros_interface::OmplStateToRobotStateMapping &ompl_state_to_robot_state_mapping,
+                                   const ompl_ros_interface::RobotStateToOmplStateMapping &robot_state_to_ompl_state_mapping) : 
     ompl_ros_interface::OmplRosStateValidityChecker(si,planning_monitor), 
-    ompl_state_to_kinematic_state_mapping_(mapping)
+    ompl_state_to_kinematic_state_mapping_(mapping),
+    state_refiner_(state_refiner),
+    ompl_state_robot_state_mapping_(ompl_state_to_robot_state_mapping),
+    robot_state_ompl_state_mapping_(robot_state_to_ompl_state_mapping)
   {
+    group_state_msg_.joint_state.name = joint_state_group_->getJointModelGroup()->getJointModelNames();
+    group_state_msg_.joint_state.position.resize(group_state_msg_.joint_state.name.size());
+    refined_state_msg_ = group_state_msg_;
   }
   ~OmplRosJointStateValidityChecker(){}
 	
@@ -68,6 +81,14 @@ public:
    * @param ompl_state The state that needs to be checked
    */
   virtual bool 	isValid  (const ompl::base::State *ompl_state) const;	
+
+  /**
+   * @brief An additional callback function used by the planners to determine if a state is valid
+   * @param ompl_state The state that needs to be checked
+   * @param dist A distance measure that indicates how far the given state is from obstacles
+   * @param gradient Gradient information that indicates the direction to move away from obstacles
+   */
+  virtual bool isValid(const ompl::base::State *state, double &dist, ompl::base::State *gradient = NULL) const;
 
   /**
    * @brief A non-const version of isValid designed to fill in the last error code 
@@ -81,6 +102,12 @@ protected:
   //a cached pose that will be multiplied to every input pose
   //necessary since the input may be in a frame that's not the one that the kinematics solver is working in
   geometry_msgs::Pose cached_transform_pose_;
+
+private:
+  mutable motion_planning_msgs::RobotState group_state_msg_, refined_state_msg_;
+  motion_planning_state_refinement::MotionPlanningStateRefinement* state_refiner_;
+  ompl_ros_interface::OmplStateToRobotStateMapping ompl_state_robot_state_mapping_;
+  ompl_ros_interface::RobotStateToOmplStateMapping robot_state_ompl_state_mapping_;
 };
 }
 #endif

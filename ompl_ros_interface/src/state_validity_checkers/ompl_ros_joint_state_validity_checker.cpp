@@ -104,4 +104,35 @@ bool OmplRosJointStateValidityChecker::isStateValid(const ompl::base::State *omp
   return collision_validity_check;    
 }
 
+bool OmplRosJointStateValidityChecker::isValid(const ompl::base::State *ompl_state, double &distance, ompl::base::State *gradient) const
+{
+  ompl_ros_interface::omplStateToKinematicStateGroup(ompl_state,
+                                                     ompl_state_to_kinematic_state_mapping_,
+                                                     joint_state_group_);
+  std::vector<planning_models::KinematicState::JointState*> joint_states = joint_state_group_->getJointStateVector();
+  for(unsigned int i=0; i < joint_states.size(); i++)
+  {
+    if(!joint_states[i]->areJointStateValuesWithinBounds())
+    {
+      ROS_ERROR("State violates joint limits for Joint %s",joint_states[i]->getName().c_str());
+      //      error_code_.val = error_code_.JOINT_LIMITS_VIOLATED;
+      return false;
+    }
+  }
+
+  if(!path_constraint_evaluator_set_.decide(kinematic_state_, false))
+  {
+    ROS_DEBUG("Path constraints violated");
+    //    error_code_.val = error_code_.PATH_CONSTRAINTS_VIOLATED;
+    return false;
+  }
+
+  ompl_ros_interface::omplStateToRobotState(*ompl_state,ompl_state_robot_state_mapping_,group_state_msg_);
+  state_refiner_->getStateGradient(group_state_msg_,distance,refined_state_msg_);
+  ompl_ros_interface::robotStateToOmplState(refined_state_msg_,robot_state_ompl_state_mapping_,gradient);
+  if(distance >=0)
+    return true;
+  return false;
+}
+
 }

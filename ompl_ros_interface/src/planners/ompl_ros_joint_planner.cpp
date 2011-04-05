@@ -279,7 +279,10 @@ bool OmplRosJointPlanner::initializeStateValidityChecker(ompl_ros_interface::Omp
 {
   state_validity_checker.reset(new ompl_ros_interface::OmplRosJointStateValidityChecker(planner_->getSpaceInformation().get(),
                                                                                         planning_monitor_,
-                                                                                        ompl_state_to_kinematic_state_mapping_));
+                                                                                        ompl_state_to_kinematic_state_mapping_,
+                                                                                        state_refiner_,
+                                                                                        ompl_state_to_robot_state_mapping_,
+                                                                                        robot_state_to_ompl_state_mapping_));
     return true;
 }
 

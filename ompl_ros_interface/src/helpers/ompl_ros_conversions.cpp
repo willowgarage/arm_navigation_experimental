@@ -596,6 +596,27 @@ bool omplStateToRobotState(const ompl::base::ScopedState<ompl::base::CompoundSta
   return true;
 };
 
+bool omplStateToRobotState(const ompl::base::State &ompl_state,
+                           const ompl_ros_interface::OmplStateToRobotStateMapping &mapping,
+                           motion_planning_msgs::RobotState &robot_state)
+{
+  const ompl::base::CompoundState *ompl_compound_state = static_cast<const ompl::base::CompoundState*> (&ompl_state);
+  unsigned int num_manifolds = mapping.mapping_type.size();
+  for(unsigned int i=0; i < num_manifolds; i++)
+  {
+    if(mapping.mapping_type[i] == ompl_ros_interface::SO2 && mapping.ompl_state_mapping[i] > -1)
+      robot_state.joint_state.position[mapping.ompl_state_mapping[i]] = ompl_compound_state->as<ompl::base::SO2StateManifold::StateType>(i)->value;
+    else if(mapping.mapping_type[i] == ompl_ros_interface::SE3 && mapping.ompl_state_mapping[i] > -1)
+      ompl_ros_interface::SE3ManifoldToPoseMsg(*(ompl_compound_state->as<ompl::base::SE3StateManifold::StateType>(i)),robot_state.multi_dof_joint_state.poses[mapping.ompl_state_mapping[i]]);
+    else if(mapping.mapping_type[i] == ompl_ros_interface::REAL_VECTOR) // real vector value
+    {
+      //      ompl::base::StateManifoldPtr real_vector_manifold = ompl_scoped_state.getManifold()->as<ompl::base::CompoundStateManifold>()->getSubManifold(mapping.real_vector_index);
+      ompl_ros_interface::omplRealVectorStateToJointState(*(ompl_compound_state->as<ompl::base::RealVectorStateManifold::StateType>(i)),mapping,robot_state.joint_state);
+    }
+  }
+  return true;
+};
+
 bool omplRealVectorStateToJointState(const ompl::base::RealVectorStateManifold::StateType &ompl_state,
                                      const ompl_ros_interface::OmplStateToRobotStateMapping &mapping,
                                      sensor_msgs::JointState &joint_state)
