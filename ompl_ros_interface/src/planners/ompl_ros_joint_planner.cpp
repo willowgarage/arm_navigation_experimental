@@ -87,7 +87,7 @@ bool OmplRosJointPlanner::initializePlanningManifold(ompl::base::StateManifoldPt
 }
 
 bool OmplRosJointPlanner::isRequestValid(motion_planning_msgs::GetMotionPlan::Request &request,
-                                          motion_planning_msgs::GetMotionPlan::Response &response)
+                                         motion_planning_msgs::GetMotionPlan::Response &response)
 {
   if(request.motion_plan_request.group_name != group_name_)
   {
@@ -154,7 +154,7 @@ bool OmplRosJointPlanner::isRequestValid(motion_planning_msgs::GetMotionPlan::Re
 }
 
 bool OmplRosJointPlanner::setGoal(motion_planning_msgs::GetMotionPlan::Request &request,
-                                   motion_planning_msgs::GetMotionPlan::Response &response)
+                                  motion_planning_msgs::GetMotionPlan::Response &response)
 {
 
   if(!request.motion_plan_request.goal_constraints.joint_constraints.empty() 
@@ -178,7 +178,7 @@ bool OmplRosJointPlanner::setGoal(motion_planning_msgs::GetMotionPlan::Request &
 }
 
 bool OmplRosJointPlanner::setStart(motion_planning_msgs::GetMotionPlan::Request &request,
-                                    motion_planning_msgs::GetMotionPlan::Response &response)
+                                   motion_planning_msgs::GetMotionPlan::Response &response)
 {
   ompl::base::ScopedState<ompl::base::CompoundStateManifold> start(state_manifold_);
   ROS_DEBUG("Start");
@@ -210,11 +210,19 @@ bool OmplRosJointPlanner::setStart(motion_planning_msgs::GetMotionPlan::Request 
   }
   planner_->getProblemDefinition()->clearStartStates(); 
   planner_->addStartState(start);
+
+  // Setup state refiner if needed
+  motion_planning_msgs::RobotState group_state;
+  group_state.joint_state.name = physical_joint_state_group_->getJointModelGroup()->getJointModelNames();
+  group_state.joint_state.position.resize(group_state.joint_state.name.size());
+  state_refiner_->setRobotState(request.motion_plan_request.start_state);
+  state_refiner_->setGroupState(group_state);
+  state_refiner_->setConstraints(request.motion_plan_request.path_constraints);
   return true;
 }
 
 bool OmplRosJointPlanner::setJointGoal(motion_planning_msgs::GetMotionPlan::Request &request,
-                                        motion_planning_msgs::GetMotionPlan::Response &response)
+                                       motion_planning_msgs::GetMotionPlan::Response &response)
 {
   ompl::base::ScopedState<ompl::base::CompoundStateManifold> goal(state_manifold_);
   ompl::base::GoalPtr goal_states(new ompl::base::GoalStates(planner_->getSpaceInformation()));
@@ -260,7 +268,7 @@ bool OmplRosJointPlanner::setJointGoal(motion_planning_msgs::GetMotionPlan::Requ
 }
 
 bool OmplRosJointPlanner::setPoseGoal(motion_planning_msgs::GetMotionPlan::Request &request,
-                                       motion_planning_msgs::GetMotionPlan::Response &response)
+                                      motion_planning_msgs::GetMotionPlan::Response &response)
 {
   if(!ik_sampler_available_)
   {
@@ -284,6 +292,11 @@ bool OmplRosJointPlanner::initializeStateValidityChecker(ompl_ros_interface::Omp
                                                                                         ompl_state_to_robot_state_mapping_,
                                                                                         robot_state_to_ompl_state_mapping_));
     return true;
+}
+
+void OmplRosJointPlanner::clear()
+{
+  state_refiner_->clear();
 }
 
 motion_planning_msgs::RobotTrajectory OmplRosJointPlanner::getSolutionPath()

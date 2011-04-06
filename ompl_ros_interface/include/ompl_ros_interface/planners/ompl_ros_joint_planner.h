@@ -66,6 +66,12 @@ namespace ompl_ros_interface
   protected:
 
     /**
+      @brief Clear - called after every planning request, this is where anything that needs to be 
+      closed, cleared after every request can be done.
+     */
+    virtual void clear();
+
+    /**
      * @brief Returns whether the motion planning request is valid
      */
     virtual bool isRequestValid(motion_planning_msgs::GetMotionPlan::Request &request,

@@ -184,6 +184,12 @@ namespace ompl_ros_interface
      */
     virtual motion_planning_msgs::RobotTrajectory getSolutionPath() = 0;
 
+    /**
+      @brief Clear - called after every planning request, this is where anything that needs to be 
+      closed, cleared after every request can be done.
+     */
+    virtual void clear(){};
+
   protected:
     ros::NodeHandle node_handle_;
     bool omplPathGeometricToRobotTrajectory(const ompl::geometric::PathGeometric &path, 

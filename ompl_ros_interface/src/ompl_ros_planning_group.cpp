@@ -368,6 +368,7 @@ bool OmplRosPlanningGroup::computePlan(motion_planning_msgs::GetMotionPlan::Requ
 
 bool OmplRosPlanningGroup::finish(const bool &result)
 {
+  clear();
   planning_monitor_->revertToDefaultState();
   return result;
 }
