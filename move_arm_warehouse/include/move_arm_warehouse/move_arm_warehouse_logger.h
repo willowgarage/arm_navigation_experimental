@@ -48,7 +48,7 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <move_arm_msgs/HeadMonitorFeedback.h>
 
-namespace move_arm
+namespace move_arm_warehouse
 {
 
 inline void addToMetadataString(const std::string& key, const std::string& val, std::string& metadata)

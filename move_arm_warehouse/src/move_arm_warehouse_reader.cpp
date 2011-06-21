@@ -39,9 +39,9 @@
 #include <boost/foreach.hpp>
 #include <sstream>
 
-#include <move_arm/move_arm_warehouse_reader.h>
+#include <move_arm_warehouse/move_arm_warehouse_reader.h>
 
-using namespace move_arm;
+using namespace move_arm_warehouse;
 
 typedef warehouse::MessageWithMetadata<planning_environment_msgs::PlanningScene>::ConstPtr PlanningSceneWithMetadata;
 typedef warehouse::MessageWithMetadata<motion_planning_msgs::MotionPlanRequest>::ConstPtr MotionPlanRequestWithMetadata;

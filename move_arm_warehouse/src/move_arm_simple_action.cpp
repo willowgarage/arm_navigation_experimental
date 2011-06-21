@@ -81,7 +81,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
 
-#include <move_arm/move_arm_warehouse_logger.h>
+#include <move_arm_warehouse/move_arm_warehouse_logger.h>
 
 #include <std_msgs/Bool.h>
 
@@ -89,7 +89,7 @@
 #include <algorithm>
 #include <cstdlib>
 
-namespace move_arm
+namespace move_arm_warehouse
 {
 
 enum MoveArmState {
@@ -1551,7 +1551,7 @@ int main(int argc, char** argv)
   std::string group;
   nh.param<std::string>("group", group, std::string());
   ROS_INFO("Move arm operating on group %s",group.c_str());    
-  move_arm::MoveArm move_arm(group);
+  move_arm_warehouse::MoveArm move_arm(group);
   if(!move_arm.configure())
   {
     ROS_ERROR("Could not configure move arm, exiting");

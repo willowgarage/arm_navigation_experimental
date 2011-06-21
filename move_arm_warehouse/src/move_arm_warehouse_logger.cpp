@@ -38,10 +38,10 @@
 #include <ros/console.h>
 #include <boost/foreach.hpp>
 
-#include <move_arm/move_arm_warehouse_logger.h>
+#include <move_arm_warehouse/move_arm_warehouse_logger.h>
 #include <unistd.h>
 
-using namespace move_arm;
+using namespace move_arm_warehouse;
 
 MoveArmWarehouseLogger::MoveArmWarehouseLogger() :
   warehouse_client_("move_arm_warehouse_logger")
