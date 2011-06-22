@@ -56,7 +56,7 @@
 #include <actionlib/client/simple_client_goal_state.h>
 
 #include <pr2_controllers_msgs/PointHeadAction.h>
-#include <pr2_controllers_msgs/JointTrajectoryAction.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 
 #include <move_arm_msgs/HeadMonitorStatus.h>
 #include <move_arm_msgs/HeadMonitorAction.h>
@@ -94,13 +94,13 @@ protected:
 
   ros::Publisher marker_pub_;
 
-  actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> head_controller_action_client_;
-  actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>* right_arm_controller_action_client_;
-  actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>* left_arm_controller_action_client_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> head_controller_action_client_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>* right_arm_controller_action_client_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>* left_arm_controller_action_client_;
   actionlib::SimpleActionClient<pr2_controllers_msgs::PointHeadAction> point_head_action_client_;
 
   std::string current_group_name_;
-  actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>* current_arm_controller_action_client_;
+  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>* current_arm_controller_action_client_;
 
   planning_environment::CollisionModelsInterface* collision_models_interface_;
   planning_environment::KinematicModelStateMonitor* kmsm_;
@@ -139,7 +139,7 @@ public:
     private_handle_("~"),
     head_monitor_action_server_(root_handle_, "head_monitor_action", false),
     head_preplan_scan_action_server_(root_handle_, "preplan_head_scan", boost::bind(&HeadMonitor::preplanHeadScanCallback, this, _1), false), 
-    head_controller_action_client_("/head_traj_controller/joint_trajectory_action", true),
+    head_controller_action_client_("/head_traj_controller/follow_joint_trajectory_action", true),
     point_head_action_client_("/head_traj_controller/point_head_action", true)
   {
     ROS_INFO_STREAM("In constructor");
@@ -165,8 +165,8 @@ public:
     head_monitor_action_server_.registerGoalCallback(boost::bind(&HeadMonitor::monitorGoalCallback, this));
     head_monitor_action_server_.registerPreemptCallback(boost::bind(&HeadMonitor::monitorPreemptCallback, this));
 
-    right_arm_controller_action_client_ = new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>("/r_arm_controller/joint_trajectory_action", true);
-    left_arm_controller_action_client_ = new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>("/l_arm_controller/joint_trajectory_action", true);
+    right_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/r_arm_controller/follow_joint_trajectory_action", true);
+    left_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory_action", true);
     while(ros::ok() && !right_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
       ROS_INFO("Waiting for the right_joint_trajectory_action server to come up.");
     }
@@ -391,7 +391,7 @@ public:
                                   joint_trajectory_subset,
                                   false);
 
-        pr2_controllers_msgs::JointTrajectoryGoal goal;
+        control_msgs::FollowJointTrajectoryGoal goal;
         goal.trajectory = generateHeadTrajectory(monitor_goal_.target_link, joint_trajectory_subset);
         head_controller_action_client_.sendGoal(goal);
 
@@ -449,7 +449,7 @@ public:
       }
     }
 
-    pr2_controllers_msgs::JointTrajectoryGoal traj_goal;  
+    control_msgs::FollowJointTrajectoryGoal traj_goal;  
     traj_goal.trajectory = traj;
 
     current_arm_controller_action_client_ = ((goal->group_name == RIGHT_ARM_GROUP) ? right_arm_controller_action_client_ : left_arm_controller_action_client_);
@@ -582,7 +582,7 @@ public:
     current_execution_status_.status = current_execution_status_.MONITOR_BEFORE_EXECUTION;
 
     //Generating head trajectory and deploying it
-    pr2_controllers_msgs::JointTrajectoryGoal goal;
+    control_msgs::FollowJointTrajectoryGoal goal;
     goal.trajectory = generateHeadTrajectory(monitor_goal_.target_link, monitor_goal_.joint_trajectory);
     head_controller_action_client_.sendGoal(goal);
     
@@ -658,7 +658,7 @@ public:
   }
 
   void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
-                              const pr2_controllers_msgs::JointTrajectoryResultConstPtr& result)
+                              const control_msgs::FollowJointTrajectoryResultConstPtr& result)
   {
     if(current_execution_status_.status != current_execution_status_.EXECUTING) {
       //because we cancelled
@@ -688,7 +688,7 @@ public:
   void trajectoryTimerCallback() {
     current_execution_status_.status = current_execution_status_.EXECUTING;
 
-    pr2_controllers_msgs::JointTrajectoryGoal goal;  
+    control_msgs::FollowJointTrajectoryGoal goal;  
 
     sensor_msgs::JointState js = last_joint_state_;
     removeCompletedTrajectory(monitor_goal_.joint_trajectory,
