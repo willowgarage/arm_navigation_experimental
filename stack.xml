@@ -5,20 +5,23 @@
   <author>Sachin Chitta sachinc@willowgarage.com</author>
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/motion_planning_common</url>
-  <depend stack="common" /> <!-- actionlib, filters -->
+  <url>http://ros.org/wiki/arm_navigation_experimental</url>
+  <depend stack="arm_navigation" /> <!-- motion_planning_msgs, move_arm_msgs, planning_environment, planning_models, spline_smoother, robot_self_filter, geometric_shapes_msgs, collision_environment_msgs, planning_environment_msgs, kinematics_msgs, mapping_msgs, geometric_shapes -->
+  <depend stack="common" /> <!-- actionlib, filters, pluginlib -->
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, trajectory_msgs, sensor_msgs, visualization_msgs -->
-  <depend stack="geometry" /> <!-- tf, bullet, angles -->
+  <depend stack="control" /> <!-- control_msgs -->
+  <depend stack="eigen" /> <!-- eigen -->
+  <depend stack="geometry" /> <!-- tf, tf_conversions, bullet, angles -->
   <depend stack="image_common" /> <!-- image_transport -->
-  <depend stack="kinematics" /> <!-- kinematics_msgs -->
   <depend stack="octomap_mapping" /> <!-- octomap, octomap_ros -->
+  <depend stack="orocos_kinematics_dynamics" /> <!-- kdl -->
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
-  <depend stack="physics_ode" /> <!-- opende -->
-  <depend stack="robot_model" /> <!-- assimp, urdf, resource_retriever -->
+  <depend stack="pr2_controllers" /> <!-- pr2_controllers_msgs -->
+  <depend stack="robot_model" /> <!-- kdl_parser -->
   <depend stack="ros" />
-  <depend stack="ros_comm" /> <!-- rosconsole, std_srvs, roscpp, message_filters, std_msgs, rosbag -->
-  <depend stack="trajectory_filters" /> <!-- spline_smoother -->
+  <depend stack="ros_comm" /> <!-- std_msgs, rospy, roscpp, std_srvs, rosconsole -->
   <depend stack="vision_opencv" /> <!-- image_geometry -->
-  <depend stack="visualization" /> <!-- rviz -->
+  <depend stack="visualization" /> <!-- interactive_markers -->
+  <depend stack="warehousewg" /> <!-- warehouse -->
 
 </stack>
