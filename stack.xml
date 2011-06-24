@@ -13,7 +13,7 @@
   <depend stack="eigen" /> <!-- eigen -->
   <depend stack="geometry" /> <!-- tf, tf_conversions, bullet, angles -->
   <depend stack="image_common" /> <!-- image_transport -->
-  <depend stack="octomap_mapping" /> <!-- octomap, octomap_ros -->
+  <depend stack="octomap_mapping_experimental" /> <!-- octomap, octomap_ros -->
   <depend stack="orocos_kinematics_dynamics" /> <!-- kdl -->
   <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
   <depend stack="pr2_controllers" /> <!-- pr2_controllers_msgs -->
@@ -22,6 +22,6 @@
   <depend stack="ros_comm" /> <!-- std_msgs, rospy, roscpp, std_srvs, rosconsole -->
   <depend stack="vision_opencv" /> <!-- image_geometry -->
   <depend stack="visualization" /> <!-- interactive_markers -->
-  <depend stack="warehousewg" /> <!-- warehouse -->
+  <depend stack="warehousewg" /> <!-- mongo_ros -->
 
 </stack>

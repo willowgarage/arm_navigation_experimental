@@ -55,7 +55,7 @@
 #include <interactive_markers/interactive_marker_server.h>
 #include <interactive_markers/menu_handler.h>
 #include <sensor_msgs/JointState.h>
-#include <move_arm_warehouse/move_arm_warehouse_logger.h>
+#include <move_arm_warehouse/move_arm_warehouse_logger_reader.h>
 
 using namespace std;
 using namespace motion_planning_msgs;
@@ -259,7 +259,7 @@ class WarehouseComponentsVisualizer
       vis_marker_array_publisher_ = nh_.advertise<MarkerArray> (VIS_TOPIC_NAME + "_array", 128);
       joint_state_publisher_ = nh_.advertise<sensor_msgs::JointState> ("joint_states", 10);
       constrain_rp_ = false;
-      logger_ = new MoveArmWarehouseLogger();
+      logger_ = new MoveArmWarehouseLoggerReader();
 
       process_function_ptr_ = boost::bind(&WarehouseComponentsVisualizer::processInteractiveFeedback, this, _1);
 
@@ -2418,7 +2418,7 @@ class WarehouseComponentsVisualizer
     map<string, bool> joint_clicked_map_;
     map<string, btTransform> joint_prev_transform_map_;
 
-    move_arm_warehouse::MoveArmWarehouseLogger* logger_;
+    move_arm_warehouse::MoveArmWarehouseLoggerReader* logger_;
     planning_environment_msgs::PlanningScene planning_scene_;
 
 };

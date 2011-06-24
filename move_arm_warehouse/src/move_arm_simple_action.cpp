@@ -81,7 +81,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
 
-#include <move_arm_warehouse/move_arm_warehouse_logger.h>
+#include <move_arm_warehouse/move_arm_warehouse_logger_reader.h>
 
 #include <std_msgs/Bool.h>
 
@@ -161,7 +161,7 @@ public:
     } 
 
     if(log_to_warehouse_) {
-      warehouse_logger_ = new MoveArmWarehouseLogger();
+      warehouse_logger_ = new MoveArmWarehouseLoggerReader();
     } else {
       warehouse_logger_ = NULL;
     }
@@ -1539,7 +1539,7 @@ private:
   ros::Publisher stats_publisher_;
   
   bool log_to_warehouse_;
-  MoveArmWarehouseLogger* warehouse_logger_;
+  MoveArmWarehouseLoggerReader* warehouse_logger_;
 
 };
 }
