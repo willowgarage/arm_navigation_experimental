@@ -72,7 +72,6 @@
 #include <planning_environment/models/collision_models.h>
 #include <planning_environment/models/model_utils.h>
 #include <planning_environment_msgs/GetPlanningScene.h>
-#include <planning_environment_msgs/LogPlanningScene.h>
 
 #include <planning_environment_msgs/GetRobotState.h>
 
@@ -126,7 +125,7 @@ static const std::string DISPLAY_JOINT_GOAL_PUB_TOPIC  = "display_joint_goal";
 //bunch of statics for remapping purposes
 
 static const std::string GET_PLANNING_SCENE_NAME = "get_planning_scene";
-static const std::string LOG_PLANNING_SCENE_NAME = "/environment_server/log_planning_scene";
+
 static const double MIN_TRAJECTORY_MONITORING_FREQUENCY = 1.0;
 static const double MAX_TRAJECTORY_MONITORING_FREQUENCY = 100.0;
   
@@ -174,7 +173,6 @@ public:
     get_state_client_ = root_handle_.serviceClient<planning_environment_msgs::GetRobotState>("get_robot_state");      
 
     get_planning_scene_client_ = root_handle_.serviceClient<planning_environment_msgs::GetPlanningScene>(GET_PLANNING_SCENE_NAME);
-    log_planning_scene_client_ = root_handle_.serviceClient<planning_environment_msgs::LogPlanningScene>(LOG_PLANNING_SCENE_NAME);
     
     preplan_scan_action_client_.reset(new actionlib::SimpleActionClient<move_arm_msgs::PreplanHeadScanAction> ("preplan_head_scan", true));
 
@@ -1264,19 +1262,6 @@ private:
       warehouse_logger_->pushPausedStateToWarehouse(current_planning_scene_,
                                                     *feedback);
     }
-  }
-
-
-  bool logPlanningScene(std::string fn_suffix) {
-    planning_environment_msgs::LogPlanningScene::Request log_req;
-    planning_environment_msgs::LogPlanningScene::Response log_res;
-    log_req.package_name = "move_arm";
-    log_req.filename = "planning_scene_"+fn_suffix+".bag";
-    if(!log_planning_scene_client_.call(log_req,log_res)) {
-      ROS_WARN("Problem logging planning scene");
-      return false;
-    }
-    return true;
   }
 
   bool getAndSetPlanningScene(const planning_environment_msgs::PlanningScene& planning_diff) {
