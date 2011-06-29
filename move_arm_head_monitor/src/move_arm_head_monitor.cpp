@@ -1,3 +1,4 @@
+
 /*********************************************************************
  *
  * Software License Agreement (BSD License)
@@ -58,9 +59,9 @@
 #include <pr2_controllers_msgs/PointHeadAction.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 
-#include <move_arm_msgs/HeadMonitorStatus.h>
-#include <move_arm_msgs/HeadMonitorAction.h>
-#include <move_arm_msgs/PreplanHeadScanAction.h>
+#include <head_monitor_msgs/HeadMonitorStatus.h>
+#include <head_monitor_msgs/HeadMonitorAction.h>
+#include <head_monitor_msgs/PreplanHeadScanAction.h>
 
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
@@ -89,8 +90,8 @@ protected:
 
   ros::NodeHandle private_handle_;
   ros::NodeHandle root_handle_;
-  actionlib::SimpleActionServer<move_arm_msgs::HeadMonitorAction> head_monitor_action_server_;
-  actionlib::SimpleActionServer<move_arm_msgs::PreplanHeadScanAction> head_preplan_scan_action_server_;
+  actionlib::SimpleActionServer<head_monitor_msgs::HeadMonitorAction> head_monitor_action_server_;
+  actionlib::SimpleActionServer<head_monitor_msgs::PreplanHeadScanAction> head_preplan_scan_action_server_;
 
   ros::Publisher marker_pub_;
 
@@ -105,9 +106,9 @@ protected:
   planning_environment::CollisionModelsInterface* collision_models_interface_;
   planning_environment::KinematicModelStateMonitor* kmsm_;
 
-  move_arm_msgs::HeadMonitorGoal monitor_goal_;
-  move_arm_msgs::HeadMonitorFeedback monitor_feedback_;
-  move_arm_msgs::HeadMonitorResult monitor_result_;
+  head_monitor_msgs::HeadMonitorGoal monitor_goal_;
+  head_monitor_msgs::HeadMonitorFeedback monitor_feedback_;
+  head_monitor_msgs::HeadMonitorResult monitor_result_;
 
   sensor_msgs::JointState last_joint_state_;
 
@@ -131,7 +132,7 @@ protected:
   double pause_time_;
   double max_point_distance_;
 
-  move_arm_msgs::HeadMonitorStatus current_execution_status_;
+  head_monitor_msgs::HeadMonitorStatus current_execution_status_;
 
 public:
 
@@ -410,7 +411,7 @@ public:
     collision_models_interface_->bodiesUnlock();
   }
   
-  void moveInsideSafetyLimits(const move_arm_msgs::PreplanHeadScanGoalConstPtr &goal,
+  void moveInsideSafetyLimits(const head_monitor_msgs::PreplanHeadScanGoalConstPtr &goal,
                               const planning_models::KinematicState& state) {
     const planning_models::KinematicModel::JointModelGroup* joint_model_group = collision_models_interface_->getKinematicModel()->getModelGroup(goal->group_name);
     const std::vector<std::string>& joint_names = joint_model_group->getJointModelNames();
@@ -459,9 +460,9 @@ public:
     }
   }
 
-  void preplanHeadScanCallback(const move_arm_msgs::PreplanHeadScanGoalConstPtr &goal)
+  void preplanHeadScanCallback(const head_monitor_msgs::PreplanHeadScanGoalConstPtr &goal)
   { 
-    move_arm_msgs::PreplanHeadScanResult res;
+    head_monitor_msgs::PreplanHeadScanResult res;
 
     collision_models_interface_->bodiesLock();
 
@@ -571,7 +572,7 @@ public:
       ROS_INFO_STREAM("Preempted, no new goal");
       return;
     }
-    monitor_goal_ = move_arm_msgs::HeadMonitorGoal(*head_monitor_action_server_.acceptNewGoal());
+    monitor_goal_ = head_monitor_msgs::HeadMonitorGoal(*head_monitor_action_server_.acceptNewGoal());
     current_group_name_ = convertFromGroupNameToArmName(monitor_goal_.group_name);
 
     if(current_group_name_.empty()) {

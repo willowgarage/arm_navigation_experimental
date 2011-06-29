@@ -51,7 +51,7 @@ typedef mongo_ros::MessageWithMetadata<planning_environment_msgs::PlanningScene>
 typedef mongo_ros::MessageWithMetadata<motion_planning_msgs::MotionPlanRequest>::ConstPtr MotionPlanRequestWithMetadata;
 typedef mongo_ros::MessageWithMetadata<trajectory_msgs::JointTrajectory>::ConstPtr JointTrajectoryWithMetadata;
 typedef mongo_ros::MessageWithMetadata<motion_planning_msgs::ArmNavigationErrorCodes>::ConstPtr ErrorCodesWithMetadata;
-typedef mongo_ros::MessageWithMetadata<move_arm_msgs::HeadMonitorFeedback>::ConstPtr HeadMonitorFeedbackWithMetadata;
+typedef mongo_ros::MessageWithMetadata<head_monitor_msgs::HeadMonitorFeedback>::ConstPtr HeadMonitorFeedbackWithMetadata;
   
 MoveArmWarehouseLoggerReader::MoveArmWarehouseLoggerReader()
 {
@@ -80,7 +80,7 @@ MoveArmWarehouseLoggerReader::MoveArmWarehouseLoggerReader()
 
   indexed_fields.clear();
   indexed_fields.push_back("paused_collision_map_stamp");
-  paused_state_collection_ = new mongo_ros::MessageCollection<move_arm_msgs::HeadMonitorFeedback>(DATABASE_NAME, "paused_state", indexed_fields);
+  paused_state_collection_ = new mongo_ros::MessageCollection<head_monitor_msgs::HeadMonitorFeedback>(DATABASE_NAME, "paused_state", indexed_fields);
 }
 
 MoveArmWarehouseLoggerReader::~MoveArmWarehouseLoggerReader() {
@@ -158,7 +158,7 @@ void MoveArmWarehouseLoggerReader::pushOutcomeToWarehouse(const planning_environ
 }
 
 void MoveArmWarehouseLoggerReader::pushPausedStateToWarehouse(const planning_environment_msgs::PlanningScene& planning_scene,
-                                                              const move_arm_msgs::HeadMonitorFeedback& feedback)
+                                                              const head_monitor_msgs::HeadMonitorFeedback& feedback)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
@@ -339,7 +339,7 @@ bool MoveArmWarehouseLoggerReader::getAssociatedPausedStates(const std::string& 
 bool MoveArmWarehouseLoggerReader::getAssociatedPausedState(const std::string& hostname, 
                                                       const ros::Time& planning_time, 
                                                       const ros::Time& paused_time,
-                                                      move_arm_msgs::HeadMonitorFeedback& paused_state)
+                                                      head_monitor_msgs::HeadMonitorFeedback& paused_state)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(planning_time);  
   q.append(PAUSED_COLLISION_MAP_TIME_NAME, paused_time.toSec());

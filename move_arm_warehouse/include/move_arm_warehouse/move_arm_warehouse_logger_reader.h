@@ -44,7 +44,7 @@
 #include <motion_planning_msgs/MotionPlanRequest.h>
 #include <motion_planning_msgs/ArmNavigationErrorCodes.h>
 #include <trajectory_msgs/JointTrajectory.h>
-#include <move_arm_msgs/HeadMonitorFeedback.h>
+#include <head_monitor_msgs/HeadMonitorFeedback.h>
 
 namespace move_arm_warehouse
 {
@@ -77,7 +77,7 @@ public:
                               const motion_planning_msgs::ArmNavigationErrorCodes& error_codes);
   
   void pushPausedStateToWarehouse(const planning_environment_msgs::PlanningScene& planning_scene,
-                                  const move_arm_msgs::HeadMonitorFeedback& feedback);
+                                  const head_monitor_msgs::HeadMonitorFeedback& feedback);
 
   ///
   /// READING FUNCTIONS
@@ -120,7 +120,7 @@ public:
   bool getAssociatedPausedState(const std::string& hostname, 
                                 const ros::Time& planning_time, 
                                 const ros::Time& paused_time,
-                                move_arm_msgs::HeadMonitorFeedback& paused_state);
+                                head_monitor_msgs::HeadMonitorFeedback& paused_state);
 
 protected:
 
@@ -134,7 +134,7 @@ protected:
   mongo_ros::MessageCollection<motion_planning_msgs::MotionPlanRequest>* motion_plan_request_collection_;
   mongo_ros::MessageCollection<trajectory_msgs::JointTrajectory>* trajectory_collection_;
   mongo_ros::MessageCollection<motion_planning_msgs::ArmNavigationErrorCodes>* outcome_collection_;
-  mongo_ros::MessageCollection<move_arm_msgs::HeadMonitorFeedback>* paused_state_collection_;
+  mongo_ros::MessageCollection<head_monitor_msgs::HeadMonitorFeedback>* paused_state_collection_;
   
   std::string hostname_;
   

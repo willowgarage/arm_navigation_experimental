@@ -75,8 +75,8 @@
 
 #include <planning_environment_msgs/GetRobotState.h>
 
-#include <move_arm_msgs/HeadMonitorAction.h>
-#include <move_arm_msgs/PreplanHeadScanAction.h>
+#include <head_monitor_msgs/HeadMonitorAction.h>
+#include <head_monitor_msgs/PreplanHeadScanAction.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
 
@@ -174,13 +174,13 @@ public:
 
     get_planning_scene_client_ = root_handle_.serviceClient<planning_environment_msgs::GetPlanningScene>(GET_PLANNING_SCENE_NAME);
     
-    preplan_scan_action_client_.reset(new actionlib::SimpleActionClient<move_arm_msgs::PreplanHeadScanAction> ("preplan_head_scan", true));
+    preplan_scan_action_client_.reset(new actionlib::SimpleActionClient<head_monitor_msgs::PreplanHeadScanAction> ("preplan_head_scan", true));
 
     while(ros::ok() && !preplan_scan_action_client_->waitForServer(ros::Duration(10))) {
       ROS_WARN("No preplan scan service");
     }
 
-    head_monitor_client_.reset(new actionlib::SimpleActionClient<move_arm_msgs::HeadMonitorAction> ("head_monitor_action", true));
+    head_monitor_client_.reset(new actionlib::SimpleActionClient<head_monitor_msgs::HeadMonitorAction> ("head_monitor_action", true));
     while(ros::ok() && !head_monitor_client_->waitForServer(ros::Duration(10))) {
       ROS_INFO("Waiting for head monitor server");
     }
@@ -702,7 +702,7 @@ private:
     head_monitor_error_code_.val = 0;
     current_trajectory.header.stamp = ros::Time::now()+ros::Duration(0.2);
 
-    move_arm_msgs::HeadMonitorGoal goal;
+    head_monitor_msgs::HeadMonitorGoal goal;
     goal.group_name = group_;
     goal.joint_trajectory = current_trajectory;
     goal.target_link = head_monitor_link_;
@@ -733,7 +733,7 @@ private:
           }*/
     head_monitor_client_->sendGoal(goal, 
                                    boost::bind(&MoveArm::monitorDoneCallback, this, _1, _2), 
-                                   actionlib::SimpleActionClient<move_arm_msgs::HeadMonitorAction>::SimpleActiveCallback(),
+                                   actionlib::SimpleActionClient<head_monitor_msgs::HeadMonitorAction>::SimpleActiveCallback(),
                                    boost::bind(&MoveArm::monitorFeedbackCallback, this, _1));
 
     return true;
@@ -1118,7 +1118,7 @@ private:
     motion_planning_msgs::GetMotionPlan::Request req;	    
     moveArmGoalToPlannerRequest(goal,req);	    
 
-    move_arm_msgs::PreplanHeadScanGoal preplan_scan_goal;
+    head_monitor_msgs::PreplanHeadScanGoal preplan_scan_goal;
     preplan_scan_goal.group_name = group_;
     preplan_scan_goal.motion_plan_request = goal->motion_plan_request;
     preplan_scan_goal.head_monitor_link = head_monitor_link_;
@@ -1243,7 +1243,7 @@ private:
   }
 
   void monitorDoneCallback(const actionlib::SimpleClientGoalState& state, 
-                           const move_arm_msgs::HeadMonitorResultConstPtr& result) {
+                           const head_monitor_msgs::HeadMonitorResultConstPtr& result) {
     //TODO - parse goal state for success or failure
     head_monitor_done_ = true;
     head_monitor_error_code_ = result->error_code;
@@ -1256,7 +1256,7 @@ private:
     }
   }
 
-  void monitorFeedbackCallback(const move_arm_msgs::HeadMonitorFeedbackConstPtr& feedback) {
+  void monitorFeedbackCallback(const head_monitor_msgs::HeadMonitorFeedbackConstPtr& feedback) {
     ROS_INFO_STREAM("Got feedback from monitor");
     if(log_to_warehouse_) {
       warehouse_logger_->pushPausedStateToWarehouse(current_planning_scene_,
@@ -1468,8 +1468,8 @@ private:
 
   std::string group_;
 
-  boost::shared_ptr<actionlib::SimpleActionClient<move_arm_msgs::HeadMonitorAction> >  head_monitor_client_;
-  boost::shared_ptr<actionlib::SimpleActionClient<move_arm_msgs::PreplanHeadScanAction> >  preplan_scan_action_client_;
+  boost::shared_ptr<actionlib::SimpleActionClient<head_monitor_msgs::HeadMonitorAction> >  head_monitor_client_;
+  boost::shared_ptr<actionlib::SimpleActionClient<head_monitor_msgs::PreplanHeadScanAction> >  preplan_scan_action_client_;
 
   ros::ServiceClient ik_client_;
   ros::ServiceClient trajectory_start_client_,trajectory_cancel_client_,trajectory_query_client_;	
