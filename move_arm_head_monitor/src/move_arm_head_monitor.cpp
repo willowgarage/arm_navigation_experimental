@@ -140,7 +140,7 @@ public:
     private_handle_("~"),
     head_monitor_action_server_(root_handle_, "head_monitor_action", false),
     head_preplan_scan_action_server_(root_handle_, "preplan_head_scan", boost::bind(&HeadMonitor::preplanHeadScanCallback, this, _1), false), 
-    head_controller_action_client_("/head_traj_controller/follow_joint_trajectory_action", true),
+    head_controller_action_client_("/head_traj_controller/follow_joint_trajectory", true),
     point_head_action_client_("/head_traj_controller/point_head_action", true)
   {
     ROS_INFO_STREAM("In constructor");
@@ -166,8 +166,8 @@ public:
     head_monitor_action_server_.registerGoalCallback(boost::bind(&HeadMonitor::monitorGoalCallback, this));
     head_monitor_action_server_.registerPreemptCallback(boost::bind(&HeadMonitor::monitorPreemptCallback, this));
 
-    right_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/r_arm_controller/follow_joint_trajectory_action", true);
-    left_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory_action", true);
+    right_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/r_arm_controller/follow_joint_trajectory", true);
+    left_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory", true);
     while(ros::ok() && !right_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
       ROS_INFO("Waiting for the right_joint_trajectory_action server to come up.");
     }

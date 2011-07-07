@@ -18,6 +18,7 @@ add_definitions(-Wall -DNDEBUG -DEIGEN_NO_DEBUG -O3 -msse3 -mssse3 -funroll-loop
 
 rosbuild_init()
 rosbuild_genmsg()
+rosbuild_gensrv()
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)

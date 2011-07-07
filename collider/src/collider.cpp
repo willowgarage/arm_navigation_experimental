@@ -1174,24 +1174,24 @@ bool Collider::octomapSrv(octomap_ros::GetOctomap::Request  &req, octomap_ros::G
 	return true;
 }
 
-bool Collider::occupancyPointSrv(collision_environment_msgs::OccupancyPointQuery::Request &req,
-                                  collision_environment_msgs::OccupancyPointQuery::Response &res){
+bool Collider::occupancyPointSrv(collider::OccupancyPointQuery::Request &req,
+                                 collider::OccupancyPointQuery::Response &res){
 
   octomap::OcTreeNodeStamped* node = collision_octree_->search(req.point.x, req.point.y, req.point.z);
   if (node){
     if (collision_octree_->isNodeOccupied(node))
-      res.occupancy=collision_environment_msgs::OccupancyPointQueryResponse::OCCUPIED;
+      res.occupancy=collider::OccupancyPointQueryResponse::OCCUPIED;
     else
-      res.occupancy=collision_environment_msgs::OccupancyPointQueryResponse::FREE;
+      res.occupancy=collider::OccupancyPointQueryResponse::FREE;
   } else{
-    res.occupancy = collision_environment_msgs::OccupancyPointQueryResponse::UNKNOWN;
+    res.occupancy = collider::OccupancyPointQueryResponse::UNKNOWN;
   }
 
 	return true;
 }
 
-bool Collider::occupancyBBXSrv(collision_environment_msgs::OccupancyBBXQuery::Request &req,
-                                collision_environment_msgs::OccupancyBBXQuery::Response &res){
+bool Collider::occupancyBBXSrv(collider::OccupancyBBXQuery::Request &req,
+                                collider::OccupancyBBXQuery::Response &res){
 
   OcTreeType::leaf_bbx_iterator it = collision_octree_->begin_leafs_bbx(octomap::pointMsgToOctomap(req.min),
                                                                     octomap::pointMsgToOctomap(req.max));
@@ -1214,8 +1214,8 @@ bool Collider::occupancyBBXSrv(collision_environment_msgs::OccupancyBBXQuery::Re
   return true;
 }
 
-bool Collider::occupancyBBXSizeSrv(collision_environment_msgs::OccupancyBBXSizeQuery::Request &req,
-                                collision_environment_msgs::OccupancyBBXSizeQuery::Response &res){
+bool Collider::occupancyBBXSizeSrv(collider::OccupancyBBXSizeQuery::Request &req,
+                                   collider::OccupancyBBXSizeQuery::Response &res){
 
   octomap::point3d center = octomap::pointMsgToOctomap(req.center);
   octomap::point3d size = octomap::pointMsgToOctomap(req.size);

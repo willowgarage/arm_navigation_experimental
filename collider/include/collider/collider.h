@@ -60,9 +60,9 @@
 #include <visualization_msgs/Marker.h>
 #include <mapping_msgs/AttachedCollisionObject.h>
 #include <collision_environment_msgs/MakeStaticCollisionMapAction.h>
-#include <collision_environment_msgs/OccupancyPointQuery.h>
-#include <collision_environment_msgs/OccupancyBBXQuery.h>
-#include <collision_environment_msgs/OccupancyBBXSizeQuery.h>
+#include <collider/OccupancyPointQuery.h>
+#include <collider/OccupancyBBXQuery.h>
+#include <collider/OccupancyBBXSizeQuery.h>
 #include <actionlib/server/simple_action_server.h>
 #include <image_transport/image_transport.h>
 #include <image_geometry/pinhole_camera_model.h>
@@ -167,9 +167,9 @@ class Collider {
   bool dummyReset(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
   // occupancy queries:
   bool octomapSrv(octomap_ros::GetOctomap::Request  &req, octomap_ros::GetOctomap::Response &res);
-  bool occupancyPointSrv(collision_environment_msgs::OccupancyPointQuery::Request &req, collision_environment_msgs::OccupancyPointQuery::Response &res);
-  bool occupancyBBXSrv(collision_environment_msgs::OccupancyBBXQuery::Request &req, collision_environment_msgs::OccupancyBBXQuery::Response &res);
-  bool occupancyBBXSizeSrv(collision_environment_msgs::OccupancyBBXSizeQuery::Request &req, collision_environment_msgs::OccupancyBBXSizeQuery::Response &res);
+  bool occupancyPointSrv(collider::OccupancyPointQuery::Request &req, collider::OccupancyPointQuery::Response &res);
+  bool occupancyBBXSrv(collider::OccupancyBBXQuery::Request &req, collider::OccupancyBBXQuery::Response &res);
+  bool occupancyBBXSizeSrv(collider::OccupancyBBXSizeQuery::Request &req, collider::OccupancyBBXSizeQuery::Response &res);
 
 
 
