@@ -39,8 +39,8 @@
 #include <planning_environment/monitors/planning_monitor.h>
 #include <collision_proximity/collision_proximity_space.h>
 #include <kinematics_msgs/GetKinematicSolverInfo.h>
-#include <planning_environment_msgs/GetPlanningScene.h>
-#include <planning_environment_msgs/GetRobotState.h>
+#include <arm_navigation_msgs/GetPlanningScene.h>
+#include <arm_navigation_msgs/GetRobotState.h>
 #include <planning_environment/models/model_utils.h>
 
 static const std::string planning_scene_name = "/environment_server/get_planning_scene";      
@@ -97,19 +97,19 @@ int main(int argc, char** argv)
   }
 
   collision_proximity::CollisionProximitySpace* cps = new collision_proximity::CollisionProximitySpace(robot_description_name);
-  ros::ServiceClient planning_scene_client = nh.serviceClient<planning_environment_msgs::GetPlanningScene>(planning_scene_name, true);      
+  ros::ServiceClient planning_scene_client = nh.serviceClient<arm_navigation_msgs::GetPlanningScene>(planning_scene_name, true);      
   ros::service::waitForService(planning_scene_name);
 
-  planning_environment_msgs::GetPlanningScene::Request ps_req;
-  planning_environment_msgs::GetPlanningScene::Response ps_res;
+  arm_navigation_msgs::GetPlanningScene::Request ps_req;
+  arm_navigation_msgs::GetPlanningScene::Response ps_res;
 
-  mapping_msgs::CollisionObject obj1;
+  arm_navigation_msgs::CollisionObject obj1;
   obj1.header.stamp = ros::Time::now();
   obj1.header.frame_id = "odom_combined";
   obj1.id = "obj1";
-  obj1.operation.operation = mapping_msgs::CollisionObjectOperation::ADD;
+  obj1.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
   obj1.shapes.resize(1);
-  obj1.shapes[0].type = geometric_shapes_msgs::Shape::BOX;
+  obj1.shapes[0].type = arm_navigation_msgs::Shape::BOX;
   obj1.shapes[0].dimensions.resize(3);
   obj1.shapes[0].dimensions[0] = .1;
   obj1.shapes[0].dimensions[1] = .1;
@@ -120,7 +120,7 @@ int main(int argc, char** argv)
   obj1.poses[0].position.z = .375;
   obj1.poses[0].orientation.w = 1.0;
 
-  mapping_msgs::AttachedCollisionObject att_obj;
+  arm_navigation_msgs::AttachedCollisionObject att_obj;
   att_obj.object = obj1;
   att_obj.object.header.stamp = ros::Time::now();
   att_obj.object.header.frame_id = "r_gripper_palm_link";
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
   att_obj.touch_links.push_back("r_forearm_link");
   att_obj.touch_links.push_back("r_gripper_motor_accelerometer_link");
   att_obj.object.id = "obj2";
-  att_obj.object.shapes[0].type = geometric_shapes_msgs::Shape::CYLINDER;
+  att_obj.object.shapes[0].type = arm_navigation_msgs::Shape::CYLINDER;
   att_obj.object.shapes[0].dimensions.resize(2);
   att_obj.object.shapes[0].dimensions[0] = .025;
   att_obj.object.shapes[0].dimensions[1] = .5;
@@ -148,8 +148,8 @@ int main(int argc, char** argv)
   ps_req.collision_object_diffs.push_back(obj1);
   ps_req.attached_collision_object_diffs.push_back(att_obj);
 
-  planning_environment_msgs::GetRobotState::Request rob_state_req;
-  planning_environment_msgs::GetRobotState::Response rob_state_res;
+  arm_navigation_msgs::GetRobotState::Request rob_state_req;
+  arm_navigation_msgs::GetRobotState::Response rob_state_res;
 
   ros::Rate slow_wait(1.0);
   while(1) {
@@ -166,7 +166,7 @@ int main(int argc, char** argv)
 
   ROS_INFO("After test");
   
-  ros::ServiceClient robot_state_service = nh.serviceClient<planning_environment_msgs::GetRobotState>(robot_state_name, true);      
+  ros::ServiceClient robot_state_service = nh.serviceClient<arm_navigation_msgs::GetRobotState>(robot_state_name, true);      
   ros::service::waitForService(robot_state_name);
 
   planning_models::KinematicState* state = cps->setupForGroupQueries("right_arm_and_end_effector",

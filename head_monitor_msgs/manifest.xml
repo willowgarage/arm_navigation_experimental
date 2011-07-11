@@ -9,7 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/head_monitor_msgs</url>
   <depend package="actionlib_msgs"/>
-  <depend package="motion_planning_msgs"/>
+  <depend package="arm_navigation_msgs"/>
 
 </package>
 

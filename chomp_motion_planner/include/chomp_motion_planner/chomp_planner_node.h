@@ -39,10 +39,10 @@
 
 #include <ros/ros.h>
 
-#include <motion_planning_msgs/GetMotionPlan.h>
-#include <motion_planning_msgs/convert_messages.h>
+#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <arm_navigation_msgs/convert_messages.h>
 
-#include <motion_planning_msgs/FilterJointTrajectoryWithConstraints.h>
+#include <arm_navigation_msgs/FilterJointTrajectoryWithConstraints.h>
 
 #include <chomp_motion_planner/chomp_robot_model.h>
 #include <chomp_motion_planner/chomp_parameters.h>
@@ -88,9 +88,9 @@ public:
   /**
    * \brief Main entry point for motion planning (callback for the plan_kinematic_path service)
    */
-  bool planKinematicPath(motion_planning_msgs::GetMotionPlan::Request &req, motion_planning_msgs::GetMotionPlan::Response &res);
+  bool planKinematicPath(arm_navigation_msgs::GetMotionPlan::Request &req, arm_navigation_msgs::GetMotionPlan::Response &res);
 
-  bool filterJointTrajectory(motion_planning_msgs::FilterJointTrajectoryWithConstraints::Request &req, motion_planning_msgs::FilterJointTrajectoryWithConstraints::Response &res);
+  bool filterJointTrajectory(arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request &req, arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response &res);
   
 private:
   ros::NodeHandle node_handle_, root_handle_;                         /**< ROS Node handle */
@@ -115,11 +115,11 @@ private:
   int maximum_spline_points_;
   int minimum_spline_points_;
 
-  std::map<std::string, motion_planning_msgs::JointLimits> joint_limits_;
+  std::map<std::string, arm_navigation_msgs::JointLimits> joint_limits_;
   void getLimits(const trajectory_msgs::JointTrajectory& trajectory, 
-                 std::vector<motion_planning_msgs::JointLimits>& limits_out);
+                 std::vector<arm_navigation_msgs::JointLimits>& limits_out);
 
-  //filters::FilterChain<motion_planning_msgs::FilterJointTrajectoryWithConstraints::Request> filter_constraints_chain_;
+  //filters::FilterChain<arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request> filter_constraints_chain_;
   ros::ServiceClient filter_trajectory_client_;
 
 };

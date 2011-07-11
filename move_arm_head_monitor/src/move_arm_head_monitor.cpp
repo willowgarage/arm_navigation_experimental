@@ -42,7 +42,7 @@
 #include <planning_environment/monitors/kinematic_model_state_monitor.h>
 #include <planning_environment/models/model_utils.h>
 #include <planning_environment/monitors/monitor_utils.h>
-#include <motion_planning_msgs/convert_messages.h>
+#include <arm_navigation_msgs/convert_messages.h>
 #include <angles/angles.h>
 #include "planning_environment/util/construct_object.h"
 
@@ -298,9 +298,9 @@ public:
 
       collision_models_interface_->setAlteredAllowedCollisionMatrix(acm);
     }
-    motion_planning_msgs::Constraints empty_constraints;
-    motion_planning_msgs::ArmNavigationErrorCodes error_code;
-    std::vector<motion_planning_msgs::ArmNavigationErrorCodes> trajectory_error_codes;
+    arm_navigation_msgs::Constraints empty_constraints;
+    arm_navigation_msgs::ArmNavigationErrorCodes error_code;
+    std::vector<arm_navigation_msgs::ArmNavigationErrorCodes> trajectory_error_codes;
     
     ros::Time n2 = ros::Time::now();
     if(!collision_models_interface_->isJointTrajectoryValid(state, 
@@ -351,9 +351,9 @@ public:
         monitor_feedback_.paused_collision_map.header.frame_id = collision_models_interface_->getWorldFrameId();
         monitor_feedback_.paused_collision_map.header.stamp = cloud2->header.stamp;
         monitor_feedback_.paused_collision_map.id = "point_spheres";
-        monitor_feedback_.paused_collision_map.operation.operation = mapping_msgs::CollisionObjectOperation::ADD;
+        monitor_feedback_.paused_collision_map.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
         for (unsigned int j = 0 ; j < spheres.size(); ++j) {
-          geometric_shapes_msgs::Shape obj;
+          arm_navigation_msgs::Shape obj;
           if (planning_environment::constructObjectMsg(spheres[j], obj)) {
             geometry_msgs::Pose pose;
             tf::poseTFToMsg(positions[j], pose);
@@ -361,7 +361,7 @@ public:
             monitor_feedback_.paused_collision_map.poses.push_back(pose);
           }
         }
-        std::vector<planning_environment_msgs::ContactInformation> contacts;
+        std::vector<arm_navigation_msgs::ContactInformation> contacts;
         collision_models_interface_->getAllCollisionsForState(state, contacts, 1);
         if(contacts.size() == 0) {
           ROS_INFO_STREAM("No contacts for last trajectory state");
@@ -503,7 +503,7 @@ public:
     if(goal->motion_plan_request.goal_constraints.position_constraints.size() >= 1
        && goal->motion_plan_request.goal_constraints.orientation_constraints.size() >= 1) {
       geometry_msgs::PoseStamped goal_pose 
-        = motion_planning_msgs::poseConstraintsToPoseStamped(goal->motion_plan_request.goal_constraints.position_constraints[0],
+        = arm_navigation_msgs::poseConstraintsToPoseStamped(goal->motion_plan_request.goal_constraints.position_constraints[0],
                                                              goal->motion_plan_request.goal_constraints.orientation_constraints[0]);
 
       std::string es;

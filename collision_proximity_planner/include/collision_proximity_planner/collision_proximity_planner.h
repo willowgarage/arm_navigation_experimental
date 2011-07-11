@@ -54,12 +54,12 @@
 #include <kdl/frames.hpp>
 
 // ROS msgs
-#include <motion_planning_msgs/FilterJointTrajectory.h>
-#include <motion_planning_msgs/RobotTrajectory.h>
-#include <motion_planning_msgs/RobotState.h>
+#include <arm_navigation_msgs/FilterJointTrajectory.h>
+#include <arm_navigation_msgs/RobotTrajectory.h>
+#include <arm_navigation_msgs/RobotState.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <motion_planning_msgs/GetMotionPlan.h>
-#include <motion_planning_msgs/DisplayTrajectory.h>
+#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <arm_navigation_msgs/DisplayTrajectory.h>
 
 // Arm Navigation
 #include <spline_smoother/cubic_trajectory.h>
@@ -77,11 +77,11 @@ namespace collision_proximity_planner
 
     virtual ~CollisionProximityPlanner();    
 
-    void fillInGroupState(motion_planning_msgs::RobotState &robot_state,
-                          const motion_planning_msgs::RobotState &group_state);
+    void fillInGroupState(arm_navigation_msgs::RobotState &robot_state,
+                          const arm_navigation_msgs::RobotState &group_state);
 
-    bool findPathToFreeState(const motion_planning_msgs::RobotState &robot_state, 
-                             motion_planning_msgs::RobotTrajectory &robot_trajectory);
+    bool findPathToFreeState(const arm_navigation_msgs::RobotState &robot_state, 
+                             arm_navigation_msgs::RobotTrajectory &robot_trajectory);
 
     /**
      * @brief Set the robot state that you want to check. Note that this locks the collision space 
@@ -89,7 +89,7 @@ namespace collision_proximity_planner
      * @param robot_state The full robot state.
      * @return True if setting robot state was successful
      */
-    bool setRobotState(const motion_planning_msgs::RobotState &robot_state);
+    bool setRobotState(const arm_navigation_msgs::RobotState &robot_state);
 
     /**
      * @brief Set a group state. This must be called before you can make multiple queries to refineState below.
@@ -97,19 +97,19 @@ namespace collision_proximity_planner
      * the internal group state for more efficiency.
      * @param group_state 
      */
-    bool setGroupState(const motion_planning_msgs::RobotState &group_state);
+    bool setGroupState(const arm_navigation_msgs::RobotState &group_state);
 
     /**
      * @brief Given a robot state, get the gradient direction to be moved in.
      * @param joint_state_group The group state that needs to be refined
      * @return True if a valid refinement was found, false otherwise
      */
-    bool getStateGradient(const motion_planning_msgs::RobotState &group_state,
+    bool getStateGradient(const arm_navigation_msgs::RobotState &group_state,
                           double &distance,
-                          motion_planning_msgs::RobotState &gradient);
+                          arm_navigation_msgs::RobotState &gradient);
 
-    bool refineState(const motion_planning_msgs::RobotState &group_state, 
-                     motion_planning_msgs::RobotTrajectory &robot_trajectory);
+    bool refineState(const arm_navigation_msgs::RobotState &group_state, 
+                     arm_navigation_msgs::RobotTrajectory &robot_trajectory);
 
     void clear();
 
@@ -118,7 +118,7 @@ namespace collision_proximity_planner
 
     bool initializeForGroup(const std::string& group_name);
 
-    bool mapGroupState(const motion_planning_msgs::RobotState &group_state,const std::vector<int>& mapping);
+    bool mapGroupState(const arm_navigation_msgs::RobotState &group_state,const std::vector<int>& mapping);
     bool calculateCollisionIncrements(Eigen::MatrixXd &collision_increments, double &distance);
     void isParentJoint(const int& link_index, const int& joint_index);
     void setPlanningMonitorToCurrentState();
@@ -131,11 +131,11 @@ namespace collision_proximity_planner
                           const std::vector<int> &group_joint_to_kdl_joint_index,
                           KDL::JntArray &jnt_array);
     void updateGroupRobotState(const KDL::JntArray &jnt_array);
-    void updateCollisionProximitySpace(const motion_planning_msgs::RobotState &group_state);
+    void updateCollisionProximitySpace(const arm_navigation_msgs::RobotState &group_state);
     void kdlJointTrajectoryToRobotTrajectory(std::vector<KDL::JntArray> &jnt_trajectory,
-                                             motion_planning_msgs::RobotTrajectory &robot_trajectory);
+                                             arm_navigation_msgs::RobotTrajectory &robot_trajectory);
 
-    motion_planning_msgs::RobotState robot_state_group_;
+    arm_navigation_msgs::RobotState robot_state_group_;
 
     ros::NodeHandle private_handle_, root_handle_;
     collision_proximity::CollisionProximitySpace* cps_;
@@ -180,8 +180,8 @@ namespace collision_proximity_planner
                      const std::vector<int>& group_joint_to_kdl_joint_index) const;
     inline bool isParentJoint(const int& link_index, const int& joint_index) const;
 
-    bool getFreePath(motion_planning_msgs::GetMotionPlan::Request &req,
-                     motion_planning_msgs::GetMotionPlan::Response &res);
+    bool getFreePath(arm_navigation_msgs::GetMotionPlan::Request &req,
+                     arm_navigation_msgs::GetMotionPlan::Response &res);
 
     ros::ServiceServer planning_service_;
 

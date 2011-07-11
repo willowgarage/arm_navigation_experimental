@@ -40,7 +40,7 @@
 #include <std_srvs/Empty.h>
 #include <std_msgs/Header.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <mapping_msgs/CollisionMap.h>
+#include <arm_navigation_msgs/CollisionMap.h>
 #include <tf/transform_listener.h>
 #include <tf/message_filter.h>
 #include <message_filters/subscriber.h>
@@ -58,8 +58,8 @@
 #include <boost/bind.hpp>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
-#include <mapping_msgs/AttachedCollisionObject.h>
-#include <collision_environment_msgs/MakeStaticCollisionMapAction.h>
+#include <arm_navigation_msgs/AttachedCollisionObject.h>
+#include <arm_navigation_msgs/MakeStaticCollisionMapAction.h>
 #include <collider/OccupancyPointQuery.h>
 #include <collider/OccupancyBBXQuery.h>
 #include <collider/OccupancyBBXSizeQuery.h>
@@ -139,8 +139,8 @@ class Collider {
                     const sensor_msgs::PointCloud2::ConstPtr &cloud_raw, const std::string topic_name);
   void cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr &cam_info);
 
-  void attachedObjectCallback(const mapping_msgs::AttachedCollisionObjectConstPtr& attached_object);
-  void objectCallback(const mapping_msgs::CollisionObjectConstPtr& object);
+  void attachedObjectCallback(const arm_navigation_msgs::AttachedCollisionObjectConstPtr& attached_object);
+  void objectCallback(const arm_navigation_msgs::CollisionObjectConstPtr& object);
 
   // obstacle cleaning
   void degradeOutdatedRaycasting(const std_msgs::Header& sensor_header, const octomap::point3d& sensor_origin, octomap::OcTreeStamped& tree);
@@ -163,7 +163,7 @@ class Collider {
 
   // action server
   bool reset(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
-  void makeStaticCollisionMap(const collision_environment_msgs::MakeStaticCollisionMapGoalConstPtr& goal);
+  void makeStaticCollisionMap(const arm_navigation_msgs::MakeStaticCollisionMapGoalConstPtr& goal);
   bool dummyReset(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
   // occupancy queries:
   bool octomapSrv(octomap_ros::GetOctomap::Request  &req, octomap_ros::GetOctomap::Response &res);
@@ -180,8 +180,8 @@ class Collider {
   std::vector<tf::MessageFilter<sensor_msgs::PointCloud2>* > message_filters_;
 
   planning_environment::CollisionModels *cm_;
-  message_filters::Subscriber<mapping_msgs::AttachedCollisionObject> *attached_collision_object_subscriber_;
-  message_filters::Subscriber<mapping_msgs::CollisionObject> *collision_object_subscriber_;
+  message_filters::Subscriber<arm_navigation_msgs::AttachedCollisionObject> *attached_collision_object_subscriber_;
+  message_filters::Subscriber<arm_navigation_msgs::CollisionObject> *collision_object_subscriber_;
 
   ros::NodeHandle root_handle_;
 
@@ -249,7 +249,7 @@ class Collider {
 	  }
   }
 
-  boost::shared_ptr<actionlib::SimpleActionServer<collision_environment_msgs::MakeStaticCollisionMapAction> > action_server_;	
+  boost::shared_ptr<actionlib::SimpleActionServer<arm_navigation_msgs::MakeStaticCollisionMapAction> > action_server_;	
 
   // Time synchronized, dual input (raw+filtered)
   std::vector<message_filters::Subscriber<sensor_msgs::PointCloud2>* > sub_filtered_clouds_;

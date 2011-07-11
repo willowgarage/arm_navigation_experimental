@@ -4,7 +4,7 @@ PKG = 'move_arm'
 
 import roslib; roslib.load_manifest(PKG)
 import rospy
-import planning_environment_msgs.srv
+import arm_navigation_msgs.srv
 import sys
 import unittest
 import actionlib
@@ -12,15 +12,15 @@ import actionlib_msgs
 import math
 
 import sensor_msgs.msg
-import mapping_msgs.msg
-from mapping_msgs.msg import CollisionObject
-from motion_planning_msgs.msg import CollisionOperation
-from geometric_shapes_msgs.msg import Shape
+import arm_navigation_msgs.msg
+from arm_navigation_msgs.msg import CollisionObject
+from arm_navigation_msgs.msg import CollisionOperation
+from arm_navigation_msgs.msg import Shape
 from geometry_msgs.msg import Pose, PointStamped
-from move_arm_msgs.msg import MoveArmGoal, MoveArmAction
+from arm_navigation_msgs.msg import MoveArmGoal, MoveArmAction
 from tf import TransformListener
-from motion_planning_msgs.msg import JointConstraint
-from planning_environment_msgs import planning_environment_msgs_utils
+from arm_navigation_msgs.msg import JointConstraint
+from arm_navigation_msgs import arm_navigation_msgs_utils
 
 padd_name = "ompl_planning/robot_padd"
 extra_buffer = .1
@@ -44,7 +44,7 @@ class TestMotionExecutionBuffer(unittest.TestCase):
         obj1.header.stamp = rospy.Time.now()
         obj1.header.frame_id = "base_link"
         obj1.id = "obj1";
-        obj1.operation.operation = mapping_msgs.msg.CollisionObjectOperation.ADD
+        obj1.operation.operation = arm_navigation_msgs.msg.CollisionObjectOperation.ADD
         obj1.shapes = [Shape() for _ in range(1)]
         obj1.shapes[0].type = Shape.CYLINDER
         obj1.shapes[0].dimensions = [float() for _ in range(2)]
@@ -68,7 +68,7 @@ class TestMotionExecutionBuffer(unittest.TestCase):
         obj1.header.stamp = rospy.Time.now()
         obj1.header.frame_id = "base_link"
         obj1.id = "all";
-        obj1.operation.operation = mapping_msgs.msg.CollisionObjectOperation.REMOVE
+        obj1.operation.operation = arm_navigation_msgs.msg.CollisionObjectOperation.REMOVE
 
         self.obj_pub.publish(obj1)
         
@@ -169,7 +169,7 @@ class TestMotionExecutionBuffer(unittest.TestCase):
         obj2.header.stamp = rospy.Time.now()
         obj2.header.frame_id = "base_link"
         obj2.id = "base_object"
-        obj2.operation.operation = mapping_msgs.msg.CollisionObjectOperation.ADD
+        obj2.operation.operation = arm_navigation_msgs.msg.CollisionObjectOperation.ADD
         obj2.shapes = [Shape() for _ in range(1)]
         obj2.shapes[0].type = Shape.BOX
         obj2.shapes[0].dimensions = [float() for _ in range(3)]

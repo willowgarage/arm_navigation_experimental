@@ -6,9 +6,9 @@ duration time_offset
 string target_link
 ---
 trajectory_msgs/JointTrajectory actual_trajectory
-motion_planning_msgs/ArmNavigationErrorCodes error_code
+arm_navigation_msgs/ArmNavigationErrorCodes error_code
 ---
-motion_planning_msgs/RobotState current_state
-motion_planning_msgs/RobotState paused_trajectory_state
-mapping_msgs/CollisionObject paused_collision_map
+arm_navigation_msgs/RobotState current_state
+arm_navigation_msgs/RobotState paused_trajectory_state
+arm_navigation_msgs/CollisionObject paused_collision_map
 

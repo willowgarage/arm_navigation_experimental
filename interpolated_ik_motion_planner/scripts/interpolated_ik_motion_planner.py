@@ -53,7 +53,7 @@
 # Parameters can be changed by calling the r_interpolated_ik_motion_plan_set_params service (or l_inter...)
 
 
-# The main service message is GetMotionPlan.srv, in motion_planning_msgs.  Parts that were hijacked 
+# The main service message is GetMotionPlan.srv, in arm_navigation_msgs.  Parts that were hijacked 
 # for the relevant inputs and outputs:
 
 # inputs:
@@ -93,8 +93,8 @@ import interpolated_ik_motion_planner.ik_utilities as ik_utilities
 import math
 import sys
 import pdb
-from motion_planning_msgs.srv import GetMotionPlan, GetMotionPlanResponse
-from motion_planning_msgs.msg import ArmNavigationErrorCodes, RobotState
+from arm_navigation_msgs.srv import GetMotionPlan, GetMotionPlanResponse
+from arm_navigation_msgs.msg import ArmNavigationErrorCodes, RobotState
 from geometry_msgs.msg import PoseStamped, PointStamped, QuaternionStamped, Pose, Point, Quaternion
 from trajectory_msgs.msg import JointTrajectoryPoint
 from interpolated_ik_motion_planner.srv import SetInterpolatedIKMotionPlanParams, SetInterpolatedIKMotionPlanParamsResponse

@@ -40,9 +40,9 @@
 
 #include <mongo_ros/message_collection.h>
 
-#include <planning_environment_msgs/PlanningScene.h>
-#include <motion_planning_msgs/MotionPlanRequest.h>
-#include <motion_planning_msgs/ArmNavigationErrorCodes.h>
+#include <arm_navigation_msgs/PlanningScene.h>
+#include <arm_navigation_msgs/MotionPlanRequest.h>
+#include <arm_navigation_msgs/ArmNavigationErrorCodes.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <head_monitor_msgs/HeadMonitorFeedback.h>
 
@@ -61,22 +61,22 @@ public:
   /// LOGGING FUNCTIONS
   ///
 
-  void pushPlanningSceneToWarehouse(const planning_environment_msgs::PlanningScene planning_scene);
+  void pushPlanningSceneToWarehouse(const arm_navigation_msgs::PlanningScene planning_scene);
 
-  void pushMotionPlanRequestToWarehouse(const planning_environment_msgs::PlanningScene& planning_scene,
+  void pushMotionPlanRequestToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                         const std::string& stage_name,
-                                        const motion_planning_msgs::MotionPlanRequest& motion_plan_request);
+                                        const arm_navigation_msgs::MotionPlanRequest& motion_plan_request);
     
-  void pushJointTrajectoryToWarehouse(const planning_environment_msgs::PlanningScene& planning_scene,
+  void pushJointTrajectoryToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                       const std::string& trajectory_source,
                                       const ros::Duration& production_time, 
                                       const trajectory_msgs::JointTrajectory& trajectory);
     
-  void pushOutcomeToWarehouse(const planning_environment_msgs::PlanningScene& planning_scene,
+  void pushOutcomeToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                               const std::string& pipeline_stage,
-                              const motion_planning_msgs::ArmNavigationErrorCodes& error_codes);
+                              const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes);
   
-  void pushPausedStateToWarehouse(const planning_environment_msgs::PlanningScene& planning_scene,
+  void pushPausedStateToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                   const head_monitor_msgs::HeadMonitorFeedback& feedback);
 
   ///
@@ -86,12 +86,12 @@ public:
   void getAvailablePlanningSceneList(const std::string& hostname, std::vector<ros::Time>& creation_times);
 
   bool getPlanningScene(const std::string& hostname, const ros::Time& time, 
-                        planning_environment_msgs::PlanningScene& planning_scene);
+                        arm_navigation_msgs::PlanningScene& planning_scene);
 
   bool getAssociatedOutcomes(const std::string& hostname,
                              const ros::Time& time,
                              std::vector<std::string>& pipeline_names,
-                             std::vector<motion_planning_msgs::ArmNavigationErrorCodes>& error_codes);
+                             std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes);
 
   bool getAssociatedMotionPlanRequestsStageNames(const std::string& hostname, 
                                                  const ros::Time& time,
@@ -100,7 +100,7 @@ public:
   bool getAssociatedMotionPlanRequest(const std::string& hostname, 
                                       const ros::Time& time,
                                       const std::string& stage_name,
-                                      motion_planning_msgs::MotionPlanRequest& request);
+                                      arm_navigation_msgs::MotionPlanRequest& request);
 
   bool getAssociatedJointTrajectorySources(const std::string& hostname, 
                                            const ros::Time& time,
@@ -126,14 +126,14 @@ protected:
 
   mongo_ros::Metadata initializeMetadataWithHostname();
 
-  void addPlanningSceneTimeToMetadata(const planning_environment_msgs::PlanningScene& planning_scene, mongo_ros::Metadata& metadata);
+  void addPlanningSceneTimeToMetadata(const arm_navigation_msgs::PlanningScene& planning_scene, mongo_ros::Metadata& metadata);
 
   mongo_ros::Query makeQueryForPlanningSceneTime(const ros::Time& time);
 
-  mongo_ros::MessageCollection<planning_environment_msgs::PlanningScene>* planning_scene_collection_;
-  mongo_ros::MessageCollection<motion_planning_msgs::MotionPlanRequest>* motion_plan_request_collection_;
+  mongo_ros::MessageCollection<arm_navigation_msgs::PlanningScene>* planning_scene_collection_;
+  mongo_ros::MessageCollection<arm_navigation_msgs::MotionPlanRequest>* motion_plan_request_collection_;
   mongo_ros::MessageCollection<trajectory_msgs::JointTrajectory>* trajectory_collection_;
-  mongo_ros::MessageCollection<motion_planning_msgs::ArmNavigationErrorCodes>* outcome_collection_;
+  mongo_ros::MessageCollection<arm_navigation_msgs::ArmNavigationErrorCodes>* outcome_collection_;
   mongo_ros::MessageCollection<head_monitor_msgs::HeadMonitorFeedback>* paused_state_collection_;
   
   std::string hostname_;

@@ -46,8 +46,8 @@
 #include <kdl/tree.hpp>
 #include <kdl/chain.hpp>
 #include <boost/shared_ptr.hpp>
-#include <mapping_msgs/AttachedCollisionObject.h>
-#include <motion_planning_msgs/RobotState.h>
+#include <arm_navigation_msgs/AttachedCollisionObject.h>
+#include <arm_navigation_msgs/RobotState.h>
 
 #include <sensor_msgs/JointState.h>
 
@@ -199,9 +199,9 @@ public:
   /**
    * \brief Callback for information about objects attached to the robot
    */
-  void attachedObjectCallback(const mapping_msgs::AttachedCollisionObjectConstPtr& attached_object);
+  void attachedObjectCallback(const arm_navigation_msgs::AttachedCollisionObjectConstPtr& attached_object);
 
-  void generateAttachedObjectCollisionPoints(const motion_planning_msgs::RobotState* robot_state);
+  void generateAttachedObjectCollisionPoints(const arm_navigation_msgs::RobotState* robot_state);
   void generateLinkCollisionPoints();
   void populatePlanningGroupCollisionPoints();
 
@@ -225,10 +225,10 @@ private:
   std::map<std::string, std::vector<ChompCollisionPoint> > link_collision_points_;    /**< Collision points associated with every link */
   std::map<std::string, std::vector<ChompCollisionPoint> > link_attached_object_collision_points_;    /**< Collision points associated with the objects attached to every link */
   double max_radius_clearance_;                                 /**< Maximum value of radius + clearance for any of the collision points */
-  std::map<std::string, mapping_msgs::AttachedCollisionObject> attached_objects_;        /**< Map of links -> attached objects */
+  std::map<std::string, arm_navigation_msgs::AttachedCollisionObject> attached_objects_;        /**< Map of links -> attached objects */
 
   void addCollisionPointsFromLink(const planning_models::KinematicState& state, std::string link_name, double clearance);
-  //void addCollisionPointsFromAttachedObject(std::string link_name, mapping_msgs::AttachedCollisionObject& attached_object);
+  //void addCollisionPointsFromAttachedObject(std::string link_name, arm_navigation_msgs::AttachedCollisionObject& attached_object);
   void getLinkInformation(const std::string link_name, std::vector<int>& active_joints, int& segment_number);
 
 //  void getActiveJointsSegmentNumberForLink(std::string link_name, 

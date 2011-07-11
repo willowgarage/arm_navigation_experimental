@@ -50,12 +50,12 @@ bool CollisionProximityPlannerPlugin::setGroupName(const std::string &group_name
   return(planner_.initialize(group_name));
 }
 
-bool CollisionProximityPlannerPlugin::refineState(const motion_planning_msgs::RobotState &robot_state,
-                                                  const motion_planning_msgs::Constraints &constraints,
-                                                  motion_planning_msgs::RobotState &group_state)
+bool CollisionProximityPlannerPlugin::refineState(const arm_navigation_msgs::RobotState &robot_state,
+                                                  const arm_navigation_msgs::Constraints &constraints,
+                                                  arm_navigation_msgs::RobotState &group_state)
 {
-  motion_planning_msgs::RobotTrajectory robot_trajectory;
-  motion_planning_msgs::RobotState current_state = robot_state;
+  arm_navigation_msgs::RobotTrajectory robot_trajectory;
+  arm_navigation_msgs::RobotState current_state = robot_state;
   planner_.fillInGroupState(current_state,group_state);
   bool solution_found = planner_.findPathToFreeState(current_state,robot_trajectory);
   if(!robot_trajectory.joint_trajectory.points.empty())
@@ -67,30 +67,30 @@ bool CollisionProximityPlannerPlugin::refineState(const motion_planning_msgs::Ro
   return solution_found;
 }
 
-bool CollisionProximityPlannerPlugin::setRobotState(const motion_planning_msgs::RobotState &robot_state)
+bool CollisionProximityPlannerPlugin::setRobotState(const arm_navigation_msgs::RobotState &robot_state)
 {
   return planner_.setRobotState(robot_state);
 }
 
-bool CollisionProximityPlannerPlugin::setGroupState(const motion_planning_msgs::RobotState &group_state)
+bool CollisionProximityPlannerPlugin::setGroupState(const arm_navigation_msgs::RobotState &group_state)
 {
   return planner_.setGroupState(group_state);
 }
 
-bool CollisionProximityPlannerPlugin::setConstraints(const motion_planning_msgs::Constraints &constraints)
+bool CollisionProximityPlannerPlugin::setConstraints(const arm_navigation_msgs::Constraints &constraints)
 {
   return true;
 }
 
-bool CollisionProximityPlannerPlugin::refineState(motion_planning_msgs::RobotState &group_state,
-                                                  motion_planning_msgs::RobotTrajectory &robot_trajectory)
+bool CollisionProximityPlannerPlugin::refineState(arm_navigation_msgs::RobotState &group_state,
+                                                  arm_navigation_msgs::RobotTrajectory &robot_trajectory)
 {
   return planner_.refineState(group_state,robot_trajectory);
 }
 
-void CollisionProximityPlannerPlugin::getStateGradient(const motion_planning_msgs::RobotState &group_state,
+void CollisionProximityPlannerPlugin::getStateGradient(const arm_navigation_msgs::RobotState &group_state,
                                                        double &distance,
-                                                       motion_planning_msgs::RobotState &gradient)
+                                                       arm_navigation_msgs::RobotState &gradient)
 {
   planner_.getStateGradient(group_state,distance,gradient);
 }

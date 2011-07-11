@@ -99,8 +99,8 @@ Collider::Collider(): root_handle_(""), pruning_counter_(0), transparent_freespa
   octomap_visualization_free_pub_ = root_handle_.advertise<visualization_msgs::Marker>("free_cells", 10);
   octomap_visualization_attached_pub_ = root_handle_.advertise<visualization_msgs::Marker>("attached_objects", 10);
   octomap_visualization_attached_array_pub_ = root_handle_.advertise<visualization_msgs::MarkerArray>("attached_objects_array", 10);
-  cmap_publisher_ = root_handle_.advertise<mapping_msgs::CollisionMap>("collision_map_out", 1, true);
-  static_map_publisher_ = root_handle_.advertise<mapping_msgs::CollisionMap>("collision_map_occ_static", 1);
+  cmap_publisher_ = root_handle_.advertise<arm_navigation_msgs::CollisionMap>("collision_map_out", 1, true);
+  static_map_publisher_ = root_handle_.advertise<arm_navigation_msgs::CollisionMap>("collision_map_occ_static", 1);
   pointcloud_publisher_ = root_handle_.advertise<sensor_msgs::PointCloud2>("point_cloud_out", 1, true);
   
   color_occupied_.r = 0;
@@ -318,16 +318,16 @@ Collider::Collider(): root_handle_(""), pruning_counter_(0), transparent_freespa
     }
   }
 
-  attached_collision_object_subscriber_ = new message_filters::Subscriber<mapping_msgs::AttachedCollisionObject>(root_handle_, "attached_collision_object", 1024);	
+  attached_collision_object_subscriber_ = new message_filters::Subscriber<arm_navigation_msgs::AttachedCollisionObject>(root_handle_, "attached_collision_object", 1024);	
   attached_collision_object_subscriber_->registerCallback(boost::bind(&Collider::attachedObjectCallback, this, _1));    
 
-  collision_object_subscriber_ = new message_filters::Subscriber<mapping_msgs::CollisionObject>(root_handle_, "collision_object", 1024);	
+  collision_object_subscriber_ = new message_filters::Subscriber<arm_navigation_msgs::CollisionObject>(root_handle_, "collision_object", 1024);	
   collision_object_subscriber_->registerCallback(boost::bind(&Collider::objectCallback, this, _1));    
 
   reset_service_ = priv.advertiseService("reset", &Collider::reset, this);
   dummy_reset_service_ = priv.advertiseService("dummy_reset", &Collider::dummyReset, this);
 
-  action_server_.reset( new actionlib::SimpleActionServer<collision_environment_msgs::MakeStaticCollisionMapAction>(root_handle_, "make_static_collision_map", boost::bind(&Collider::makeStaticCollisionMap, this, _1), false));
+  action_server_.reset( new actionlib::SimpleActionServer<arm_navigation_msgs::MakeStaticCollisionMapAction>(root_handle_, "make_static_collision_map", boost::bind(&Collider::makeStaticCollisionMap, this, _1), false));
   action_server_->start();
 
   // queries on the map:
@@ -358,11 +358,11 @@ Collider::~Collider() {
   }
 }
 
-void Collider::attachedObjectCallback(const mapping_msgs::AttachedCollisionObjectConstPtr& attached_object) {
+void Collider::attachedObjectCallback(const arm_navigation_msgs::AttachedCollisionObjectConstPtr& attached_object) {
   planning_environment::processAttachedCollisionObjectMsg(attached_object, tf_, cm_);
 }
 
-void Collider::objectCallback(const mapping_msgs::CollisionObjectConstPtr& object) {
+void Collider::objectCallback(const arm_navigation_msgs::CollisionObjectConstPtr& object) {
   planning_environment::processCollisionObjectMsg(object, tf_, cm_);
 }
 
@@ -1044,10 +1044,10 @@ void Collider::publishCollisionMap(const std::vector<geometry_msgs::Point>& poin
   if(pointlist.size() <= 1)
     return;
   
-  mapping_msgs::CollisionMap cmap;
+  arm_navigation_msgs::CollisionMap cmap;
   cmap.header = header;
 
-  mapping_msgs::OrientedBoundingBox box;
+  arm_navigation_msgs::OrientedBoundingBox box;
   box.extents.x = box.extents.y = box.extents.z = collision_octree_->getResolution();
   box.axis.x = box.axis.y = 0.0; box.axis.z = 1.0;
   box.angle = 0.0;
@@ -1130,7 +1130,7 @@ bool Collider::dummyReset(std_srvs::Empty::Request &req, std_srvs::Empty::Respon
 }
 
 
-void Collider::makeStaticCollisionMap(const collision_environment_msgs::MakeStaticCollisionMapGoalConstPtr& goal) {
+void Collider::makeStaticCollisionMap(const arm_navigation_msgs::MakeStaticCollisionMapGoalConstPtr& goal) {
 
   std_msgs::Header head;
   head.stamp = ros::Time::now();

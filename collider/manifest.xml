@@ -13,10 +13,9 @@
   <depend package="octomap_ros" />  
   <depend package="tf"/>
   <depend package="visualization_msgs"/>
-  <depend package="mapping_msgs"/>
+  <depend package="arm_navigation_msgs"/>
   <depend package="std_msgs"/>
   <depend package="std_srvs"/>
-  <depend package="collision_environment_msgs"/>
   <depend package="actionlib"/>
   <depend package="actionlib_msgs"/>
   <depend package="pcl"/>

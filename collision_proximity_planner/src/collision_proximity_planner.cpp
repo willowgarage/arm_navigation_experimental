@@ -105,8 +105,8 @@ bool CollisionProximityPlanner::initializeForGroup(const std::string& group_name
   return true;
 }
 
-bool CollisionProximityPlanner::getFreePath(motion_planning_msgs::GetMotionPlan::Request &req,
-                                            motion_planning_msgs::GetMotionPlan::Response &res)
+bool CollisionProximityPlanner::getFreePath(arm_navigation_msgs::GetMotionPlan::Request &req,
+                                            arm_navigation_msgs::GetMotionPlan::Response &res)
 {
   ROS_INFO("Computing free path");
   clear();
@@ -143,8 +143,8 @@ void CollisionProximityPlanner::clear()
   joint_array_group_group_state_mapping_.clear();
 }
 
-void CollisionProximityPlanner::fillInGroupState(motion_planning_msgs::RobotState &robot_state,
-                                                 const motion_planning_msgs::RobotState &group_state)
+void CollisionProximityPlanner::fillInGroupState(arm_navigation_msgs::RobotState &robot_state,
+                                                 const arm_navigation_msgs::RobotState &group_state)
 {
   for(unsigned int i=0; i < group_state.joint_state.name.size(); i++)
   {
@@ -175,8 +175,8 @@ void CollisionProximityPlanner::fillInGroupArray(const KDL::JntArray &jnt_array_
     jnt_array(group_joint_to_kdl_joint_index[i]) = jnt_array_group(i);
 }
 
-bool CollisionProximityPlanner::findPathToFreeState(const motion_planning_msgs::RobotState &robot_state, 
-                                                    motion_planning_msgs::RobotTrajectory &robot_trajectory)
+bool CollisionProximityPlanner::findPathToFreeState(const arm_navigation_msgs::RobotState &robot_state, 
+                                                    arm_navigation_msgs::RobotTrajectory &robot_trajectory)
 {
   std::vector<KDL::JntArray> jnt_trajectory;
   Eigen::MatrixXd collision_increments;
@@ -221,7 +221,7 @@ bool CollisionProximityPlanner::findPathToFreeState(const motion_planning_msgs::
   return true;
 }
 
-bool CollisionProximityPlanner::setGroupState(const motion_planning_msgs::RobotState &group_state)
+bool CollisionProximityPlanner::setGroupState(const arm_navigation_msgs::RobotState &group_state)
 {
   int joints_found = 0;
   group_state_joint_array_group_mapping_.resize(num_joints_);
@@ -242,7 +242,7 @@ bool CollisionProximityPlanner::setGroupState(const motion_planning_msgs::RobotS
   return true;
 }
 
-bool CollisionProximityPlanner::mapGroupState(const motion_planning_msgs::RobotState &group_state,
+bool CollisionProximityPlanner::mapGroupState(const arm_navigation_msgs::RobotState &group_state,
                                               const std::vector<int>& mapping)
 {
   if((int) group_state.joint_state.name.size() < num_joints_ || (int) group_state.joint_state.position.size() < num_joints_)
@@ -255,9 +255,9 @@ bool CollisionProximityPlanner::mapGroupState(const motion_planning_msgs::RobotS
   return true;
 }
 
-bool CollisionProximityPlanner::getStateGradient(const motion_planning_msgs::RobotState &group_state,
+bool CollisionProximityPlanner::getStateGradient(const arm_navigation_msgs::RobotState &group_state,
                                                  double &distance,
-                                                 motion_planning_msgs::RobotState &gradient)
+                                                 arm_navigation_msgs::RobotState &gradient)
 {
   Eigen::MatrixXd collision_increments;
   if(!mapGroupState(group_state,group_state_joint_array_group_mapping_))
@@ -273,8 +273,8 @@ bool CollisionProximityPlanner::getStateGradient(const motion_planning_msgs::Rob
   return true;
 }
 
-bool CollisionProximityPlanner::refineState(const motion_planning_msgs::RobotState &group_state,
-                                            motion_planning_msgs::RobotTrajectory &robot_trajectory)
+bool CollisionProximityPlanner::refineState(const arm_navigation_msgs::RobotState &group_state,
+                                            arm_navigation_msgs::RobotTrajectory &robot_trajectory)
 {
   std::vector<KDL::JntArray> jnt_trajectory;
   Eigen::MatrixXd collision_increments;
@@ -312,7 +312,7 @@ bool CollisionProximityPlanner::refineState(const motion_planning_msgs::RobotSta
 };
 
 void CollisionProximityPlanner::kdlJointTrajectoryToRobotTrajectory(std::vector<KDL::JntArray> &jnt_trajectory,
-                                                                    motion_planning_msgs::RobotTrajectory &robot_trajectory)
+                                                                    arm_navigation_msgs::RobotTrajectory &robot_trajectory)
 {
   robot_trajectory.joint_trajectory.header.frame_id = reference_frame_;
   robot_trajectory.joint_trajectory.header.stamp = ros::Time::now();
@@ -332,7 +332,7 @@ void CollisionProximityPlanner::updateGroupRobotState(const KDL::JntArray &jnt_a
   for(int i=0; i < num_joints_; i++)
     robot_state_group_.joint_state.position[i] = jnt_array(i);
 }
-void CollisionProximityPlanner::updateCollisionProximitySpace(const motion_planning_msgs::RobotState &group_state)
+void CollisionProximityPlanner::updateCollisionProximitySpace(const arm_navigation_msgs::RobotState &group_state)
 {
   planning_environment::setRobotStateAndComputeTransforms(group_state, *cps_->getCollisionModelsInterface()->getPlanningSceneState());
   cps_->setCurrentGroupState(*cps_->getCollisionModelsInterface()->getPlanningSceneState());

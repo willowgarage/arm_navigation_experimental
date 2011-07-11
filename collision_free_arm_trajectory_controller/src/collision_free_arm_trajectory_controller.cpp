@@ -36,13 +36,13 @@
 
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
-#include <planning_environment_msgs/GetRobotState.h>
-#include <motion_planning_msgs/FilterJointTrajectory.h>
-#include <planning_environment_msgs/GetJointTrajectoryValidity.h>
+#include <arm_navigation_msgs/GetRobotState.h>
+#include <arm_navigation_msgs/FilterJointTrajectory.h>
+#include <arm_navigation_msgs/GetJointTrajectoryValidity.h>
 #include <pr2_controllers_msgs/JointTrajectoryAction.h>
 #include <actionlib/client/action_client.h>
 
-#include <motion_planning_msgs/convert_messages.h>
+#include <arm_navigation_msgs/convert_messages.h>
 
 #include <boost/thread/condition.hpp>
 #include <boost/scoped_ptr.hpp>
@@ -73,9 +73,9 @@ public:
     ros::service::waitForService("filter_trajectory");
     ros::service::waitForService("get_robot_state");
 
-    check_trajectory_validity_client_ = node_handle_.serviceClient<planning_environment_msgs::GetJointTrajectoryValidity>("get_execution_safety",true);
-    filter_trajectory_client_ = node_handle_.serviceClient<motion_planning_msgs::FilterJointTrajectory>("filter_trajectory",true);      
-    get_state_client_ = node_handle_.serviceClient<planning_environment_msgs::GetRobotState>("get_robot_state",true);
+    check_trajectory_validity_client_ = node_handle_.serviceClient<arm_navigation_msgs::GetJointTrajectoryValidity>("get_execution_safety",true);
+    filter_trajectory_client_ = node_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectory>("filter_trajectory",true);      
+    get_state_client_ = node_handle_.serviceClient<arm_navigation_msgs::GetRobotState>("get_robot_state",true);
 
     std::string traj_action_name, group_name;
     private_handle_.param<std::string>("traj_action_name", traj_action_name, "action");
@@ -169,8 +169,8 @@ public:
 
   bool isTrajectoryValid(const trajectory_msgs::JointTrajectory &traj)
   {
-    planning_environment_msgs::GetJointTrajectoryValidity::Request req;
-    planning_environment_msgs::GetJointTrajectoryValidity::Response res;
+    arm_navigation_msgs::GetJointTrajectoryValidity::Request req;
+    arm_navigation_msgs::GetJointTrajectoryValidity::Response res;
         
     ROS_DEBUG("Received trajectory has %d points with %d joints",(int) traj.points.size(),(int)traj.joint_names.size());
     trajectory_msgs::JointTrajectory traj_discretized;
@@ -266,8 +266,8 @@ public:
 
   bool filterTrajectory(trajectory_msgs::JointTrajectory &trajectory)
   {
-    motion_planning_msgs::FilterJointTrajectory::Request  req;
-    motion_planning_msgs::FilterJointTrajectory::Response res;
+    arm_navigation_msgs::FilterJointTrajectory::Request  req;
+    arm_navigation_msgs::FilterJointTrajectory::Response res;
     req.trajectory = trajectory;
     if(filter_trajectory_client_.call(req,res))
     {
@@ -306,7 +306,7 @@ public:
     {
       trajectory_msgs::JointTrajectory start_segment;
       start_segment.points.resize(2);
-      start_segment.points[0].positions = motion_planning_msgs::jointStateToJointTrajectoryPoint(current).positions;
+      start_segment.points[0].positions = arm_navigation_msgs::jointStateToJointTrajectoryPoint(current).positions;
       start_segment.points[0].time_from_start = ros::Duration(0.0);
       start_segment.points[1] = goal.trajectory.points[0];
       start_segment.joint_names = goal.trajectory.joint_names;
@@ -326,10 +326,10 @@ public:
     return true;
   }
 
-  bool getRobotState(motion_planning_msgs::RobotState &robot_state)
+  bool getRobotState(arm_navigation_msgs::RobotState &robot_state)
   {
-    planning_environment_msgs::GetRobotState::Request req;
-    planning_environment_msgs::GetRobotState::Response res;
+    arm_navigation_msgs::GetRobotState::Request req;
+    arm_navigation_msgs::GetRobotState::Response res;
     if(get_state_client_.call(req,res))
     {
       robot_state = res.robot_state;

@@ -244,11 +244,11 @@ void CollisionProximitySpace::loadRobotBodyDecompositions()
   }
 }
 
-bool CollisionProximitySpace::setPlanningScene(const planning_environment_msgs::PlanningScene& scene) {
+bool CollisionProximitySpace::setPlanningScene(const arm_navigation_msgs::PlanningScene& scene) {
   return(collision_models_interface_->setPlanningSceneWithCallbacks(scene));
 }
 
-void CollisionProximitySpace::setPlanningSceneCallback(const planning_environment_msgs::PlanningScene& scene) 
+void CollisionProximitySpace::setPlanningSceneCallback(const arm_navigation_msgs::PlanningScene& scene) 
 {
   ros::WallTime n1 = ros::WallTime::now();
   deleteAllStaticObjectDecompositions();
@@ -263,7 +263,7 @@ void CollisionProximitySpace::setPlanningSceneCallback(const planning_environmen
 }
 
 void CollisionProximitySpace::setupForGroupQueries(const std::string& group_name,
-                                                   const motion_planning_msgs::RobotState& rob_state,
+                                                   const arm_navigation_msgs::RobotState& rob_state,
                                                    std::vector<std::string>& link_names,
                                                    std::vector<std::string>& attached_body_names)
 {

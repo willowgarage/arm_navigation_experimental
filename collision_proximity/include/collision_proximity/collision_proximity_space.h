@@ -66,7 +66,7 @@ public:
   //this function sets up the collision proximity space for making a series of 
   //proximity collision or gradient queries for the indicated group
   void setupForGroupQueries(const std::string& group_name,
-                            const motion_planning_msgs::RobotState& rob_state,
+                            const arm_navigation_msgs::RobotState& rob_state,
                             std::vector<std::string>& link_names,
                             std::vector<std::string>& attached_body_names);
 
@@ -149,7 +149,7 @@ public:
     return collision_models_interface_;
   }
 
-  bool setPlanningScene(const planning_environment_msgs::PlanningScene& planning_scene);
+  bool setPlanningScene(const arm_navigation_msgs::PlanningScene& planning_scene);
 
   const std::string& getCurrentGroupName() const {
     return current_group_name_;
@@ -170,7 +170,7 @@ public:
   }
 
   // Set to public to allow user to manually call these if callback overriden
-  void setPlanningSceneCallback(const planning_environment_msgs::PlanningScene& scene);
+  void setPlanningSceneCallback(const arm_navigation_msgs::PlanningScene& scene);
   void revertPlanningSceneCallback();
 
 private:

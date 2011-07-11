@@ -37,9 +37,9 @@
 #ifndef CHOMP_COLLISION_SPACE_H_
 #define CHOMP_COLLISION_SPACE_H_
 
-#include <mapping_msgs/CollisionMap.h>
-#include <mapping_msgs/CollisionObject.h>
-#include <motion_planning_msgs/RobotState.h>
+#include <arm_navigation_msgs/CollisionMap.h>
+#include <arm_navigation_msgs/CollisionObject.h>
+#include <arm_navigation_msgs/RobotState.h>
 
 #include <tf/message_filter.h>
 #include <message_filters/subscriber.h>
@@ -92,9 +92,9 @@ public:
   /**
    * \brief Callback for CollisionMap messages
    */
-  //void collisionMapCallback(const mapping_msgs::CollisionMapConstPtr& collision_map);
+  //void collisionMapCallback(const arm_navigation_msgs::CollisionMapConstPtr& collision_map);
 
-  //void collisionObjectCallback(const mapping_msgs::CollisionObjectConstPtr &collisionObject);
+  //void collisionObjectCallback(const arm_navigation_msgs::CollisionObjectConstPtr &collisionObject);
 
   /**
    * \brief Initializes the collision space, listens for messages, etc
@@ -116,7 +116,7 @@ public:
   double getDistanceGradient(double x, double y, double z,
       double& gradient_x, double& gradient_y, double& gradient_z) const;
 
-  void setStartState(const ChompRobotModel::ChompPlanningGroup& planning_group, const motion_planning_msgs::RobotState& robot_state);
+  void setStartState(const ChompRobotModel::ChompPlanningGroup& planning_group, const arm_navigation_msgs::RobotState& robot_state);
 
   inline void worldToGrid(btVector3 origin, double wx, double wy, double wz, int &gx, int &gy, int &gz) const;
 
@@ -142,12 +142,12 @@ private:
   ros::NodeHandle node_handle_, root_handle_;
   distance_field::PropagationDistanceField* distance_field_;
 
-  //  tf::MessageNotifier<mapping_msgs::CollisionMap> *collision_map_notifier_;
-  //message_filters::Subscriber<mapping_msgs::CollisionMap> collision_map_subscriber_;
-  //tf::MessageFilter<mapping_msgs::CollisionMap> *collision_map_filter_;
-  //tf::MessageNotifier<mapping_msgs::CollisionMap> *collision_map_update_notifier_;
-  //message_filters::Subscriber<mapping_msgs::CollisionObject>         *collision_object_subscriber_;
-  //tf::MessageFilter<mapping_msgs::CollisionObject>                   *collision_object_filter_;
+  //  tf::MessageNotifier<arm_navigation_msgs::CollisionMap> *collision_map_notifier_;
+  //message_filters::Subscriber<arm_navigation_msgs::CollisionMap> collision_map_subscriber_;
+  //tf::MessageFilter<arm_navigation_msgs::CollisionMap> *collision_map_filter_;
+  //tf::MessageNotifier<arm_navigation_msgs::CollisionMap> *collision_map_update_notifier_;
+  //message_filters::Subscriber<arm_navigation_msgs::CollisionObject>         *collision_object_subscriber_;
+  //tf::MessageFilter<arm_navigation_msgs::CollisionObject>                   *collision_object_filter_;
 
   std::string reference_frame_;
   boost::mutex mutex_;

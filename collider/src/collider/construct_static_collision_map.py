@@ -13,7 +13,7 @@ from pr2_controllers_msgs.msg import \
     SingleJointPositionAction, SingleJointPositionGoal
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import PointCloud2
-from collision_environment_msgs.msg import MakeStaticCollisionMapAction, MakeStaticCollisionMapGoal
+from arm_navigation_msgs.msg import MakeStaticCollisionMapAction, MakeStaticCollisionMapGoal
 from collider.msg import ConstructStaticCollisionMapAction
 
 import numpy as np

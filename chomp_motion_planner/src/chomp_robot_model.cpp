@@ -42,7 +42,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 using namespace std;
-using namespace mapping_msgs;
+using namespace arm_navigation_msgs;
 
 namespace chomp
 {
@@ -360,7 +360,7 @@ void ChompRobotModel::getLinkCollisionPoints(std::string link_name, std::vector<
   points = it->second;
 }
 
-// void ChompRobotModel::attachedObjectCallback(const mapping_msgs::AttachedCollisionObjectConstPtr& attached_object)
+// void ChompRobotModel::attachedObjectCallback(const arm_navigation_msgs::AttachedCollisionObjectConstPtr& attached_object)
 // {
 //   attached_objects_[attached_object->link_name] =  *attached_object;
 //   generateCollisionPoints();
@@ -400,7 +400,7 @@ void ChompRobotModel::generateLinkCollisionPoints()
   }
 }
 
-void ChompRobotModel::generateAttachedObjectCollisionPoints(const motion_planning_msgs::RobotState* robot_state) {
+void ChompRobotModel::generateAttachedObjectCollisionPoints(const arm_navigation_msgs::RobotState* robot_state) {
 
   if(robot_state == NULL) {
     ROS_ERROR("Must have robot state to generate collision points from attached objects");
@@ -527,7 +527,7 @@ void ChompRobotModel::populatePlanningGroupCollisionPoints() {
   }
 }
 
-// void ChompRobotModel::addCollisionPointsFromAttachedObject(std::string link_name, mapping_msgs::AttachedCollisionObject& attached_object)
+// void ChompRobotModel::addCollisionPointsFromAttachedObject(std::string link_name, arm_navigation_msgs::AttachedCollisionObject& attached_object)
 // {
 //   std::vector<int> active_joints(num_kdl_joints_, 0);
 //   int segment_number;
@@ -539,9 +539,9 @@ void ChompRobotModel::populatePlanningGroupCollisionPoints() {
 //   {
 //     if (attached_object.object.poses.size()<=i)
 //       break;
-//     geometric_shapes_msgs::Shape& object = attached_object.object.shapes[i];
+//     arm_navigation_msgs::Shape& object = attached_object.object.shapes[i];
 //     geometry_msgs::Pose& pose = attached_object.object.poses[i];
-//     if (object.type == geometric_shapes_msgs::Shape::CYLINDER)
+//     if (object.type == arm_navigation_msgs::Shape::CYLINDER)
 //     {
 //       if (object.dimensions.size()<2)
 //         continue;

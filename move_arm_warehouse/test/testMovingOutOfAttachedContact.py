@@ -4,7 +4,7 @@ PKG = 'move_arm'
 
 import roslib; roslib.load_manifest(PKG)
 import rospy
-import planning_environment_msgs.srv
+import arm_navigation_msgs.srv
 import sys
 import unittest
 import actionlib
@@ -12,14 +12,14 @@ import actionlib_msgs
 import math
 
 import sensor_msgs.msg
-import mapping_msgs.msg
-from mapping_msgs.msg import CollisionObject, AttachedCollisionObject
-from motion_planning_msgs.msg import CollisionOperation
-from geometric_shapes_msgs.msg import Shape
+import arm_navigation_msgs.msg
+from arm_navigation_msgs.msg import CollisionObject, AttachedCollisionObject
+from arm_navigation_msgs.msg import CollisionOperation
+from arm_navigation_msgs.msg import Shape
 from geometry_msgs.msg import Pose, PointStamped
-from move_arm_msgs.msg import MoveArmGoal, MoveArmAction
+from arm_navigation_msgs.msg import MoveArmGoal, MoveArmAction
 from tf import TransformListener
-from motion_planning_msgs.msg import JointConstraint
+from arm_navigation_msgs.msg import JointConstraint
 
 class TestMotionExecutionBuffer(unittest.TestCase):
 
@@ -44,7 +44,7 @@ class TestMotionExecutionBuffer(unittest.TestCase):
         obj1.header.stamp = rospy.Time.now()-rospy.Duration(.1)
         obj1.header.frame_id = "base_footprint"
         obj1.id = "obj2";
-        obj1.operation.operation = mapping_msgs.msg.CollisionObjectOperation.ADD
+        obj1.operation.operation = arm_navigation_msgs.msg.CollisionObjectOperation.ADD
         obj1.shapes = [Shape() for _ in range(3)]
         obj1.poses = [Pose() for _ in range(3)]
 
@@ -93,7 +93,7 @@ class TestMotionExecutionBuffer(unittest.TestCase):
         att_object.object.header.stamp = rospy.Time.now()
         att_object.object.header.frame_id = "r_gripper_r_finger_tip_link"
         att_object.link_name = "r_gripper_r_finger_tip_link"
-        att_object.object.operation.operation = mapping_msgs.msg.CollisionObjectOperation.ADD
+        att_object.object.operation.operation = arm_navigation_msgs.msg.CollisionObjectOperation.ADD
         att_object.object = CollisionObject();
 
         att_object.object.header.stamp = rospy.Time.now()

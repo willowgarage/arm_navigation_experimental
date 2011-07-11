@@ -6,12 +6,14 @@
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/arm_navigation_experimental</url>
-  <depend stack="arm_navigation" /> <!-- motion_planning_msgs, move_arm_msgs, planning_environment, planning_models, spline_smoother, robot_self_filter, geometric_shapes_msgs, collision_environment_msgs, planning_environment_msgs, kinematics_msgs, mapping_msgs, geometric_shapes -->
-  <depend stack="common" /> <!-- actionlib, filters -->
+  <depend stack="arm_navigation" /> <!-- planning_environment, planning_models, spline_smoother, robot_self_filter, kinematics_msgs, geometric_shapes, arm_navigation_msgs -->
+  <depend stack="bullet" /> <!-- bullet -->
+  <depend stack="common" /> <!-- actionlib -->
   <depend stack="common_msgs" /> <!-- geometry_msgs, actionlib_msgs, trajectory_msgs, sensor_msgs, visualization_msgs -->
   <depend stack="control" /> <!-- control_msgs -->
   <depend stack="eigen" /> <!-- eigen -->
-  <depend stack="geometry" /> <!-- tf, tf_conversions, bullet, angles -->
+  <depend stack="filters" /> <!-- filters -->
+  <depend stack="geometry" /> <!-- tf, tf_conversions, angles -->
   <depend stack="image_common" /> <!-- image_transport -->
   <depend stack="octomap_mapping" /> <!-- octomap, octomap_ros -->
   <depend stack="orocos_kinematics_dynamics" /> <!-- kdl -->

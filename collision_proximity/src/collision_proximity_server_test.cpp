@@ -37,8 +37,8 @@
 #include <ros/ros.h>
 #include <collision_proximity/collision_proximity_space.h>
 #include <planning_environment/models/model_utils.h>
-#include <motion_planning_msgs/GetMotionPlan.h>
-#include <planning_environment_msgs/GetStateValidity.h>
+#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <arm_navigation_msgs/GetStateValidity.h>
 
 struct CollisionProximitySpacePlannerInterface
 {
@@ -62,8 +62,8 @@ struct CollisionProximitySpacePlannerInterface
     delete cps_;
   }
   
-  bool motionPlanCallback(motion_planning_msgs::GetMotionPlan::Request &req,
-                          motion_planning_msgs::GetMotionPlan::Response &res)
+  bool motionPlanCallback(arm_navigation_msgs::GetMotionPlan::Request &req,
+                          arm_navigation_msgs::GetMotionPlan::Response &res)
   {
     if(!req.motion_plan_request.group_name.empty()) {
       cps_->setupForGroupQueries(req.motion_plan_request.group_name,
@@ -76,8 +76,8 @@ struct CollisionProximitySpacePlannerInterface
     return true;
   }
 
-  bool getStateValidity(planning_environment_msgs::GetStateValidity::Request &req, 
-                        planning_environment_msgs::GetStateValidity::Response &res) 
+  bool getStateValidity(arm_navigation_msgs::GetStateValidity::Request &req, 
+                        arm_navigation_msgs::GetStateValidity::Response &res) 
   {
     cps_->getCollisionModelsInterface()->bodiesLock();
     if(!cps_->getCollisionModelsInterface()->isPlanningSceneSet()) {

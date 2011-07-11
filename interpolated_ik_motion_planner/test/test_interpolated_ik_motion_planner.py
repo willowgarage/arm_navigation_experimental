@@ -4,8 +4,8 @@
 import roslib
 roslib.load_manifest('interpolated_ik_motion_planner')
 import rospy
-from motion_planning_msgs.srv import GetMotionPlanRequest, GetMotionPlanResponse, GetMotionPlan
-from motion_planning_msgs.msg import PositionConstraint, OrientationConstraint, ArmNavigationErrorCodes, OrderedCollisionOperations, CollisionOperation
+from arm_navigation_msgs.srv import GetMotionPlanRequest, GetMotionPlanResponse, GetMotionPlan
+from arm_navigation_msgs.msg import PositionConstraint, OrientationConstraint, ArmNavigationErrorCodes, OrderedCollisionOperations, CollisionOperation
 from geometry_msgs.msg import PoseStamped, PointStamped, QuaternionStamped, Pose, Point, Quaternion
 from interpolated_ik_motion_planner.srv import SetInterpolatedIKMotionPlanParams
 import math

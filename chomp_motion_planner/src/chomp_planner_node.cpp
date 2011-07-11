@@ -43,7 +43,7 @@
 #include <angles/angles.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <spline_smoother/cubic_trajectory.h>
-#include <motion_planning_msgs/FilterJointTrajectory.h>
+#include <arm_navigation_msgs/FilterJointTrajectory.h>
 
 #include <map>
 #include <vector>
@@ -55,7 +55,7 @@ namespace chomp
 {
 
 ChompPlannerNode::ChompPlannerNode(ros::NodeHandle node_handle) : node_handle_(node_handle)
-                                                                  //filter_constraints_chain_("motion_planning_msgs::FilterJointTrajectoryWithConstraints::Request")
+                                                                  //filter_constraints_chain_("arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request")
 {
 
 }
@@ -126,7 +126,7 @@ bool ChompPlannerNode::init()
   filter_joint_trajectory_service_ = root_handle_.advertiseService("chomp_planner_longrange/filter_trajectory_with_constraints", &ChompPlannerNode::filterJointTrajectory, this);
 
   if(use_trajectory_filter_) {
-    filter_trajectory_client_ = root_handle_.serviceClient<motion_planning_msgs::FilterJointTrajectoryWithConstraints>("trajectory_filter/filter_trajectory_with_constraints");    
+    filter_trajectory_client_ = root_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectoryWithConstraints>("trajectory_filter/filter_trajectory_with_constraints");    
   
     ros::service::waitForService("trajectory_filter/filter_trajectory_with_constraints");
   }
@@ -148,7 +148,7 @@ int ChompPlannerNode::run()
   return 0;
 }
 
-bool ChompPlannerNode::planKinematicPath(motion_planning_msgs::GetMotionPlan::Request &req, motion_planning_msgs::GetMotionPlan::Response &res)
+bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Request &req, arm_navigation_msgs::GetMotionPlan::Response &res)
 {
   if (!(req.motion_plan_request.goal_constraints.position_constraints.empty() && req.motion_plan_request.goal_constraints.orientation_constraints.empty()))
   {
@@ -156,7 +156,7 @@ bool ChompPlannerNode::planKinematicPath(motion_planning_msgs::GetMotionPlan::Re
     return false;
   }
 
-  sensor_msgs::JointState joint_goal_chomp = motion_planning_msgs::jointConstraintsToJointState(req.motion_plan_request.goal_constraints.joint_constraints);
+  sensor_msgs::JointState joint_goal_chomp = arm_navigation_msgs::jointConstraintsToJointState(req.motion_plan_request.goal_constraints.joint_constraints);
   ROS_INFO("Chomp goal");
 
   if(joint_goal_chomp.name.size() != joint_goal_chomp.position.size())
@@ -201,7 +201,7 @@ bool ChompPlannerNode::planKinematicPath(motion_planning_msgs::GetMotionPlan::Re
   // joint constraints
   int goal_index = trajectory.getNumPoints()-1;
   trajectory.getTrajectoryPoint(goal_index) = trajectory.getTrajectoryPoint(0);
-  chomp_robot_model_.jointStateToArray(motion_planning_msgs::jointConstraintsToJointState(req.motion_plan_request.goal_constraints.joint_constraints), trajectory.getTrajectoryPoint(goal_index));
+  chomp_robot_model_.jointStateToArray(arm_navigation_msgs::jointConstraintsToJointState(req.motion_plan_request.goal_constraints.joint_constraints), trajectory.getTrajectoryPoint(goal_index));
 
   // fix the goal to move the shortest angular distance for wrap-around joints:
   for (int i=0; i<group->num_joints_; i++)
@@ -279,7 +279,7 @@ bool ChompPlannerNode::planKinematicPath(motion_planning_msgs::GetMotionPlan::Re
   return true;
 }
 
-bool ChompPlannerNode::filterJointTrajectory(motion_planning_msgs::FilterJointTrajectoryWithConstraints::Request &req, motion_planning_msgs::FilterJointTrajectoryWithConstraints::Response &res)
+bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request &req, arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response &res)
 {
   ros::WallTime start_time = ros::WallTime::now();
   ROS_INFO_STREAM("Received filtering request with trajectory size " << req.trajectory.points.size());
@@ -366,7 +366,7 @@ bool ChompPlannerNode::filterJointTrajectory(motion_planning_msgs::FilterJointTr
   ChompTrajectory trajectory(&chomp_robot_model_, group, jtraj);
 
   //configure the distance field - this should just use current state
-  motion_planning_msgs::RobotState robot_state;
+  arm_navigation_msgs::RobotState robot_state;
   monitor_->getCurrentRobotState(robot_state);
 
   chomp_robot_model_.jointStateToArray(robot_state.joint_state, trajectory.getTrajectoryPoint(0));
@@ -383,7 +383,7 @@ bool ChompPlannerNode::filterJointTrajectory(motion_planning_msgs::FilterJointTr
   int goal_index = trajectory.getNumPoints()-1;
   trajectory.getTrajectoryPoint(goal_index) = trajectory.getTrajectoryPoint(0);
 
-  sensor_msgs::JointState goal_state = motion_planning_msgs::createJointState(req.trajectory.joint_names, jtraj.points.back().positions);
+  sensor_msgs::JointState goal_state = arm_navigation_msgs::createJointState(req.trajectory.joint_names, jtraj.points.back().positions);
 
   chomp_robot_model_.jointStateToArray(goal_state, trajectory.getTrajectoryPoint(goal_index));
   
@@ -468,8 +468,8 @@ bool ChompPlannerNode::filterJointTrajectory(motion_planning_msgs::FilterJointTr
       }
     }
   }
-  motion_planning_msgs::FilterJointTrajectoryWithConstraints::Request  next_req;
-  motion_planning_msgs::FilterJointTrajectoryWithConstraints::Response next_res;
+  arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request  next_req;
+  arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response next_res;
 
   if(use_trajectory_filter_) {
     next_req = req;
@@ -515,14 +515,14 @@ bool ChompPlannerNode::filterJointTrajectory(motion_planning_msgs::FilterJointTr
 }
 
 void ChompPlannerNode::getLimits(const trajectory_msgs::JointTrajectory& trajectory, 
-                                 std::vector<motion_planning_msgs::JointLimits>& limits_out)
+                                 std::vector<arm_navigation_msgs::JointLimits>& limits_out)
 {
   int num_joints = trajectory.joint_names.size();
   limits_out.resize(num_joints);
   for (int i=0; i<num_joints; ++i)
   {
-    std::map<std::string, motion_planning_msgs::JointLimits>::const_iterator limit_it = joint_limits_.find(trajectory.joint_names[i]);
-    motion_planning_msgs::JointLimits limits;
+    std::map<std::string, arm_navigation_msgs::JointLimits>::const_iterator limit_it = joint_limits_.find(trajectory.joint_names[i]);
+    arm_navigation_msgs::JointLimits limits;
     if (limit_it == joint_limits_.end())
     {
       // load the limits from the param server

@@ -155,11 +155,11 @@ bool ChompCollisionSpace::init(planning_environment::CollisionSpaceMonitor* moni
     }
   }
 
- //  collision_map_filter_ = new tf::MessageFilter<mapping_msgs::CollisionMap>(collision_map_subscriber_,tf_,reference_frame_,1);
+ //  collision_map_filter_ = new tf::MessageFilter<arm_navigation_msgs::CollisionMap>(collision_map_subscriber_,tf_,reference_frame_,1);
 //   collision_map_filter_->registerCallback(boost::bind(&ChompCollisionSpace::collisionMapCallback, this, _1));
 
-//   collision_object_subscriber_ = new message_filters::Subscriber<mapping_msgs::CollisionObject>(root_handle_, "collision_object", 1024);
-//   collision_object_filter_ = new tf::MessageFilter<mapping_msgs::CollisionObject>(*collision_object_subscriber_, tf_, reference_frame_, 1024);
+//   collision_object_subscriber_ = new message_filters::Subscriber<arm_navigation_msgs::CollisionObject>(root_handle_, "collision_object", 1024);
+//   collision_object_filter_ = new tf::MessageFilter<arm_navigation_msgs::CollisionObject>(*collision_object_subscriber_, tf_, reference_frame_, 1024);
 //   collision_object_filter_->registerCallback(boost::bind(&ChompCollisionSpace::collisionObjectCallback, this, _1));
 
 
@@ -167,7 +167,7 @@ bool ChompCollisionSpace::init(planning_environment::CollisionSpaceMonitor* moni
   return true;
 }
 
-void ChompCollisionSpace::setStartState(const ChompRobotModel::ChompPlanningGroup& planning_group, const motion_planning_msgs::RobotState& robot_state) {
+void ChompCollisionSpace::setStartState(const ChompRobotModel::ChompPlanningGroup& planning_group, const arm_navigation_msgs::RobotState& robot_state) {
 
   ros::WallTime start = ros::WallTime::now();
 
@@ -241,7 +241,7 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
         points.insert(points.end(), body_points.begin(), body_points.end());
         delete body;
       } else {
-        geometric_shapes_msgs::Shape object;
+        arm_navigation_msgs::Shape object;
         if(!planning_environment::constructObjectMsg(no.shape[j], object)) {
           ROS_WARN("Shap cannot be converted");
           continue;
@@ -254,7 +254,7 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
                                                            pose.orientation.w);
         KDL::Vector position(pose.position.x, pose.position.y, pose.position.z);
         KDL::Frame f(rotation, position);
-        if (object.type == geometric_shapes_msgs::Shape::CYLINDER)
+        if (object.type == arm_navigation_msgs::Shape::CYLINDER)
         {
           if (object.dimensions.size() != 2) {
             ROS_INFO_STREAM("Cylinder must have exactly 2 dimensions, not " 
@@ -288,7 +288,7 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
               }
             }
           }
-        } else if (object.type == geometric_shapes_msgs::Shape::BOX) {
+        } else if (object.type == arm_navigation_msgs::Shape::BOX) {
           if(object.dimensions.size() != 3) {
             ROS_INFO_STREAM("Box must have exactly 3 dimensions, not " 
                             << object.dimensions.size());
@@ -315,7 +315,7 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
   }
 }
 
-// void ChompCollisionSpace::collisionMapCallback(const mapping_msgs::CollisionMapConstPtr& collision_map)
+// void ChompCollisionSpace::collisionMapCallback(const arm_navigation_msgs::CollisionMapConstPtr& collision_map)
 // {
 //   return;
 
@@ -340,17 +340,17 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
 //   }
 // }
 
-// void ChompCollisionSpace::collisionObjectCallback(const mapping_msgs::CollisionObjectConstPtr &collisionObject) {
-//   if (collisionObject->operation.operation == mapping_msgs::CollisionObjectOperation::ADD)
+// void ChompCollisionSpace::collisionObjectCallback(const arm_navigation_msgs::CollisionObjectConstPtr &collisionObject) {
+//   if (collisionObject->operation.operation == arm_navigation_msgs::CollisionObjectOperation::ADD)
 //   {
 //     if (mutex_.try_lock())
 //     {
 //       std::vector<btVector3> points;
 //       for (size_t i=0; i<collisionObject->shapes.size(); ++i)
 //       {
-//         const geometric_shapes_msgs::Shape& object = collisionObject->shapes[i];
+//         const arm_navigation_msgs::Shape& object = collisionObject->shapes[i];
 //         const geometry_msgs::Pose& pose = collisionObject->poses[i];
-//         if (object.type == geometric_shapes_msgs::Shape::CYLINDER)
+//         if (object.type == arm_navigation_msgs::Shape::CYLINDER)
 //         {
 //           ROS_INFO("Got cylinder");
 
@@ -400,7 +400,7 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
 //           //  p2 = f*p;
 //           //  points.push_back(btVector3(p2(0), p2(1), p2(2)));
 //           //}
-//         } else if (object.type == geometric_shapes_msgs::Shape::BOX) {
+//         } else if (object.type == arm_navigation_msgs::Shape::BOX) {
 //           if(object.dimensions.size() != 3) {
 //             ROS_INFO_STREAM("Box must have exactly 3 dimensions, not " 
 //                             << object.dimensions.size());
@@ -424,7 +424,7 @@ void ChompCollisionSpace::addCollisionObjectsToPoints(std::vector<btVector3>& po
 //               }
 //             }
 //           }
-//         } else if (object.type == geometric_shapes_msgs::Shape::MESH) {
+//         } else if (object.type == arm_navigation_msgs::Shape::MESH) {
 //           // //adding the vertices themselves
 //           // for(std::vector<geometry_msgs::Point>::const_iterator it = object.vertices.begin();
 //           //     it != object.vertices.end();

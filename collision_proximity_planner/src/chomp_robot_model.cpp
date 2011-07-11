@@ -42,7 +42,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 using namespace std;
-using namespace mapping_msgs;
+using namespace arm_navigation_msgs;
 
 namespace chomp
 {
