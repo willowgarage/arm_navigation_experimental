@@ -39,7 +39,7 @@
 #define MOVE_ARM_UTILS_H
 #include <planning_environment/models/collision_models.h>
 #include <arm_navigation_msgs/PlanningScene.h>
-#include <arm_navigation_msgs/GetPlanningScene.h>
+#include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 #include <planning_environment/models/model_utils.h>
 #include <rosgraph_msgs/Clock.h>
 #include <std_msgs/ColorRGBA.h>
@@ -775,7 +775,7 @@ namespace planning_scene_utils
       std::string planner_service_name_;
       std::string proximity_space_service_name_;
       std::string proximity_space_validity_name_;
-      std::string get_planning_scene_name_;
+      std::string set_planning_scene_diff_name_;
       std::string trajectory_filter_service_name_;
       std::string proximity_space_planner_name_;
       std::string vis_topic_name_;
@@ -831,7 +831,7 @@ namespace planning_scene_utils
       ros::ServiceClient collision_proximity_planner_client_;
       ros::ServiceClient distance_aware_service_client_;
       ros::ServiceClient distance_state_validity_service_client_;
-      ros::ServiceClient get_planning_scene_client_;
+      ros::ServiceClient set_planning_scene_diff_client_;
       ros::ServiceClient left_ik_service_client_;
       ros::ServiceClient left_interpolate_service_client_;
       ros::ServiceClient non_coll_left_ik_service_client_;

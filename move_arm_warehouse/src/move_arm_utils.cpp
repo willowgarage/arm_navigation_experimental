@@ -411,7 +411,7 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   distance_state_validity_service_client_ = nh_.serviceClient<GetStateValidity> (params.proximity_space_validity_name_,
                                                                                  true);
   collision_proximity_planner_client_ = nh_.serviceClient<GetMotionPlan> (params.proximity_space_planner_name_, true);
-  get_planning_scene_client_ = nh_.serviceClient<GetPlanningScene> (params.get_planning_scene_name_);
+  set_planning_scene_diff_client_ = nh_.serviceClient<SetPlanningSceneDiff> (params.set_planning_scene_diff_name_);
 
   (*collision_aware_ik_services_)[params.left_ik_link_] = &left_ik_service_client_;
   (*collision_aware_ik_services_)[params.right_ik_link_] = &right_ik_service_client_;
@@ -1106,8 +1106,8 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   last_collision_set_error_code_.val = 0;
 
 
-  GetPlanningScene::Request planning_scene_req;
-  GetPlanningScene::Response planning_scene_res;
+  SetPlanningSceneDiff::Request planning_scene_req;
+  SetPlanningSceneDiff::Response planning_scene_res;
 
   planning_scene_req.planning_scene_diff = data.getPlanningScene();
   planning_scene_req.planning_scene_diff.collision_objects.clear();
@@ -1145,7 +1145,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   }
 
 
-  if(!get_planning_scene_client_.call(planning_scene_req, planning_scene_res))
+  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res))
   {
     ROS_WARN("Can't get planning scene");
     return false;
