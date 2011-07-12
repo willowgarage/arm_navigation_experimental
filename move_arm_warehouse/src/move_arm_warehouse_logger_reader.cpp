@@ -115,13 +115,15 @@ void MoveArmWarehouseLoggerReader::pushPlanningSceneToWarehouse(const arm_naviga
 
 void MoveArmWarehouseLoggerReader::pushMotionPlanRequestToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                                               const std::string& stage_name,
-                                                              const arm_navigation_msgs::MotionPlanRequest& motion_plan_request)
+                                                              const arm_navigation_msgs::MotionPlanRequest& motion_plan_request,
+                                                              const std::string& ID)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
 
   metadata.append("stage_name", stage_name);
   
+  metadata.append("motion_plan_ID", ID);
   //adding the presence of goal pose constraints to metadata
   metadata.append("has_goal_position_constraints", !motion_plan_request.goal_constraints.position_constraints.empty());
 
@@ -135,25 +137,30 @@ void MoveArmWarehouseLoggerReader::pushMotionPlanRequestToWarehouse(const arm_na
 void MoveArmWarehouseLoggerReader::pushJointTrajectoryToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                                             const std::string& trajectory_source,
                                                             const ros::Duration& production_time,
-                                                            const trajectory_msgs::JointTrajectory& trajectory)
+                                                            const trajectory_msgs::JointTrajectory& trajectory,
+                                                            const std::string& trajectory_ID,
+                                                            const std::string& motion_plan_ID)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
 
   metadata.append("trajectory_source", trajectory_source);
   metadata.append("production_time", production_time.toSec());
- 
+  metadata.append("trajectory_ID", trajectory_ID);
+  metadata.append("trajectory_motion_plan_ID", motion_plan_ID);
   trajectory_collection_->insert(trajectory, metadata);
 }
 
 void MoveArmWarehouseLoggerReader::pushOutcomeToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                                     const std::string& pipeline_stage,
-                                                    const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes)
+                                                    const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes,
+                                                    const std::string& trajectory_ID)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
 
   metadata.append("pipeline_stage", pipeline_stage);
+  metadata.append("outcome_trajectory_ID", trajectory_ID);
   outcome_collection_->insert(error_codes, metadata);
 }
 
@@ -217,7 +224,8 @@ bool MoveArmWarehouseLoggerReader::getPlanningScene(const std::string& hostname,
 bool MoveArmWarehouseLoggerReader::getAssociatedOutcomes(const std::string& hostname,
                                                    const ros::Time& time,
                                                    std::vector<std::string>& pipeline_names,
-                                                   std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes)
+                                                   std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes,
+                                                   std::vector<std::string>& trajectory_IDs)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   std::vector<ErrorCodesWithMetadata> meta_error_codes = outcome_collection_->pullAllResults(q, false);
@@ -228,10 +236,11 @@ bool MoveArmWarehouseLoggerReader::getAssociatedOutcomes(const std::string& host
   } 
   error_codes.resize(meta_error_codes.size());
   pipeline_names.resize(meta_error_codes.size());
-
+  trajectory_IDs.resize(meta_error_codes.size());
   for(unsigned int i = 0; i < meta_error_codes.size(); i++) {
     pipeline_names[i] = meta_error_codes[i]->lookupString("pipeline_stage");
     error_codes[i] = *meta_error_codes[i];
+    trajectory_IDs[i] = meta_error_codes[i]->lookupString("outcome_trajectory_ID");
   }
   return true;
 }
@@ -258,7 +267,8 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequestsStageNames(con
 bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequest(const std::string& hostname, 
                                                             const ros::Time& time,
                                                             const std::string& stage_name,
-                                                            arm_navigation_msgs::MotionPlanRequest& request)
+                                                            arm_navigation_msgs::MotionPlanRequest& request,
+                                                            std::string& ID_out)
 {  
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   q.append("stage_name", stage_name);
@@ -272,6 +282,26 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequest(const std::str
     return false;
   }
   request = *motion_plan_requests[0];
+  ID_out = motion_plan_requests[0]->lookupString("motion_plan_ID");
+  return true;
+}
+
+bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequests(const std::string& hostname,
+                                     const ros::Time& time,
+                                     std::vector<std::string>& stage_names,
+                                     std::vector<std::string>& IDs,
+                                     std::vector<arm_navigation_msgs::MotionPlanRequest>& requests)
+{
+  mongo_ros::Query q = makeQueryForPlanningSceneTime(time);
+  std::vector<MotionPlanRequestWithMetadata> motion_plan_requests = motion_plan_request_collection_->pullAllResults(q, false);
+
+  for(size_t i = 0; i < motion_plan_requests.size(); i++)
+  {
+    stage_names.push_back(motion_plan_requests[i]->lookupString("stage_name"));
+    IDs.push_back(motion_plan_requests[i]->lookupString("motion_plan_ID"));
+    requests.push_back(*motion_plan_requests[i]);
+  }
+
   return true;
 }
 
@@ -318,6 +348,29 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectory(const std::strin
   return true;
 }
 
+bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectories(const std::string& hostname,
+                                    const ros::Time& time,
+                                    const std::string& motion_plan_ID,
+                                    std::vector<trajectory_msgs::JointTrajectory>& trajectories,
+                                    std::vector<std::string>& sources,
+                                    std::vector<std::string>& IDs,
+                                    std::vector<ros::Duration>& durations)
+{
+  mongo_ros::Query q = makeQueryForPlanningSceneTime(time);
+  q.append("trajectory_motion_plan_ID", motion_plan_ID);
+  std::vector<JointTrajectoryWithMetadata> joint_trajectories = trajectory_collection_->pullAllResults(q, false);
+
+  for(size_t i = 0; i < joint_trajectories.size(); i++)
+  {
+    trajectories.push_back(*joint_trajectories[i]);
+    sources.push_back(joint_trajectories[i]->lookupString("trajectory_source"));
+    IDs.push_back(joint_trajectories[i]->lookupString("trajectory_ID"));
+    ROS_INFO("Loading trajectory %s from warehouse...", IDs[i].c_str());
+    durations.push_back(ros::Duration(joint_trajectories[i]->lookupDouble("production_time")));
+  }
+
+  return true;
+}
 bool MoveArmWarehouseLoggerReader::getAssociatedPausedStates(const std::string& hostname, 
                                                              const ros::Time& time,
                                                              std::vector<ros::Time>& paused_times)

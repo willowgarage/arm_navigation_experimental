@@ -2445,7 +2445,7 @@ void update_function()
     if(inited)
     {
       //pcv->sendTransforms();
-      if(counter % CONTROL_SPEED == 0)
+      if(counter % 5 == 0)
       {
         counter = 1;
         wcv->sendMarkers();
@@ -2456,7 +2456,7 @@ void update_function()
       }
     }
 
-    usleep(5000);
+    usleep(3000);
   }
 }
 
