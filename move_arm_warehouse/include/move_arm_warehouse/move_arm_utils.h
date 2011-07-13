@@ -1032,7 +1032,96 @@ namespace planning_scene_utils
 
       void setIKControlsVisible(std::string ID,PositionType type, bool visible);
 
-      void setCurrentPlanningScene(std::string ID);
+      void setCurrentPlanningScene(std::string ID, bool loadRequests = true, bool loadTrajectories = true);
+
+      inline void deleteTrajectory(std::string ID)
+      {
+        if(trajectory_map_->find(ID) != trajectory_map_->end())
+        {
+
+          if(current_planning_scene_ID_ != "")
+          {
+            PlanningSceneData& data = (*planning_scene_map_)[current_planning_scene_ID_];
+            MotionPlanRequestData& requestData = (*motion_plan_map_)[(*trajectory_map_)[ID].getMotionPlanRequestID()];
+
+            std::vector<std::string>::iterator erasure = data.getTrajectories().end();
+            for(std::vector<std::string>::iterator it = data.getTrajectories().begin(); it != data.getTrajectories().end(); it++)
+            {
+              if((*it) == ID)
+              {
+                erasure = it;
+                break;
+              }
+            }
+
+            if(erasure != data.getTrajectories().end())
+            {
+              data.getTrajectories().erase(erasure);
+            }
+
+            std::vector<std::string>::iterator mprerasure = requestData.getTrajectories().end();
+            bool found  = false;
+            int i = 0;
+            for(std::vector<std::string>::iterator it = requestData.getTrajectories().begin(); it != requestData.getTrajectories().end(); it++)
+            {
+              if((*it) == ID)
+              {
+                ROS_INFO("Found %s at position %d", ID.c_str(), i);
+                mprerasure = it;
+                found =true;
+                break;
+              }
+              i++;
+            }
+
+            if(found)
+            {
+              requestData.getTrajectories().erase(mprerasure);
+            }
+          }
+
+          (*trajectory_map_)[ID].reset();
+          trajectory_map_->erase(ID);
+        }
+      }
+
+      inline void deleteMotionPlanRequest(std::string ID)
+      {
+        if(motion_plan_map_->find(ID) != motion_plan_map_->end())
+        {
+          (*motion_plan_map_)[ID].reset();
+
+          MotionPlanRequestData& motionPlanData = (*motion_plan_map_)[ID];
+          for(size_t i = 0; i < motionPlanData.getTrajectories().size(); i++)
+          {
+            deleteTrajectory(motionPlanData.getTrajectories()[i]);
+          }
+
+          motion_plan_map_->erase(ID);
+          interactive_marker_server_->erase(ID + "_start_control");
+          interactive_marker_server_->erase(ID + "_end_control");
+
+          if(current_planning_scene_ID_ != "")
+          {
+            PlanningSceneData& data = (*planning_scene_map_)[current_planning_scene_ID_];
+            std::vector<std::string>::iterator erasure = data.getRequests().end();
+
+            for(std::vector<std::string>::iterator it = data.getRequests().begin(); it != data.getRequests().end(); it++)
+            {
+              if((*it) == ID)
+              {
+                erasure = it;
+                break;
+              }
+            }
+
+            if(erasure != data.getRequests().end())
+            {
+              data.getRequests().erase(erasure);
+            }
+          }
+        }
+      }
 
       inline std::string generateNewTrajectoryID()
       {

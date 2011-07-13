@@ -435,7 +435,7 @@ PlanningSceneEditor::~PlanningSceneEditor()
 }
 
 
-void PlanningSceneEditor::setCurrentPlanningScene(std::string ID)
+void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadRequests, bool loadTrajectories)
 {
   current_planning_scene_ID_ = ID;
 
@@ -476,48 +476,58 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID)
       ss << i;
       createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], ss.str(), "");
     }
-    // Get the motion plan requests
-    vector<string> IDs;
-    vector<string> stageNames;
-    vector<MotionPlanRequest> requests;
-    getAllAssociatedMotionPlanRequests(time, IDs, stageNames, requests);
-    createMotionPlanRequestData(ID, IDs, stageNames, requests);
 
-    for(size_t j = 0; j < IDs.size(); j++)
+    if(loadRequests)
     {
-      MotionPlanRequest req;
-      std::string motionID = IDs[j];
+      // Get the motion plan requests
+      vector<string> IDs;
+      vector<string> stageNames;
+      vector<MotionPlanRequest> requests;
+      getAllAssociatedMotionPlanRequests(time, IDs, stageNames, requests);
+      createMotionPlanRequestData(ID, IDs, stageNames, requests);
 
-      MotionPlanRequestData& motionData = (*motion_plan_map_)[motionID];
-      motionData.setPlanningSceneName(ID);
-
-      std::vector<JointTrajectory> trajs;
-      std::vector<string> sources;
-      std::vector<string> IDs;
-      std::vector<ros::Duration> durations;
-      move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", time, motionData.getID(), trajs, sources,
-                                                                        IDs, durations);
-
-      max_request_ID_ ++;
-      for(size_t k = 0; k < trajs.size(); k++)
+      for(size_t j = 0; j < IDs.size(); j++)
       {
-        TrajectoryData trajectoryData;
-        trajectoryData.setTrajectory(trajs[k]);
-        trajectoryData.setSource(sources[k]);
-        trajectoryData.setID(IDs[k]);
-        trajectoryData.setMotionPlanRequestID(motionData.getID());
-        trajectoryData.setPlanningSceneName(ID);
-        trajectoryData.setVisible(true);
-        trajectoryData.setGroupName(motionData.getGroupName());
-        trajectoryData.setDuration(durations[k]);
-        trajectoryData.trajectory_error_code_ = error_map_[trajectoryData.getID()];
+        MotionPlanRequest req;
+        std::string motionID = IDs[j];
 
-        scene.getTrajectories().push_back(trajectoryData.getID());
-        motionData.getTrajectories().push_back(trajectoryData.getID());
-        (*trajectory_map_)[IDs[k]] = trajectoryData;
-        playTrajectory(motionData, trajectoryData);
+        MotionPlanRequestData& motionData = (*motion_plan_map_)[motionID];
+        motionData.setPlanningSceneName(ID);
 
-        max_trajectory_ID_ ++;
+        std::vector<JointTrajectory> trajs;
+        std::vector<string> sources;
+        std::vector<string> IDs;
+        std::vector<ros::Duration> durations;
+        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", time, motionData.getID(), trajs, sources,
+                                                                          IDs, durations);
+
+        max_request_ID_++;
+
+        if(loadTrajectories)
+        {
+          for(size_t k = 0; k < trajs.size(); k++)
+          {
+            TrajectoryData trajectoryData;
+            trajectoryData.setTrajectory(trajs[k]);
+            trajectoryData.setSource(sources[k]);
+            trajectoryData.setID(IDs[k]);
+            trajectoryData.setMotionPlanRequestID(motionData.getID());
+            trajectoryData.setPlanningSceneName(ID);
+            trajectoryData.setVisible(true);
+            trajectoryData.setGroupName(motionData.getGroupName());
+            trajectoryData.setDuration(durations[k]);
+            trajectoryData.trajectory_error_code_ = error_map_[trajectoryData.getID()];
+
+            scene.getTrajectories().push_back(trajectoryData.getID());
+            motionData.getTrajectories().push_back(trajectoryData.getID());
+            (*trajectory_map_)[IDs[k]] = trajectoryData;
+            playTrajectory(motionData, trajectoryData);
+
+            max_trajectory_ID_++;
+          }
+
+        }
+
       }
 
     }
@@ -1224,10 +1234,10 @@ void PlanningSceneEditor::createMotionPlanRequestData(std::string planning_scene
 
     StateRegistry start;
     start.state = data.getStartState();
-    start.source = "Motion Plan Request Data Start from line 1231";
+    start.source = "Motion Plan Request Data Start from createRequest";
     StateRegistry end;
     end.state = data.getGoalState();
-    end.source = "Motion Plan Request Data End from line 1234";
+    end.source = "Motion Plan Request Data End from createRequest";
     states_.push_back(start);
     states_.push_back(end);
 
@@ -1284,10 +1294,10 @@ bool PlanningSceneEditor::getMotionPlanRequest(const ros::Time& time, const stri
   data.setSource("planner");
   StateRegistry start;
   start.state = data.getStartState();
-  start.source = "Motion Plan Request Data Start from line 1291";
+  start.source = "Motion Plan Request Data Start from loadRequest";
   StateRegistry end;
   end.state = data.getGoalState();
-  end.source = "Motion Plan Request Data End from line 1294";
+  end.source = "Motion Plan Request Data End from line loadRequest";
   states_.push_back(start);
   states_.push_back(end);
 
