@@ -427,6 +427,8 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   registerMenuEntry("Collision Object", "Deselect", collision_object_movement_feedback_ptr_);
   registerMenuEntry("IK Control", "Go To Last Good State", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Randomly Perturb", ik_control_feedback_ptr_);
+  registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
+  registerMenuEntry("IK Control", "Filter Last Trajectory", ik_control_feedback_ptr_);
 }
 
 PlanningSceneEditor::~PlanningSceneEditor()
@@ -1226,7 +1228,6 @@ void PlanningSceneEditor::createMotionPlanRequestData(std::string planning_scene
 
     MotionPlanRequestData data(robot_state_);
     data.setID(IDs[i]);
-    ROS_WARN("MADE REQUEST WITH NAME %s", data.getID().c_str());
     data.setMotionPlanRequest(mpr);
     data.setPlanningSceneName(planning_scene_ID);
     data.setGroupName(mpr.group_name);
@@ -1626,7 +1627,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
   std::string ID = "";
   PositionType type = StartPosition;
 
-  bool shouldPlan = false;
+  bool findIKSolution = false;
   if(feedback->marker_name.rfind("_start_control") != std::string::npos)
   {
     ID = feedback->marker_name.substr(0, feedback->marker_name.rfind("_start_control"));
@@ -1651,12 +1652,22 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
     if(type == StartPosition)
     {
       (*motion_plan_map_)[controller.motion_plan_ID_].getStartState()->updateKinematicStateWithLinkAt((*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(), pose);
-      shouldPlan = true;
+      findIKSolution = true;
+      if(selected_motion_plan_ID_ != controller.motion_plan_ID_)
+      {
+        selected_motion_plan_ID_ = controller.motion_plan_ID_;
+        updateState();
+      }
     }
     else
     {
       (*motion_plan_map_)[controller.motion_plan_ID_].getGoalState()->updateKinematicStateWithLinkAt((*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(), pose);
-      shouldPlan = true;
+      findIKSolution = true;
+      if(selected_motion_plan_ID_ != controller.motion_plan_ID_)
+      {
+        selected_motion_plan_ID_ = controller.motion_plan_ID_;
+        updateState();
+      }
     }
 
   }
@@ -1670,13 +1681,13 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
       {
         data.getStartState()->updateKinematicStateWithLinkAt(data.getEndEffectorLink(), (data.getLastGoodStartPose()));
         interactive_marker_server_->setPose(feedback->marker_name, toGeometryPose(data.getLastGoodStartPose()), feedback->header);
-        shouldPlan = true;
+        findIKSolution = true;
       }
       else
       {
         data.getGoalState()->updateKinematicStateWithLinkAt(data.getEndEffectorLink(),(data.getLastGoodGoalPose()));
         interactive_marker_server_->setPose(feedback->marker_name, toGeometryPose(data.getLastGoodGoalPose()), feedback->header);
-        shouldPlan = true;
+        findIKSolution = true;
       }
     }
     else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Randomly Perturb"])
@@ -1693,9 +1704,30 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
         interactive_marker_server_->setPose(feedback->marker_name, toGeometryPose(data.getLastGoodGoalPose()), feedback->header);
       }
     }
+    else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Plan New Trajectory"])
+    {
+      MotionPlanRequestData& data = (*motion_plan_map_)[controller.motion_plan_ID_];
+      std::string trajectory;
+      planToRequest(data, trajectory);
+      selected_trajectory_ID_ = trajectory;
+      playTrajectory(data, (*trajectory_map_)[selected_trajectory_ID_]);
+      updateState();
+    }
+    else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Filter Last Trajectory"])
+    {
+      MotionPlanRequestData& data = (*motion_plan_map_)[controller.motion_plan_ID_];
+      std::string trajectory;
+      if(selected_trajectory_ID_ != "" && trajectory_map_->find(selected_trajectory_ID_) != trajectory_map_->end())
+      {
+        filterTrajectory(data,(*trajectory_map_)[selected_trajectory_ID_] ,trajectory);
+        selected_trajectory_ID_ = trajectory;
+        playTrajectory(data, (*trajectory_map_)[selected_trajectory_ID_]);
+        updateState();
+      }
+    }
   }
 
-  if(shouldPlan)
+  if(findIKSolution)
   {
     if(!solveIKForEndEffectorPose((*motion_plan_map_)[controller.motion_plan_ID_], type, true, false))
        {

@@ -817,6 +817,8 @@ namespace planning_scene_utils
           visualization_msgs::InteractiveMarker end_controller_;
       };
 
+      virtual void updateState() {};
+
       boost::recursive_mutex lock_scene_;
       arm_navigation_msgs::ArmNavigationErrorCodes last_collision_set_error_code_;
       move_arm_warehouse::MoveArmWarehouseLoggerReader* move_arm_warehouse_logger_reader_;
