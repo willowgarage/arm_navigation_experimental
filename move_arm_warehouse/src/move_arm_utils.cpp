@@ -362,6 +362,7 @@ PlanningSceneEditor::PlanningSceneEditor()
   non_collision_aware_ik_services_ = NULL;
   selectable_objects_ = NULL;
   ik_controllers_ = NULL;
+  state_monitor_ = NULL;
 }
 
 PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
@@ -429,6 +430,17 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   registerMenuEntry("IK Control", "Randomly Perturb", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Filter Last Trajectory", ik_control_feedback_ptr_);
+
+  if(params.use_robot_data_)
+  {
+    state_monitor_ = new KinematicModelStateMonitor(cm_, &transform_listenter_);
+    state_monitor_->addOnStateUpdateCallback(boost::bind(&PlanningSceneEditor::jointStateCallback, this, _1));
+  }
+}
+
+void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
+{
+  state_monitor_->setStateValuesFromCurrentValues(*robot_state_);
 }
 
 PlanningSceneEditor::~PlanningSceneEditor()
@@ -891,6 +903,12 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
 
 void PlanningSceneEditor::updateJointStates()
 {
+
+  if(params_.use_robot_data_)
+  {
+    return;
+  }
+
   sensor_msgs::JointState msg;
   msg.header.frame_id = cm_->getWorldFrameId();
   msg.header.stamp = ros::Time::now();

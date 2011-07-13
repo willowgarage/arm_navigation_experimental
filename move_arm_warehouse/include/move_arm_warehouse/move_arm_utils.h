@@ -59,6 +59,8 @@
 #include <interactive_markers/menu_handler.h>
 #include <interactive_markers/tools.h>
 #include <arm_navigation_msgs/CollisionObject.h>
+#include <planning_environment/monitors/kinematic_model_state_monitor.h>
+
 typedef map<std::string, interactive_markers::MenuHandler::EntryHandle> MenuEntryMap;
 typedef map<std::string, MenuEntryMap> MenuMap;
 typedef map<std::string, interactive_markers::MenuHandler> MenuHandlerMap;
@@ -785,6 +787,7 @@ namespace planning_scene_utils
       std::string right_redundancy_;
       std::string right_arm_group_;
       std::string left_arm_group_;
+      bool use_robot_data_;
   };
 
   class PlanningSceneEditor
@@ -845,6 +848,8 @@ namespace planning_scene_utils
       std::map<std::string, double> robot_state_joint_values_;
       std::vector<ros::Time> last_creation_time_query_;
       tf::TransformBroadcaster transform_broadcaster_;
+      tf::TransformListener transform_listenter_;
+      planning_environment::KinematicModelStateMonitor* state_monitor_;
 
       unsigned int max_trajectory_ID_;
       unsigned int max_request_ID_;
@@ -993,8 +998,12 @@ namespace planning_scene_utils
         c.clock.nsec = cur_time.nsec;
         c.clock.sec = cur_time.sec;
         //clock_publisher_.publish(c);
-        getAllRobotStampedTransforms(*robot_state_, robot_transforms_, c.clock);
-        transform_broadcaster_.sendTransform(robot_transforms_);
+
+        if(!params_.use_robot_data_)
+        {
+          getAllRobotStampedTransforms(*robot_state_, robot_transforms_, c.clock);
+          transform_broadcaster_.sendTransform(robot_transforms_);
+        }
       }
       void savePlanningScene(PlanningSceneData& data);
 
@@ -1013,6 +1022,7 @@ namespace planning_scene_utils
 
       void randomlyPerturb(MotionPlanRequestData& mpr, PositionType type);
 
+      void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state);
      interactive_markers::MenuHandler::EntryHandle registerSubMenuEntry(std::string menu, std::string name,
                                                                              std::string subMenu, interactive_markers::MenuHandler::FeedbackCallback& callback)
      {
