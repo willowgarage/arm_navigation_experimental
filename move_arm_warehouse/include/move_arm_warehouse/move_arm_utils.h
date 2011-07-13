@@ -1047,7 +1047,8 @@ namespace planning_scene_utils
             MotionPlanRequestData& requestData = (*motion_plan_map_)[(*trajectory_map_)[ID].getMotionPlanRequestID()];
 
             std::vector<std::string>::iterator erasure = data.getTrajectories().end();
-            for(std::vector<std::string>::iterator it = data.getTrajectories().begin(); it != data.getTrajectories().end(); it++)
+            for(std::vector<std::string>::iterator it = data.getTrajectories().begin(); it
+                != data.getTrajectories().end(); it++)
             {
               if((*it) == ID)
               {
@@ -1062,15 +1063,16 @@ namespace planning_scene_utils
             }
 
             std::vector<std::string>::iterator mprerasure = requestData.getTrajectories().end();
-            bool found  = false;
+            bool found = false;
             int i = 0;
-            for(std::vector<std::string>::iterator it = requestData.getTrajectories().begin(); it != requestData.getTrajectories().end(); it++)
+            for(std::vector<std::string>::iterator it = requestData.getTrajectories().begin(); it
+                != requestData.getTrajectories().end(); it++)
             {
               if((*it) == ID)
               {
                 ROS_INFO("Found %s at position %d", ID.c_str(), i);
                 mprerasure = it;
-                found =true;
+                found = true;
                 break;
               }
               i++;
@@ -1082,15 +1084,34 @@ namespace planning_scene_utils
             }
           }
 
+          for(size_t i = 0; i < states_.size(); i++)
+          {
+            if(states_[i].state == (*trajectory_map_)[ID].getCurrentState())
+            {
+              states_[i].state = NULL;
+              states_[i].source = "Delete trajectory";
+            }
+          }
+
           (*trajectory_map_)[ID].reset();
           trajectory_map_->erase(ID);
+
         }
       }
+
 
       inline void deleteMotionPlanRequest(std::string ID)
       {
         if(motion_plan_map_->find(ID) != motion_plan_map_->end())
         {
+          for(size_t i = 0; i < states_.size(); i++)
+          {
+            if(states_[i].state == (*motion_plan_map_)[ID].getStartState() ||states_[i].state == (*motion_plan_map_)[ID].getGoalState())
+            {
+              states_[i].state = NULL;
+              states_[i].source = "Delete motion plan request";
+            }
+          }
           (*motion_plan_map_)[ID].reset();
 
           MotionPlanRequestData& motionPlanData = (*motion_plan_map_)[ID];
