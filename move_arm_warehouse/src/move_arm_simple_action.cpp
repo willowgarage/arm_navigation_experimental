@@ -70,7 +70,7 @@
 
 #include <planning_environment/models/collision_models.h>
 #include <planning_environment/models/model_utils.h>
-#include <arm_navigation_msgs/GetPlanningScene.h>
+#include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 
 #include <arm_navigation_msgs/GetRobotState.h>
 
@@ -117,13 +117,13 @@ typedef struct{
   
 static const std::string ARM_IK_NAME = "arm_ik";
 static const std::string ARM_FK_NAME = "arm_fk";
-static const std::string TRAJECTORY_FILTER = "filter_trajectory";
+static const std::string TRAJECTORY_FILTER = "/trajectory_filter_server/filter_trajectory_with_constraints";
 static const std::string DISPLAY_PATH_PUB_TOPIC  = "display_path";
 static const std::string DISPLAY_JOINT_GOAL_PUB_TOPIC  = "display_joint_goal";
 
 //bunch of statics for remapping purposes
 
-static const std::string GET_PLANNING_SCENE_NAME = "get_planning_scene";
+static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
 static const double MIN_TRAJECTORY_MONITORING_FREQUENCY = 1.0;
 static const double MAX_TRAJECTORY_MONITORING_FREQUENCY = 100.0;
@@ -166,12 +166,12 @@ public:
 
     ik_client_ = root_handle_.serviceClient<kinematics_msgs::GetConstraintAwarePositionIK>(ARM_IK_NAME);
     allowed_contact_regions_publisher_ = root_handle_.advertise<visualization_msgs::MarkerArray>("allowed_contact_regions_array", 128);
-    filter_trajectory_client_ = root_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectoryWithConstraints>("filter_trajectory");      
+    filter_trajectory_client_ = root_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectoryWithConstraints>(TRAJECTORY_FILTER);      
     vis_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("move_" + group_name+"_markers", 128);
     vis_marker_array_publisher_ = root_handle_.advertise<visualization_msgs::MarkerArray>("move_" + group_name+"_markers_array", 128);
     get_state_client_ = root_handle_.serviceClient<arm_navigation_msgs::GetRobotState>("get_robot_state");      
 
-    get_planning_scene_client_ = root_handle_.serviceClient<arm_navigation_msgs::GetPlanningScene>(GET_PLANNING_SCENE_NAME);
+    set_planning_scene_diff_client_ = root_handle_.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff>(SET_PLANNING_SCENE_DIFF_NAME);
     
     preplan_scan_action_client_.reset(new actionlib::SimpleActionClient<head_monitor_msgs::PreplanHeadScanAction> ("preplan_head_scan", true));
 
@@ -186,8 +186,8 @@ public:
 
     //    ros::service::waitForService(ARM_IK_NAME);
     arm_ik_initialized_ = false;
-    ros::service::waitForService(GET_PLANNING_SCENE_NAME);
-    ros::service::waitForService("filter_trajectory");
+    ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
+    ros::service::waitForService(TRAJECTORY_FILTER);
 
     action_server_.reset(new actionlib::SimpleActionServer<arm_navigation_msgs::MoveArmAction>(root_handle_, "move_" + group_name, boost::bind(&MoveArm::execute, this, _1), false));
     action_server_->start();
@@ -1264,14 +1264,14 @@ private:
   }
 
   bool getAndSetPlanningScene(const arm_navigation_msgs::PlanningScene& planning_diff) {
-    arm_navigation_msgs::GetPlanningScene::Request planning_scene_req;
-    arm_navigation_msgs::GetPlanningScene::Response planning_scene_res;
+    arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
+    arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
 
     revertPlanningScene();
 
     planning_scene_req.planning_scene_diff = planning_diff;
 
-    if(!get_planning_scene_client_.call(planning_scene_req, planning_scene_res)) {
+    if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) {
       ROS_WARN("Can't get planning scene");
       return false;
     }
@@ -1477,8 +1477,8 @@ private:
 
   planning_environment::CollisionModels* collision_models_;
 
-  arm_navigation_msgs::GetPlanningScene::Request get_planning_scene_req_;
-  arm_navigation_msgs::GetPlanningScene::Response get_planning_scene_res_;
+  arm_navigation_msgs::SetPlanningSceneDiff::Request set_planning_scene_diff_req_;
+  arm_navigation_msgs::SetPlanningSceneDiff::Response set_planning_scene_diff_res_;
   arm_navigation_msgs::PlanningScene current_planning_scene_;
   planning_models::KinematicState* planning_scene_state_;
 
@@ -1505,7 +1505,7 @@ private:
   ros::ServiceClient filter_trajectory_client_;
   ros::ServiceClient fk_client_;
   ros::ServiceClient get_state_client_;
-  ros::ServiceClient get_planning_scene_client_;
+  ros::ServiceClient set_planning_scene_diff_client_;
   ros::ServiceClient log_planning_scene_client_;
   MoveArmParameters move_arm_parameters_;
 

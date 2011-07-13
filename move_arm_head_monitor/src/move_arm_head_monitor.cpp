@@ -132,6 +132,8 @@ protected:
   double pause_time_;
   double max_point_distance_;
 
+  bool do_monitoring_;
+
   head_monitor_msgs::HeadMonitorStatus current_execution_status_;
 
 public:
@@ -150,6 +152,7 @@ public:
     private_handle_.param<double>("point_sphere_size", point_sphere_size_, .01);
     private_handle_.param<double>("pause_time", pause_time_, 5.0);
     private_handle_.param<double>("max_point_distance", max_point_distance_, 1.0);
+    private_handle_.param<bool>("do_monitoring", do_monitoring_, true);
 
     std::string robot_description_name = root_handle_.resolveName("robot_description", true);
     
@@ -158,10 +161,12 @@ public:
 
     kmsm_->addOnStateUpdateCallback(boost::bind(&HeadMonitor::jointStateCallback, this, _1));
 
-    sub_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (root_handle_, "cloud_in", 1);	
-    mn_ = new tf::MessageFilter<sensor_msgs::PointCloud2> (*sub_, tf_, "", 1);
-    mn_->setTargetFrame(collision_models_interface_->getWorldFrameId());
-    mn_->registerCallback(boost::bind(&HeadMonitor::cloudCallback, this, _1));
+    if(do_monitoring_) {
+      sub_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (root_handle_, "cloud_in", 1);	
+      mn_ = new tf::MessageFilter<sensor_msgs::PointCloud2> (*sub_, tf_, "", 1);
+      mn_->setTargetFrame(collision_models_interface_->getWorldFrameId());
+      mn_->registerCallback(boost::bind(&HeadMonitor::cloudCallback, this, _1));
+    }
 
     head_monitor_action_server_.registerGoalCallback(boost::bind(&HeadMonitor::monitorGoalCallback, this));
     head_monitor_action_server_.registerPreemptCallback(boost::bind(&HeadMonitor::monitorPreemptCallback, this));

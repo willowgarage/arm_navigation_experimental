@@ -66,6 +66,7 @@ struct CollisionProximitySpacePlannerInterface
                           arm_navigation_msgs::GetMotionPlan::Response &res)
   {
     if(!req.motion_plan_request.group_name.empty()) {
+      ROS_INFO_STREAM("Setting up for group " << req.motion_plan_request.group_name);
       cps_->setupForGroupQueries(req.motion_plan_request.group_name,
                                  req.motion_plan_request.start_state,
                                  current_link_names_,
