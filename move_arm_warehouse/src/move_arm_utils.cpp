@@ -52,6 +52,8 @@ using namespace std_msgs;
 using namespace trajectory_msgs;
 using namespace visualization_msgs;
 using namespace arm_navigation_msgs;
+using namespace actionlib;
+using namespace control_msgs;
 
 
 std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
@@ -204,8 +206,8 @@ MotionPlanRequestData::MotionPlanRequestData(KinematicState* robot_state)
   setSource("");
   setStartColor(makeRandomColor(0.3f, 0.6f));
   setEndColor(makeRandomColor(0.3f, 0.6f));
-  setStartEditable(false);
-  setEndEditable(false);
+  setStartEditable(true);
+  setEndEditable(true);
   setHasGoodIKSolution(true);
   setID("");
   show();
@@ -230,8 +232,8 @@ MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPla
 
   setStartColor(makeRandomColor(0.3f, 0.6f));
   setEndColor(makeRandomColor(0.3f, 0.6f));
-  setStartEditable(false);
-  setEndEditable(false);
+  setStartEditable(true);
+  setEndEditable(true);
   setHasGoodIKSolution(true);
   show();
   showCollisions();
@@ -368,7 +370,7 @@ PlanningSceneEditor::PlanningSceneEditor()
 PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
 {
   params_ = params;
-
+  monitor_status_ = Idle;
   planning_scene_map_ = new map<string, PlanningSceneData>();
   trajectory_map_ = new map<string, TrajectoryData>();
   motion_plan_map_ = new map<string, MotionPlanRequestData>();
@@ -414,6 +416,23 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   collision_proximity_planner_client_ = nh_.serviceClient<GetMotionPlan> (params.proximity_space_planner_name_, true);
   set_planning_scene_diff_client_ = nh_.serviceClient<SetPlanningSceneDiff> (params.set_planning_scene_diff_name_);
 
+  if(params.use_robot_data_)
+  {
+  arm_controller_map_[params_.right_arm_group_] = new actionlib::SimpleActionClient<
+        control_msgs::FollowJointTrajectoryAction>("/r_arm_controller/follow_joint_trajectory", true);
+    arm_controller_map_[params.left_arm_group_] = new actionlib::SimpleActionClient<
+        control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory", true);
+
+    while(ros::ok() && !arm_controller_map_[params_.right_arm_group_]->waitForServer(ros::Duration(1.0)))
+    {
+      ROS_INFO("Waiting for the right_joint_trajectory_action server to come up.");
+    }
+    while(ros::ok() && !arm_controller_map_[params.left_arm_group_]->waitForServer(ros::Duration(1.0)))
+    {
+      ROS_INFO("Waiting for the left_joint_trajectory_action server to come up.");
+    }
+  }
+
   (*collision_aware_ik_services_)[params.left_ik_link_] = &left_ik_service_client_;
   (*collision_aware_ik_services_)[params.right_ik_link_] = &right_ik_service_client_;
   (*non_collision_aware_ik_services_)[params.left_ik_link_] = &non_coll_left_ik_service_client_;
@@ -440,7 +459,32 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
 
 void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
 {
-  state_monitor_->setStateValuesFromCurrentValues(*robot_state_);
+  if(robot_state_ != NULL)
+  {
+    state_monitor_->setStateValuesFromCurrentValues(*robot_state_);
+
+    if(monitor_status_ == Executing)
+    {
+      std::map<std::string, double> joint_state_map;
+      std::map<std::string, double> joint_velocity_map;
+      //message already been validated in kmsm
+      for(unsigned int i = 0; i < joint_state->position.size(); ++i)
+      {
+        joint_state_map[joint_state->name[i]] = joint_state->position[i];
+        joint_velocity_map[joint_state->name[i]] = joint_state->velocity[i];
+      }
+      trajectory_msgs::JointTrajectoryPoint point;
+      point.positions.resize(logged_trajectory_.joint_names.size());
+      point.velocities.resize(logged_trajectory_.joint_names.size());
+      for(unsigned int i = 0; i < logged_trajectory_.joint_names.size(); i++)
+      {
+        point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
+        point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
+      }
+      point.time_from_start = ros::Time::now() - logged_trajectory_start_time_;
+      logged_trajectory_.points.push_back(point);
+    }
+  }
 }
 
 PlanningSceneEditor::~PlanningSceneEditor()
@@ -706,7 +750,7 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
 void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicState& start_state,
                                                   planning_models::KinematicState& end_state, std::string group_name,
                                                   std::string end_effector_name, bool constrain, std::string planning_scene_ID,
-                                                  std::string& motionPlan_ID_Out)
+                                                  std::string& motionPlan_ID_Out, bool fromRobotState)
 {
   MotionPlanRequest motion_plan_request;
   motion_plan_request.group_name = group_name;
@@ -740,18 +784,31 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
                                             motion_plan_request.goal_constraints.orientation_constraints[0],
                                             motion_plan_request.path_constraints.orientation_constraints[0]);
   }
-  convertKinematicStateToRobotState(start_state, ros::Time::now(), cm_->getWorldFrameId(), motion_plan_request.start_state);
+  if(!fromRobotState)
+  {
+    convertKinematicStateToRobotState(start_state, ros::Time::now(), cm_->getWorldFrameId(), motion_plan_request.start_state);
+  }
+  else
+  {
+    convertKinematicStateToRobotState(*robot_state_, ros::Time::now(), cm_->getWorldFrameId(), motion_plan_request.start_state);
+  }
 
   std::string id = generateNewMotionPlanID();
   MotionPlanRequestData data(id, "planner", motion_plan_request, robot_state_);
   data.setGroupName(motion_plan_request.group_name);
   data.setEndEffectorLink(end_effector_name);
+  data.setEndEditable(true);
+  if(fromRobotState)
+  {
+    data.setStartEditable(false);
+  }
+
   StateRegistry start;
   start.state = data.getStartState();
-  start.source = "Motion Plan Request Data Start from line 731";
+  start.source = "Motion Plan Request Data Start create request";
   StateRegistry end;
   end.state = data.getGoalState();
-  end.source = "Motion Plan Request Data End from line 734";
+  end.source = "Motion Plan Request Data End from create request";
   states_.push_back(start);
   states_.push_back(end);
   (*motion_plan_map_)[id] = data;
@@ -2159,6 +2216,20 @@ void PlanningSceneEditor::setIKControlsVisible(std::string ID, PositionType type
   }
 }
 
+void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
+{
+  SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
+  FollowJointTrajectoryGoal goal;
+  goal.trajectory = trajectory.getTrajectory();
+  goal.trajectory.header.stamp = ros::Time::now()+ros::Duration(0.2);
+  controller->sendGoal(goal, boost::bind(&PlanningSceneEditor::controllerDoneCallback, this, _1, _2));
+  logged_group_name_ = trajectory.getGroupName();
+  logged_motion_plan_request_ = trajectory.getMotionPlanRequestID();
+  logged_trajectory_= trajectory.getTrajectory();
+  logged_trajectory_.points.clear();
+  monitor_status_ = Executing;
+}
+
 void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionType type)
 {
   btTransform currentPose;
@@ -2234,4 +2305,26 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
     numTries++;
     posVariance *= 1.1;
   }
+}
+
+
+void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
+                            const control_msgs::FollowJointTrajectoryResultConstPtr& result)
+{
+  monitor_status_ = Idle;
+  TrajectoryData logged(generateNewTrajectoryID(), "Robot Monitor", logged_group_name_, logged_trajectory_);
+  logged.setBadPoint(-1);
+  logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
+  logged.setMotionPlanRequestID(logged_motion_plan_request_);
+  logged.trajectory_error_code_.val = result->error_code;
+  MotionPlanRequestData& mpr = (*motion_plan_map_)[logged_motion_plan_request_];
+  mpr.getTrajectories().push_back(logged.getID());
+  (*planning_scene_map_)[current_planning_scene_ID_].getTrajectories().push_back(logged.getID());
+  (*trajectory_map_)[logged.getID()] = logged;
+  logged_trajectory_.points.clear();
+  logged_group_name_ = "";
+  logged_motion_plan_request_ = "";
+  selected_trajectory_ID_ = logged.getID();
+  updateState();
+  ROS_INFO("CREATING TRAJECTORY %s", logged.getID().c_str());
 }

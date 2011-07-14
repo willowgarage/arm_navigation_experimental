@@ -46,7 +46,9 @@
 #include <tf/transform_broadcaster.h>
 #include <kinematics_msgs/GetConstraintAwarePositionIK.h>
 #include <kinematics_msgs/GetPositionIK.h>
+#include <actionlib/server/simple_action_server.h>
 #include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/simple_client_goal_state.h>
 #include <arm_navigation_msgs/GetMotionPlan.h>
 #include <arm_navigation_msgs/GetStateValidity.h>
 #include <trajectory_msgs/JointTrajectory.h>
@@ -60,6 +62,7 @@
 #include <interactive_markers/tools.h>
 #include <arm_navigation_msgs/CollisionObject.h>
 #include <planning_environment/monitors/kinematic_model_state_monitor.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 
 typedef map<std::string, interactive_markers::MenuHandler::EntryHandle> MenuEntryMap;
 typedef map<std::string, MenuEntryMap> MenuMap;
@@ -427,12 +430,12 @@ namespace planning_scene_utils
 
       inline void setStartEditable(bool editable)
       {
-        is_start_editable_ = true;
+        is_start_editable_ = editable;
       }
 
       inline void setEndEditable(bool editable)
       {
-        is_end_editable_ = true;
+        is_end_editable_ = editable;
       }
 
       inline bool isStartEditable()
@@ -800,6 +803,13 @@ namespace planning_scene_utils
         Sphere
       };
 
+      enum MonitorStatus
+      {
+        Idle,
+        Executing,
+        Done
+      };
+
       struct StateRegistry
       {
           planning_models::KinematicState* state;
@@ -850,11 +860,15 @@ namespace planning_scene_utils
       tf::TransformBroadcaster transform_broadcaster_;
       tf::TransformListener transform_listenter_;
       planning_environment::KinematicModelStateMonitor* state_monitor_;
-
+      std::map<std::string, actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>*> arm_controller_map_;
       unsigned int max_trajectory_ID_;
       unsigned int max_request_ID_;
       unsigned int max_planning_scene_ID_;
       unsigned int max_collision_object_ID_;
+
+      trajectory_msgs::JointTrajectory logged_trajectory_;
+      ros::Time logged_trajectory_start_time_;
+
 
       bool send_collision_markers_;
       std::string collision_marker_state_;
@@ -875,7 +889,8 @@ namespace planning_scene_utils
       std::string current_planning_scene_ID_;
       std::string selected_motion_plan_ID_;
       std::string selected_trajectory_ID_;
-
+      std::string logged_group_name_;
+      std::string logged_motion_plan_request_;
       std::map<string,MenuEntryMap> menu_entry_maps_;
       MenuHandlerMap menu_handler_map_;
 
@@ -883,6 +898,8 @@ namespace planning_scene_utils
       std::map<string, ros::ServiceClient*>* non_collision_aware_ik_services_;
       std::map<string, arm_navigation_msgs::ArmNavigationErrorCodes> error_map_;
       std::vector<StateRegistry> states_;
+
+      MonitorStatus monitor_status_;
 
     public:
       static geometry_msgs::Pose toGeometryPose(btTransform transform)
@@ -919,7 +936,7 @@ namespace planning_scene_utils
       void getMotionPlanningMarkers(visualization_msgs::MarkerArray& arr);
       void createMotionPlanRequest(planning_models::KinematicState& start_state,planning_models::KinematicState& end_state,
                                    std::string group_name, std::string end_effector_name, bool constrain,
-                                   std::string planning_scene_name, std::string& motionPlan_ID_Out);
+                                   std::string planning_scene_name, std::string& motionPlan_ID_Out, bool fromRobotState = false);
       bool planToKinematicState(planning_models::KinematicState& state, std::string group_name,
                                 std::string end_effector_name, bool constrain, std::string& trajectoryID_Out,
                                 std::string& planning_scene_name);
@@ -963,7 +980,14 @@ namespace planning_scene_utils
       bool getSendCollisionMarkers() const;
       bool filterTrajectory(MotionPlanRequestData& requestData, TrajectoryData& trajectory, std::string& filter_ID);
       void loadAllWarehouseData();
-
+      void executeTrajectory(TrajectoryData& data);
+      inline void executeTrajectory(std::string trajectory_ID)
+      {
+        if(trajectory_map_->find(trajectory_ID) != trajectory_map_->end())
+        {
+          executeTrajectory((*trajectory_map_)[trajectory_ID]);
+        }
+      }
       void getAllRobotStampedTransforms(const planning_models::KinematicState& state,
                                                                  vector<geometry_msgs::TransformStamped>& trans_vector,
                                                                  const ros::Time& stamp)
@@ -993,14 +1017,16 @@ namespace planning_scene_utils
         {
           return;
         }
-        ros::WallTime cur_time = ros::WallTime::now();
-        rosgraph_msgs::Clock c;
-        c.clock.nsec = cur_time.nsec;
-        c.clock.sec = cur_time.sec;
-        //clock_publisher_.publish(c);
 
         if(!params_.use_robot_data_)
         {
+          ros::WallTime cur_time = ros::WallTime::now();
+          rosgraph_msgs::Clock c;
+          c.clock.nsec = cur_time.nsec;
+          c.clock.sec = cur_time.sec;
+          //clock_publisher_.publish(c);
+
+
           getAllRobotStampedTransforms(*robot_state_, robot_transforms_, c.clock);
           transform_broadcaster_.sendTransform(robot_transforms_);
         }
@@ -1153,6 +1179,8 @@ namespace planning_scene_utils
               data.getRequests().erase(erasure);
             }
           }
+
+          updateState();
         }
       }
 
@@ -1237,6 +1265,9 @@ namespace planning_scene_utils
       {
         return move_arm_warehouse_logger_reader_;
       }
+
+      void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
+                                  const control_msgs::FollowJointTrajectoryResultConstPtr& result);
 
       inline void setLoggerReader(move_arm_warehouse::MoveArmWarehouseLoggerReader* loggerReader,
                                   bool shouldDelete = true)
