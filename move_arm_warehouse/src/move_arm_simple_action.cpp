@@ -124,6 +124,7 @@ static const std::string DISPLAY_JOINT_GOAL_PUB_TOPIC  = "display_joint_goal";
 //bunch of statics for remapping purposes
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
+static const std::string GET_ROBOT_STATE_NAME = "/environment_server/get_robot_state";
 
 static const double MIN_TRAJECTORY_MONITORING_FREQUENCY = 1.0;
 static const double MAX_TRAJECTORY_MONITORING_FREQUENCY = 100.0;
@@ -169,7 +170,7 @@ public:
     filter_trajectory_client_ = root_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectoryWithConstraints>(TRAJECTORY_FILTER);      
     vis_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("move_" + group_name+"_markers", 128);
     vis_marker_array_publisher_ = root_handle_.advertise<visualization_msgs::MarkerArray>("move_" + group_name+"_markers_array", 128);
-    get_state_client_ = root_handle_.serviceClient<arm_navigation_msgs::GetRobotState>("get_robot_state");      
+    get_state_client_ = root_handle_.serviceClient<arm_navigation_msgs::GetRobotState>(GET_ROBOT_STATE_NAME);      
 
     set_planning_scene_diff_client_ = root_handle_.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff>(SET_PLANNING_SCENE_DIFF_NAME);
     
