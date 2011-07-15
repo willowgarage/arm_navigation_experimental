@@ -1135,6 +1135,7 @@ namespace planning_scene_utils
         }
       }
 
+      virtual void onPlanningSceneLoaded(int scene, int numScenes) {};
 
       inline void deleteMotionPlanRequest(std::string ID)
       {

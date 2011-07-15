@@ -79,7 +79,7 @@ std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
 PlanningSceneData::PlanningSceneData()
 {
   setName("");
-  setTimeStamp(ros::Time::now());
+  setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
 }
 
 PlanningSceneData::PlanningSceneData(string name, ros::Time timestamp, PlanningScene scene)
@@ -188,7 +188,7 @@ void TrajectoryData::updateCollisionMarkers(CollisionModels* cm_, MotionPlanRequ
 
     GetStateValidity::Request val_req;
     GetStateValidity::Response val_res;
-    convertKinematicStateToRobotState(*state, ros::Time::now(), cm_->getWorldFrameId(), val_req.robot_state);
+    convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), val_req.robot_state);
 
     if(!distance_state_validity_service_client_.call(val_req, val_res))
     {
@@ -309,7 +309,7 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_, ros::Se
 
     GetStateValidity::Request val_req;
     GetStateValidity::Response val_res;
-    convertKinematicStateToRobotState(*state, ros::Time::now(), cm_->getWorldFrameId(), val_req.robot_state);
+    convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), val_req.robot_state);
 
     if(!distance_state_validity_service_client_.call(val_req, val_res))
     {
@@ -337,7 +337,7 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_, ros::Se
 
       GetStateValidity::Request val_req;
       GetStateValidity::Response val_res;
-      convertKinematicStateToRobotState(*state, ros::Time::now(), cm_->getWorldFrameId(), val_req.robot_state);
+      convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), val_req.robot_state);
 
       if(!distance_state_validity_service_client_.call(val_req, val_res))
       {
@@ -350,7 +350,6 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_, ros::Se
 ////////////////////////////////
 // PLANNING SCENE EDITOR
 ///////////////////////////////
-
 
 PlanningSceneEditor::PlanningSceneEditor()
 {
@@ -459,6 +458,7 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
 
 void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
 {
+  lockScene();
   if(robot_state_ != NULL)
   {
     state_monitor_->setStateValuesFromCurrentValues(*robot_state_);
@@ -481,17 +481,17 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
         point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
         point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
       }
-      point.time_from_start = ros::Time::now() - logged_trajectory_start_time_;
+      point.time_from_start = ros::Time(ros::WallTime::now().toSec()) - logged_trajectory_start_time_;
       logged_trajectory_.points.push_back(point);
     }
   }
+  unlockScene();
 }
 
 PlanningSceneEditor::~PlanningSceneEditor()
 {
   setRobotState(NULL, true);
 }
-
 
 void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadRequests, bool loadTrajectories)
 {
@@ -786,15 +786,15 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
   }
   if(!fromRobotState)
   {
-    convertKinematicStateToRobotState(start_state, ros::Time::now(), cm_->getWorldFrameId(), motion_plan_request.start_state);
+    convertKinematicStateToRobotState(start_state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), motion_plan_request.start_state);
   }
   else
   {
-    convertKinematicStateToRobotState(*robot_state_, ros::Time::now(), cm_->getWorldFrameId(), motion_plan_request.start_state);
+    convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), motion_plan_request.start_state);
   }
 
   std::string id = generateNewMotionPlanID();
-  MotionPlanRequestData data(id, "planner", motion_plan_request, robot_state_);
+  MotionPlanRequestData data(id, "Planner", motion_plan_request, robot_state_);
   data.setGroupName(motion_plan_request.group_name);
   data.setEndEffectorLink(end_effector_name);
   data.setEndEditable(true);
@@ -851,7 +851,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
   }
 
   std::string ID = generateNewTrajectoryID();
-  std::string source = "planner";
+  std::string source = "Planner";
 
   TrajectoryData& trajectoryData = (*trajectory_map_)[trajectoryID_Out];
   trajectoryData.setTrajectory(plan_res.trajectory.joint_trajectory);
@@ -860,7 +860,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
   trajectoryID_Out = ID;
   trajectoryData.setPlanningSceneName(data.getPlanningSceneName());
   trajectoryData.setID(trajectoryID_Out);
-  trajectoryData.setSource("planner");
+  trajectoryData.setSource("Planner");
   trajectoryData.setDuration(plan_res.planning_time);
   trajectoryData.setVisible(true);
   trajectoryData.setPlaying(true);
@@ -893,14 +893,14 @@ void PlanningSceneEditor::determinePitchRollConstraintsGivenState(const Kinemati
   //btScalar roll, pitch, yaw;
   //cur.getBasis().getRPY(roll,pitch,yaw);
   goal_constraint.header.frame_id = cm_->getWorldFrameId();
-  goal_constraint.header.stamp = ros::Time::now();
+  goal_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
   goal_constraint.link_name = end_effector_link;
   tf::quaternionTFToMsg(cur.getRotation(), goal_constraint.orientation);
   goal_constraint.absolute_roll_tolerance = 0.04;
   goal_constraint.absolute_pitch_tolerance = 0.04;
   goal_constraint.absolute_yaw_tolerance = M_PI;
   path_constraint.header.frame_id = cm_->getWorldFrameId();
-  path_constraint.header.stamp = ros::Time::now();
+  path_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
   path_constraint.link_name = end_effector_link;
   tf::quaternionTFToMsg(cur.getRotation(), path_constraint.orientation);
   path_constraint.type = path_constraint.HEADER_FRAME;
@@ -922,7 +922,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   FilterJointTrajectoryWithConstraints::Request filter_req;
   FilterJointTrajectoryWithConstraints::Response filter_res;
 
-  convertKinematicStateToRobotState(*robot_state_, ros::Time::now(), cm_->getWorldFrameId(), filter_req.start_state);
+  convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), filter_req.start_state);
 
   filter_req.trajectory = trajectory.getTrajectory();
   filter_req.group_name = trajectory.getGroupName();
@@ -931,16 +931,17 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   filter_req.allowed_time = ros::Duration(2.0);
 
 
+  ros::Time startTime = ros::Time(ros::WallTime::now().toSec());
   if(!trajectory_filter_service_client_.call(filter_req, filter_res))
   {
    ROS_INFO("Problem with trajectory filter");
    return false;
   }
 
-  TrajectoryData data(generateNewTrajectoryID(), "filter", trajectory.getGroupName(), filter_res.trajectory);
+  TrajectoryData data(generateNewTrajectoryID(), "Trajectory Filterer", trajectory.getGroupName(), filter_res.trajectory);
   data.setPlanningSceneName(requestData.getPlanningSceneName());
   data.setMotionPlanRequestID(requestData.getID());
-  data.setDuration(ros::Duration(2));
+  data.setDuration(ros::Time(ros::WallTime::now().toSec()) - startTime);
   requestData.getTrajectories().push_back(data.getID());
   (*planning_scene_map_)[requestData.getPlanningSceneName()].getTrajectories().push_back(data.getID());
   if(filter_res.error_code.val != filter_res.error_code.SUCCESS)
@@ -968,7 +969,7 @@ void PlanningSceneEditor::updateJointStates()
 
   sensor_msgs::JointState msg;
   msg.header.frame_id = cm_->getWorldFrameId();
-  msg.header.stamp = ros::Time::now();
+  msg.header.stamp = ros::Time(ros::WallTime::now().toSec());
 
   vector<KinematicState::JointState*> jointStates = getRobotState()->getJointStateVector();
 
@@ -1044,7 +1045,7 @@ std::string PlanningSceneEditor::createNewPlanningScene()
 
   PlanningSceneData data;
   data.setName(generateNewPlanningSceneID());
-  data.setTimeStamp(ros::Time::now());
+  data.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
 
   convertKinematicStateToRobotState(*robot_state_, data.getTimeStamp(), cm_->getWorldFrameId(),
                                     data.getPlanningScene().robot_state);
@@ -1088,11 +1089,16 @@ void PlanningSceneEditor::loadAllWarehouseData()
     ROS_INFO("Got planning scene %s from warehouse.", ID.c_str());
     PlanningSceneData& data = (*planning_scene_map_)[ID];
     getPlanningSceneOutcomes(time, data.getPipelineStages(), data.getErrorCodes(), error_map_);
+    onPlanningSceneLoaded((int)i, (int)planningSceneTimes.size());
   }
 }
 
+
 void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data)
 {
+  // Have to do this in case robot state was corrupted by sim time.
+  data.setTimeStamp(data.getTimeStamp());
+
   move_arm_warehouse_logger_reader_->pushPlanningSceneToWarehouse(data.getPlanningScene());
 
   ROS_INFO("Saving Planning Scene %s", data.getName().c_str());
@@ -1199,7 +1205,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   planning_scene_req.planning_scene_diff = data.getPlanningScene();
   planning_scene_req.planning_scene_diff.collision_objects.clear();
   planning_scene_req.planning_scene_diff.set_collision_objects_size(0);
-  convertKinematicStateToRobotState(*robot_state_, ros::Time::now(), cm_->getWorldFrameId(),
+  convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                     planning_scene_req.planning_scene_diff.robot_state);
 
   deleteKinematicStates();
@@ -1306,7 +1312,7 @@ void PlanningSceneEditor::createMotionPlanRequestData(std::string planning_scene
     data.setMotionPlanRequest(mpr);
     data.setPlanningSceneName(planning_scene_ID);
     data.setGroupName(mpr.group_name);
-    data.setSource("planner");
+    data.setSource("Planner");
 
     StateRegistry start;
     start.state = data.getStartState();
@@ -1335,8 +1341,6 @@ void PlanningSceneEditor::createMotionPlanRequestData(std::string planning_scene
 
   }
 }
-
-
 
 bool PlanningSceneEditor::getMotionPlanRequest(const ros::Time& time, const string& stage, MotionPlanRequest& mpr,
                                                string& ID, string& planning_scene_ID)
@@ -1367,7 +1371,7 @@ bool PlanningSceneEditor::getMotionPlanRequest(const ros::Time& time, const stri
   data.setMotionPlanRequest(mpr);
   data.setPlanningSceneName(planning_scene_ID);
   data.setGroupName(mpr.group_name);
-  data.setSource("planner");
+  data.setSource("Planner");
   StateRegistry start;
   start.state = data.getStartState();
   start.source = "Motion Plan Request Data Start from loadRequest";
@@ -1562,7 +1566,7 @@ void PlanningSceneEditor::updateCurrentCollisionSet(const string& csd, std::stri
 
     GetStateValidity::Request val_req;
     GetStateValidity::Response val_res;
-    convertKinematicStateToRobotState(*state, ros::Time::now(), cm_->getWorldFrameId(), val_req.robot_state);
+    convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(), val_req.robot_state);
 
     if(!distance_state_validity_service_client_.call(val_req, val_res))
     {
@@ -1583,11 +1587,11 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   selectable.collision_object_ = object;
   selectable.control_marker_.pose = object.poses[0];
   selectable.control_marker_.header.frame_id = "/" + cm_->getWorldFrameId();
-  selectable.control_marker_.header.stamp = ros::Time::now();
+  selectable.control_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
 
   selectable.selection_marker_.pose = object.poses[0];
   selectable.selection_marker_.header.frame_id = "/" + cm_->getWorldFrameId();
-  selectable.selection_marker_.header.stamp = ros::Time::now();
+  selectable.selection_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
 
   InteractiveMarkerControl button;
   button.name = name;
@@ -1922,7 +1926,6 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
 
 }
 
-
 void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMarkerFeedbackConstPtr &feedback)
 {
   if(feedback->marker_name.rfind("collision_object") == string::npos)
@@ -1955,7 +1958,7 @@ void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMark
   {
     interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
     (*selectable_objects_)[name].control_marker_.pose = feedback->pose;
-    (*selectable_objects_)[name].control_marker_.header.stamp = ros::Time::now();
+    (*selectable_objects_)[name].control_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
 
     interactive_marker_server_->insert((*selectable_objects_)[name].control_marker_,
                                        collision_object_movement_feedback_ptr_);
@@ -1996,7 +1999,7 @@ void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarke
      {
        interactive_marker_server_->erase((*selectable_objects_)[name].control_marker_.name);
        (*selectable_objects_)[name].selection_marker_.pose = feedback->pose;
-       (*selectable_objects_)[name].selection_marker_.header.stamp = ros::Time::now();
+       (*selectable_objects_)[name].selection_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
        interactive_marker_server_->insert((*selectable_objects_)[name].selection_marker_,
                                           collision_object_selection_feedback_ptr_);
        menu_handler_map_["Collision Object Selection"].apply(*interactive_marker_server_, (*selectable_objects_)[name].selection_marker_.name);
@@ -2016,7 +2019,7 @@ void PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, Planni
   lockScene();
   arm_navigation_msgs::CollisionObject collision_object;
   collision_object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  collision_object.header.stamp = ros::Time::now();
+  collision_object.header.stamp = ros::Time(ros::WallTime::now().toSec());
   collision_object.header.frame_id =  cm_->getWorldFrameId();
   collision_object.id = generateNewCollisionObjectID();
   arm_navigation_msgs::Shape object;
@@ -2064,7 +2067,7 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr, 
   kinematics_msgs::PositionIKRequest ik_request;
   ik_request.ik_link_name = mpr.getEndEffectorLink();
   ik_request.pose_stamped.header.frame_id = cm_->getWorldFrameId();
-  ik_request.pose_stamped.header.stamp = ros::Time::now();
+  ik_request.pose_stamped.header.stamp = ros::Time(ros::WallTime::now().toSec());
 
   KinematicState* state = NULL;
 
@@ -2080,7 +2083,7 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr, 
   tf::poseTFToMsg(state->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform(),
                   ik_request.pose_stamped.pose);
 
-  convertKinematicStateToRobotState(*state, ros::Time::now(), cm_->getWorldFrameId(),
+  convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                     ik_request.robot_state);
   ik_request.ik_seed_state = ik_request.robot_state;
 
@@ -2183,7 +2186,7 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr, 
   if(type == StartPosition)
   {
     mpr.setStartStateValues(joint_values);
-    convertKinematicStateToRobotState(*state,  ros::Time::now(), cm_->getWorldFrameId(),mpr.getMotionPlanRequest().start_state);
+    convertKinematicStateToRobotState(*state,  ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),mpr.getMotionPlanRequest().start_state);
     mpr.setLastGoodStartPose((state->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform()));
   }
   else
@@ -2221,12 +2224,13 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
   SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
   FollowJointTrajectoryGoal goal;
   goal.trajectory = trajectory.getTrajectory();
-  goal.trajectory.header.stamp = ros::Time::now()+ros::Duration(0.2);
+  goal.trajectory.header.stamp = ros::Time::now() +ros::Duration(0.2);
   controller->sendGoal(goal, boost::bind(&PlanningSceneEditor::controllerDoneCallback, this, _1, _2));
   logged_group_name_ = trajectory.getGroupName();
   logged_motion_plan_request_ = trajectory.getMotionPlanRequestID();
   logged_trajectory_= trajectory.getTrajectory();
   logged_trajectory_.points.clear();
+  logged_trajectory_start_time_ = ros::Time::now() + ros::Duration(0.2);
   monitor_status_ = Executing;
 }
 
@@ -2306,7 +2310,6 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
     posVariance *= 1.1;
   }
 }
-
 
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                             const control_msgs::FollowJointTrajectoryResultConstPtr& result)
