@@ -76,6 +76,8 @@ namespace planning_scene_utils
     EndPosition
   };
 
+  class PlanningSceneEditor;
+
   class PlanningSceneData
   {
     protected:
@@ -175,6 +177,7 @@ namespace planning_scene_utils
       bool has_good_ik_solution_;
       bool collisions_visible_;
       bool state_changed_;
+      bool joint_controls_visible_;
       std_msgs::ColorRGBA start_color_;
       std_msgs::ColorRGBA end_color_;
       std::vector<std::string> trajectories_;
@@ -195,6 +198,17 @@ namespace planning_scene_utils
 
       void updateStartState();
       void updateGoalState();
+
+
+      std::vector<std::string> getJointNamesInGoal();
+      bool isJointNameInGoal(std::string joint);
+
+      inline bool areJointControlsVisible()
+      {
+        return joint_controls_visible_;
+      }
+
+      void setJointControlsVisible(bool visible, PlanningSceneEditor* editor);
 
 
       inline bool hasStateChanged()
@@ -790,6 +804,8 @@ namespace planning_scene_utils
       std::string right_redundancy_;
       std::string right_arm_group_;
       std::string left_arm_group_;
+      std::string execute_left_trajectory_;
+      std::string execute_right_trajectory_;
       bool use_robot_data_;
   };
 
@@ -880,6 +896,8 @@ namespace planning_scene_utils
       interactive_markers::MenuHandler::FeedbackCallback collision_object_selection_feedback_ptr_;
       interactive_markers::MenuHandler::FeedbackCallback collision_object_movement_feedback_ptr_;
       interactive_markers::MenuHandler::FeedbackCallback ik_control_feedback_ptr_;
+      interactive_markers::MenuHandler::FeedbackCallback joint_control_feedback_ptr_;
+
       interactive_markers::InteractiveMarkerServer* interactive_marker_server_;
 
       std::map<std::string, SelectableObject>* selectable_objects_;
@@ -925,11 +943,16 @@ namespace planning_scene_utils
       std::map<std::string, PlanningSceneData>* planning_scene_map_;
       std::map<std::string, TrajectoryData>* trajectory_map_;
       std::map<std::string, MotionPlanRequestData>* motion_plan_map_;
-
+      std::map<std::string, bool> joint_clicked_map_;
+      std::map<std::string, btTransform> joint_prev_transform_map_;
       PlanningSceneEditor();
       PlanningSceneEditor(PlanningSceneParameters& params);
       ~PlanningSceneEditor();
-
+      void deleteJointMarkers(MotionPlanRequestData& data, PositionType type);
+      void makeInteractive1DOFRotationMarker(btTransform transform, btVector3 axis, string name, string description,
+                                             float scale = 1.0f, float angle = 0.0f);
+      void makeInteractive1DOFTranslationMarker(btTransform transform, btVector3 axis, string name, string description,
+                                                float scale = 1.0f, float value = 0.0f);
       void updateJointStates();
       void sendMarkers();
       void getTrajectoryMarkers(visualization_msgs::MarkerArray& arr);
@@ -997,17 +1020,25 @@ namespace planning_scene_utils
         geometry_msgs::TransformStamped transvec;
         for(map<string, geometry_msgs::TransformStamped>::const_iterator it = transforms.begin(); it != transforms.end(); it++)
         {
-          trans_vector.push_back(it->second);
+          if(it->first != cm_->getWorldFrameId())
+          {
+            trans_vector.push_back(it->second);
+          }
         }
         for(unsigned int i = 0; i < state.getLinkStateVector().size(); i++)
         {
           const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[i];
-          geometry_msgs::TransformStamped ts;
-          ts.header.stamp = stamp;
-          ts.header.frame_id = cm_->getWorldFrameId();
-          ts.child_frame_id = ls->getName();
-          tf::transformTFToMsg(ls->getGlobalLinkTransform(), ts.transform);
-          trans_vector.push_back(ts);
+
+          if(ls->getName() != cm_->getWorldFrameId())
+          {
+            geometry_msgs::TransformStamped ts;
+            ts.header.stamp = stamp;
+            ts.header.frame_id = cm_->getWorldFrameId();
+
+            ts.child_frame_id = ls->getName();
+            tf::transformTFToMsg(ls->getGlobalLinkTransform(), ts.transform);
+            trans_vector.push_back(ts);
+          }
         }
       }
 
@@ -1035,17 +1066,19 @@ namespace planning_scene_utils
 
       void collisionObjectSelectionCallback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
       void collisionObjectMovementCallback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
+      void JointControllerCallback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
       void IKControllerCallback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
 
       void createIkControllersFromMotionPlanRequest(MotionPlanRequestData& data);
       void createIKController(MotionPlanRequestData& data, PositionType type);
       void createCollisionObject(geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY, float scaleZ);
 
-
+      void setJointState(MotionPlanRequestData& data, PositionType position, std::string& jointName,
+                                              btTransform value);
       bool solveIKForEndEffectorPose(MotionPlanRequestData& mpr, PositionType type, bool coll_aware = true,
                                      bool constrain_pitch_and_roll = false, double change_redundancy = 0.0);
 
-
+      void createJointMarkers(MotionPlanRequestData& data, planning_scene_utils::PositionType position);
       void randomlyPerturb(MotionPlanRequestData& mpr, PositionType type);
 
       void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state);
