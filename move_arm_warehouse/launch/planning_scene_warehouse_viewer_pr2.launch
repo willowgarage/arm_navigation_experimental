@@ -1,0 +1,120 @@
+<launch>
+	
+
+	 <param name="/use_sim_time" value="true" />
+
+	  <param name="/robot_description" textfile="$(find planning_models)/test_urdf/robot.xml" />
+
+	  <!-- send parameters for multidof -->
+	  <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
+
+	  <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+
+	  <node pkg="planning_environment" name="wall_clock_server" type="fake_time.py" />
+
+	  <node pkg="planning_environment" type="environment_server" output="screen" name="environment_server">      
+	    <param name="use_monitor" type="bool" value="false"/>
+	  </node>
+
+	  <node pkg="planning_environment" type="planning_scene_validity_server" output="screen" name="planning_scene_validity_server"/>      
+	  
+	  <node pkg="pr2_arm_kinematics_constraint_aware" type="pr2_arm_kinematics_constraint_aware" name="pr2_right_arm_kinematics" output="screen">    
+	   	 <!-- IK parameters -->
+	   	 <param name="tip_name" value="r_wrist_roll_link" />     
+	   	 <param name="root_name" value="torso_lift_link" />  
+
+		 <param name="group" type="string" value="right_arm" />
+	   </node>
+	   <node pkg="pr2_arm_kinematics_constraint_aware" type="pr2_arm_kinematics_constraint_aware" name="pr2_left_arm_kinematics" output="screen">    
+	   	 <!-- IK parameters -->
+	   	 <param name="tip_name" value="l_wrist_roll_link" />     
+	   	 <param name="root_name" value="torso_lift_link" />  
+
+		 <param name="group" type="string" value="left_arm" />
+	   </node>
+	   <node pkg="ompl_ros_interface" type="ompl_ros" name="ompl_planning" output="screen">
+	     <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/ompl_planning.yaml" />
+	   </node>
+	  <node name="interpolated_ik_node_right" pkg="interpolated_ik_motion_planner" 
+	    type="interpolated_ik_motion_planner.py" args="r" respawn="false"/>
+	   <node pkg="trajectory_filter_server" name="trajectory_filter" type="trajectory_filter_server" output="screen">
+	     <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+	     <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
+	   </node>
+	  <node name="collision_proximity_server_test" pkg="collision_proximity" type="collision_proximity_server_test" output="screen" respawn="false" />
+	  <node name="collision_proximity_planner" pkg="collision_proximity_planner" type="collision_proximity_planner" output="screen" respawn="false" />
+
+	  <node name="mongo" type="wrapper.py" pkg="mongodb">
+	    <param name="overwrite" value="false"/>
+	  </node>
+
+	  <param name="warehouse_port" value="27019"/>
+
+	  <node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
+
+	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer" launch-prefix="xterm -e gdb --args" />
+
+	<!-- Called when left arm executes trajectory using controllers -->
+	<param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />
+
+	<!-- Called when right arm executes trajectory using controllers -->
+	<param name="execute_right_trajectory" value="/r_arm_controller/follow_joint_trajectory" />
+
+	<!-- Called to get left arm inverse kinematics with collision checking -->
+	<param name="left_ik_name" value="/pr2_left_arm_kinematics/get_constraint_aware_ik" />
+
+	<!-- Called to get right arm inverse kinematics with collision checking -->
+	<param name="right_ik_name" value="/pr2_right_arm_kinematics/get_constraint_aware_ik" />
+
+	<!-- Called to get left arm inverse kinematics without collision checking -->
+	<param name="non_coll_left_ik_name" value="/pr2_left_arm_kinematics/get_ik" />
+
+	<!-- Called to get right arm inverse kinematics without collision checking -->
+	<param name="non_coll_right_ik_name" value="/pr2_right_arm_kinematics/get_ik" />
+
+	<!-- Kinematic chain group name representing the left arm -->
+	<param name="left_arm_group" value="left_arm" />
+
+	<!-- Kinematic chain group name representing the right arm -->
+	<param name="right_arm_group" value="right_arm" />
+
+	<!-- Degree of freedom representing inverse kinematics redundancy on the left arm -->
+	<param name="left_redundancy" value="l_upper_arm_roll_joint" />
+
+	<!-- Degree of freedom representing inverse kinematics redundancy on the right arm -->
+	<param name="right_redundancy" value="r_upper_arm_roll_joint" />
+
+	<!-- Link on the left arm to perform inverse kinematics for -->
+	<param name="left_ik_link" value="l_wrist_roll_link" />
+
+	<!-- Link on the right arm to perform inverse kinematics for -->
+	<param name="right_ik_link" value="r_wrist_roll_link" />
+
+	<!-- Called to plan trajectories given motion plan requests -->
+	<param name="planner_service_name" value="/ompl_planning/plan_kinematic_path" />
+
+	<!-- Interpolates between end effector positions for the left arm -->
+	<param name="left_interpolate_service_name" value="/l_interpolated_ik_motion_plan" />
+
+	<!-- Interpolates between end effector positions for the right arm -->
+	<param name="right_interpolate_service_name" value="/r_interpolated_ik_motion_plan" />
+
+	<!-- Called to smooth and optimize a planner trajectory -->
+	<param name="trajectory_filter_service_name" value="/trajectory_filter/filter_trajectory_with_constraints" />
+
+	<!-- Called to get the proximity space -->
+	<param name="proximity_space_service_name" value="/collision_proximity_server_test/get_distance_aware_plan" />
+
+	<!-- Called to get collision validity of robot state -->
+	<param name="proximity_space_validity_name" value="/collision_proximity_server_test/get_state_validity"/>
+
+	<!-- Called to produce a plan that pulls trajectories out of collision -->
+	<param name="proximity_space_planner_name" value="/collision_proximity_planner/plan"/>
+
+	<!-- Called to send the planning scene to the environment server -->
+	<param name="set_planning_scene_diff_name" value="environment_server/set_planning_scene_diff"/>
+
+	
+	<param name="vis_topic_name" value="planning_scene_visualizer_markers"/>
+
+</launch>
