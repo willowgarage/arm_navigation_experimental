@@ -245,6 +245,7 @@ MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPla
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
   refresh_counter_ = 0;
+  joint_controls_visible_ = false;
 }
 
 void MotionPlanRequestData::updateGoalState()
@@ -401,7 +402,7 @@ std::vector<std::string> MotionPlanRequestData::getJointNamesInGoal()
 bool MotionPlanRequestData::isJointNameInGoal(std::string joint)
 {
   vector<string> joints = getJointNamesInGoal();
-  for(size_t i = 0; i < joint.size(); i++)
+  for(size_t i = 0; i < joints.size(); i++)
   {
     if(joints[i] == joint)
     {
@@ -2470,13 +2471,11 @@ void PlanningSceneEditor::deleteJointMarkers(MotionPlanRequestData& data, Positi
     {
       std::string markerName = jointNames[i] + "_mpr_" + data.getID() + "_start_control";
       interactive_marker_server_->erase(markerName);
-      ROS_INFO("Erasing %s", markerName.c_str());
     }
     else
     {
       std::string markerName = jointNames[i] + "_mpr_" + data.getID() + "_end_control";
       interactive_marker_server_->erase(markerName);
-      ROS_INFO("Erasing %s", markerName.c_str());
     }
   }
 }
@@ -2690,6 +2689,93 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 
 void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionType type)
 {
+
+
+  //Joint space method
+
+  KinematicState* currentState = NULL;
+
+  if(type == StartPosition)
+  {
+    currentState = mpr.getStartState();
+  }
+  else
+  {
+    currentState = mpr.getGoalState();
+  }
+
+  vector<KinematicState::JointState*>& jointStates = currentState->getJointStateVector();
+  std::map<string, double> originalState;
+  std::map<string, double> stateMap;
+  bool goodSolution = false;
+  int numIterations = 0;
+  int maxIterations = 100;
+  while(!goodSolution && numIterations < maxIterations)
+  {
+    currentState->getKinematicStateValues(stateMap);
+    for(size_t i = 0; i < jointStates.size(); i++)
+    {
+      KinematicState::JointState* jointState = jointStates[i];
+      map<string, pair<double, double> > bounds = jointState->getJointModel()->getAllVariableBounds();
+      for(map<string, pair<double,double> >::iterator it = bounds.begin(); it != bounds.end(); it++)
+      {
+        if(!mpr.isJointNameInGoal(it->first))
+        {
+          continue;
+        }
+        double range = it->second.second - it->second.first;
+        if(range == std::numeric_limits<double>::infinity())
+        {
+          continue;
+        }
+        double randVal = ((double)random() / (double)RAND_MAX)*(range*0.99) + it->second.first;
+        stateMap[it->first] = randVal;
+      }
+    }
+
+    currentState->setKinematicState(stateMap);
+
+    if(!cm_->isKinematicStateInCollision(*currentState))
+    {
+      goodSolution = true;
+      break;
+    }
+    numIterations ++;
+  }
+
+  if(!goodSolution)
+  {
+    currentState->setKinematicState(originalState);
+    return;
+  }
+  else
+  {
+    ROS_INFO("Found a good random solution in %d iterations", numIterations);
+  }
+
+
+  if(type == StartPosition)
+  {
+    convertKinematicStateToRobotState(*currentState, mpr.getMotionPlanRequest().start_state.joint_state.header.stamp,
+                                      mpr.getMotionPlanRequest().start_state.joint_state.header.frame_id,
+                                      mpr.getMotionPlanRequest().start_state);
+  }
+  else
+  {
+    std::vector<JointConstraint>& constraints = mpr.getMotionPlanRequest().goal_constraints.joint_constraints;
+    for(size_t i = 0; i < constraints.size(); i++)
+    {
+      JointConstraint& constraint = constraints[i];
+      constraint.position = stateMap[constraint.joint_name];
+    }
+  }
+
+  mpr.setHasGoodIKSolution(true);
+  mpr.refreshColors();
+  createIkControllersFromMotionPlanRequest(mpr);
+  mpr.setJointControlsVisible(mpr.areJointControlsVisible(), this);
+
+  /* Old workspace method
   btTransform currentPose;
 
   if(type == StartPosition)
@@ -2763,6 +2849,7 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
     numTries++;
     posVariance *= 1.1;
   }
+  */
 }
 
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
