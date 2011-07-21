@@ -1215,6 +1215,10 @@ std::string PlanningSceneEditor::createNewPlanningScene()
 
   updateJointStates();
 
+  char hostname[256];
+  gethostname(hostname, 256);
+  data.setHostName(std::string(hostname));
+
   return data.getName();
 }
 
@@ -1288,10 +1292,13 @@ bool PlanningSceneEditor::loadPlanningScene(const ros::Time& time, std::string& 
   PlanningSceneData data;
   data.setTimeStamp(time);
   data.setName(generateNewPlanningSceneID());
-  if(!move_arm_warehouse_logger_reader_->getPlanningScene("", time, data.getPlanningScene()))
+  std::string host = "";
+  if(!move_arm_warehouse_logger_reader_->getPlanningScene("", time, data.getPlanningScene(), host))
   {
     return false;
   }
+
+  data.setHostName(host);
 
   std::pair<string, PlanningSceneData> p(data.getName(), data);
   planning_scene_map_->insert(p);

@@ -1023,12 +1023,18 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
     count ++;
   }
   planning_scene_table_->setRowCount(count);
-  planning_scene_table_->setColumnCount(3);
+  planning_scene_table_->setColumnCount(4);
   QStringList labels;
+  labels.append("Host");
   labels.append("Name");
   labels.append("Timestamp");
   labels.append("Notes");
   planning_scene_table_->setHorizontalHeaderLabels(labels);
+  planning_scene_table_->setColumnWidth(0, 150);
+  planning_scene_table_->setColumnWidth(1, 150);
+  planning_scene_table_->setColumnWidth(2, 300);
+  planning_scene_table_->setColumnWidth(3, 400);
+  planning_scene_table_->setMinimumWidth(1000);
 
   ROS_INFO("Num Planning Scenes: %d", planning_scene_table_->rowCount());
 
@@ -1037,9 +1043,13 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
   {
     PlanningSceneData& data = it->second;
 
+    QTableWidgetItem* hostItem = new QTableWidgetItem(QString::fromStdString(data.getHostName()));
+    hostItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+    planning_scene_table_->setItem(r, 0, hostItem);
+
     QTableWidgetItem* nameItem = new QTableWidgetItem(QString::fromStdString(data.getName()));
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    planning_scene_table_->setItem(r, 0, nameItem);
+    planning_scene_table_->setItem(r, 1, nameItem);
 
     QDateTime time;
     time.setTime_t((unsigned int)(data.getTimeStamp().toSec()));
@@ -1048,7 +1058,7 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
 
     QTableWidgetItem* timeItem = new QTableWidgetItem(QString::fromStdString(timestampStream.str()));
     timeItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    planning_scene_table_->setItem(r, 1, timeItem);
+    planning_scene_table_->setItem(r, 2, timeItem);
 
     stringstream notesStream;
 
@@ -1066,14 +1076,10 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
 
     QTableWidgetItem* notesItem = new QTableWidgetItem(QString::fromStdString(notesStream.str()));
     notesItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    planning_scene_table_->setItem(r, 2, notesItem);
+    planning_scene_table_->setItem(r, 3, notesItem);
     r++;
   }
 
-  planning_scene_table_->setColumnWidth(0, 150);
-  planning_scene_table_->setColumnWidth(1, 300);
-  planning_scene_table_->setColumnWidth(2, 400);
-  planning_scene_table_->setMinimumWidth(1000);
 
 }
 

@@ -82,6 +82,7 @@ namespace planning_scene_utils
   {
     protected:
       std::string name_;
+      std::string host_;
       ros::Time timestamp_;
       arm_navigation_msgs::PlanningScene planning_scene_;
       std::vector<std::string> pipeline_stages_;
@@ -92,6 +93,16 @@ namespace planning_scene_utils
     public:
       PlanningSceneData();
       PlanningSceneData(std::string name, ros::Time timestamp, arm_navigation_msgs::PlanningScene scene);
+
+      inline std::string getHostName()
+      {
+        return host_;
+      }
+
+      inline void setHostName(std::string host)
+      {
+        host_ = host;
+      }
 
       inline std::string getName()
       {

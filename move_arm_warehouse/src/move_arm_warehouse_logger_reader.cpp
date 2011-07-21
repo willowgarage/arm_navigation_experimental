@@ -206,7 +206,7 @@ mongo_ros::Query MoveArmWarehouseLoggerReader::makeQueryForPlanningSceneTime(con
 }
 
 bool MoveArmWarehouseLoggerReader::getPlanningScene(const std::string& hostname, const ros::Time& time, 
-                                                    arm_navigation_msgs::PlanningScene& planning_scene)
+                                                    arm_navigation_msgs::PlanningScene& planning_scene, std::string& hostnameOut)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   std::vector<PlanningSceneWithMetadata> planning_scenes = planning_scene_collection_->pullAllResults(q, false);
@@ -217,7 +217,10 @@ bool MoveArmWarehouseLoggerReader::getPlanningScene(const std::string& hostname,
   } else if(planning_scenes.size() > 1) {
     ROS_WARN_STREAM("More than one stream with that time " << planning_scenes.size());
   }
-  planning_scene = *planning_scenes[0];
+
+  PlanningSceneWithMetadata& scene = planning_scenes[0];
+  planning_scene = *scene;
+  hostnameOut = scene->metadata.getField("hostname").String();
   return true;
 }
 

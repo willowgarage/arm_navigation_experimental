@@ -90,7 +90,7 @@ public:
   void getAvailablePlanningSceneList(const std::string& hostname, std::vector<ros::Time>& creation_times);
 
   bool getPlanningScene(const std::string& hostname, const ros::Time& time, 
-                        arm_navigation_msgs::PlanningScene& planning_scene);
+                        arm_navigation_msgs::PlanningScene& planning_scene,std::string& hostnameOut);
 
   bool getAssociatedOutcomes(const std::string& hostname,
                              const ros::Time& time,
