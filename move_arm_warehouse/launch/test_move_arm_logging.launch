@@ -1,0 +1,20 @@
+<launch>
+
+  <include file="$(find pr2_arm_navigation_perception)/launch/laser+stereo-perception.launch"/>
+
+  <include file="$(find pr2_arm_navigation_actions)/launch/head_monitor.launch"/>
+
+  <include file="$(find pr2_arm_navigation_actions)/launch/move_right_arm_warehouse.launch"/>
+
+  <include file="$(find pr2_arm_navigation_planning)/launch/ompl_planning.launch"/>
+
+  <!-- load planning_environment -->
+  <include file="$(find planning_environment)/launch/environment_server.launch"/>
+
+  <!-- load controllers -->
+  <include file="$(find pr2_arm_navigation_filtering)/launch/both_arms_filters.launch"/>
+
+  <include file="$(find pr2_arm_navigation_kinematics)/launch/right_arm_collision_free_ik.launch"/>
+  <include file="$(find pr2_arm_navigation_kinematics)/launch/left_arm_collision_free_ik.launch"/>
+
+</launch>
