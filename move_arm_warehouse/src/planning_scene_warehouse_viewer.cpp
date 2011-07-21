@@ -47,7 +47,7 @@ PlanningSceneVisualizer* psv = NULL;
 bool inited = false;
 
 PlanningSceneVisualizer::PlanningSceneVisualizer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params) :
-  QWidget(parent), PlanningSceneEditor(params)
+  QMainWindow(parent), PlanningSceneEditor(params)
 {
   quit_threads_ = false;
   initQtWidgets();
@@ -63,6 +63,9 @@ PlanningSceneVisualizer::~PlanningSceneVisualizer()
 void PlanningSceneVisualizer::initQtWidgets()
 {
   menu_bar_ = new QMenuBar(this);
+  setMenuBar(menu_bar_);
+  QWidget* centralWidget = new QWidget(this);
+  setCentralWidget(centralWidget);
 
   QGroupBox* motionPlanBox = new QGroupBox(this);
   motionPlanBox->setTitle("Motion Plan Requests");
@@ -87,6 +90,7 @@ void PlanningSceneVisualizer::initQtWidgets()
   load_planning_scene_action_ = file_menu_->addAction("Load Planning Scene ...");
   save_planning_scene_action_ = file_menu_->addAction("Save Planning Scene ...");
   new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
+  refresh_action_ = file_menu_->addAction("Refresh Planning Scene...");
   quit_action_ = file_menu_->addAction("Quit");
 
   collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
@@ -148,7 +152,7 @@ void PlanningSceneVisualizer::initQtWidgets()
   deleteTrajectoryButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   deleteTrajectoryButton->setText("Delete Trajectory");
 
-  motionBoxLayout->addWidget(menu_bar_);
+
   motionBoxLayout->addWidget(motion_plan_tree_);
   motionBoxLayout->addWidget(selected_request_label_);
   motionBoxLayout->addWidget(deleteMPRButton);
@@ -183,6 +187,7 @@ void PlanningSceneVisualizer::initQtWidgets()
   connect(motion_plan_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(motionPlanTableSelection()));
   connect(this, SIGNAL(updateTables()), this, SLOT(updateStateTriggered()));
   connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
+  connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -191,12 +196,26 @@ void PlanningSceneVisualizer::initQtWidgets()
   buttonsBox->setLayout(buttonLayout);
   trajectoryBox->setLayout(trajectoryBoxLayout);
   motionPlanBox->setLayout(motionBoxLayout);
-  this->setLayout(layout);
+  centralWidget->setLayout(layout);
 
   createNewObjectDialog();
   createRequestDialog();
 
   setCurrentPlanningScene(createNewPlanningScene());
+}
+
+void PlanningSceneVisualizer::refreshSceneButtonPressed()
+{
+  if(current_planning_scene_ID_ != "" )
+  {
+    sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  }
+  else
+  {
+    QMessageBox msg(QMessageBox::Warning,"Refresh", "No planning scene loaded!");
+    msg.addButton(QMessageBox::Ok);
+    msg.exec();
+  }
 }
 
 void PlanningSceneVisualizer::executeButtonPressed()

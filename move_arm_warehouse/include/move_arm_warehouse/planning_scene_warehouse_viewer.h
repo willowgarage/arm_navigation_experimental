@@ -64,6 +64,7 @@
 #include <qt4/QtGui/qformlayout.h>
 #include <qt4/QtGui/qlineedit.h>
 #include <qt4/QtGui/qmessagebox.h>
+#include <qt4/QtGui/qmainwindow.h>
 #include <QDateTime>
 
 
@@ -269,7 +270,7 @@ class ParameterDialog : public QDialog
 
 };
 
-class PlanningSceneVisualizer : public QWidget, public planning_scene_utils::PlanningSceneEditor
+class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils::PlanningSceneEditor
 {
     Q_OBJECT
   public:
@@ -343,6 +344,7 @@ class PlanningSceneVisualizer : public QWidget, public planning_scene_utils::Pla
     void deleteSelectedTrajectory();
     void updateStateTriggered();
     void executeButtonPressed();
+    void refreshSceneButtonPressed();
 
 
   protected:
@@ -352,6 +354,7 @@ class PlanningSceneVisualizer : public QWidget, public planning_scene_utils::Pla
     QMenu* file_menu_;
     QMenu* collision_object_menu_;
     QAction* new_object_action_;
+    QAction* refresh_action_;
     QDialog* load_planning_scene_dialog_;
     QDialog* new_object_dialog_;
     QDialog* new_request_dialog_;
