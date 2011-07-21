@@ -741,7 +741,7 @@ void PlanningSceneVisualizer::loadButtonPressed()
   if(items.size() > 0)
   {
     QTableWidgetItem* item = items[0];
-    QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),0);
+    QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),1);
     PlanningSceneData& data = (*planning_scene_map_)[nameItem->text().toStdString()];
     setCurrentPlanningScene(nameItem->text().toStdString(), load_motion_plan_requests_box_->isChecked(), load_trajectories_box_->isChecked());
     sendPlanningScene(data);
