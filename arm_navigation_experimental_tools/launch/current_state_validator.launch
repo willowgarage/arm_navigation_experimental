@@ -1,0 +1,11 @@
+<launch>
+
+  <arg name="group_name_1" default=""/>
+  <arg name="group_name_2" default=""/>
+
+  <node pkg="arm_navigation_experimental_tools" type="current_state_validator" output="screen" name="current_state_validator">      
+    <param name="group_name_1" type="string" value="$(arg group_name_1)"/>
+    <param name="group_name_2" type="string" value="$(arg group_name_2)"/>
+  </node>
+
+</launch>
