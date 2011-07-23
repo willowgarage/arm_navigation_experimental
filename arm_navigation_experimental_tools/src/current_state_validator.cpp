@@ -36,7 +36,7 @@
 
 #include <ros/ros.h>
 
-#include <planning_environment/models/collision_models_interface.h>
+#include <planning_environment/models/collision_models.h>
 #include <planning_environment/monitors/collision_space_monitor.h>
 #include <planning_environment/models/model_utils.h>
 
@@ -57,8 +57,8 @@ public:
   {
     std::string robot_description_name = root_handle_.resolveName("robot_description", true);
     
-    collision_models_interface_ = new planning_environment::CollisionModelsInterface(robot_description_name);
-    csm_ = new planning_environment::CollisionSpaceMonitor(collision_models_interface_, &tf_);
+    collision_models_ = new planning_environment::CollisionModels(robot_description_name);
+    csm_ = new planning_environment::CollisionSpaceMonitor(collision_models_, &tf_);
 
     csm_->waitForState();
     csm_->setUseCollisionMap(true);
@@ -80,15 +80,21 @@ public:
   bool getStateValidity(arm_navigation_msgs::GetStateValidity::Request &req, 
                         arm_navigation_msgs::GetStateValidity::Response &res) 
   {
-    collision_models_interface_->bodiesLock();
+    collision_models_->bodiesLock();
 
-    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_interface_->getCurrentAllowedCollisionMatrix();
+    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getCurrentAllowedCollisionMatrix();
+    if(!acm.hasEntry(COLLISION_MAP_NAME)) {
+      acm.addEntry(COLLISION_MAP_NAME, false);
+    } else {
+      acm.changeEntry(COLLISION_MAP_NAME, false);
+      collision_models_->setAlteredAllowedCollisionMatrix(acm);
+    }
 
     if(!req.group_name.empty()) {
-      collision_models_interface_->disableCollisionsForNonUpdatedLinks(req.group_name);
+      collision_models_->disableCollisionsForNonUpdatedLinks(req.group_name);
     }    
 
-    planning_models::KinematicState state(collision_models_interface_->getKinematicModel());
+    planning_models::KinematicState state(collision_models_->getKinematicModel());
     csm_->setStateValuesFromCurrentValues(state);
 
     planning_environment::setRobotStateAndComputeTransforms(req.robot_state,
@@ -105,31 +111,40 @@ public:
     if(req.check_joint_limits) {
       joint_names = req.robot_state.joint_state.name;
     }
-    collision_models_interface_->isKinematicStateValid(state,
-                                                       joint_names,
-                                                       res.error_code,
-                                                       goal_constraints,
-                                                       path_constraints);
-    collision_models_interface_->bodiesUnlock();
+    collision_models_->isKinematicStateValid(state,
+                                             joint_names,
+                                             res.error_code,
+                                             goal_constraints,
+                                             path_constraints);
+
+    if(!req.group_name.empty()) {
+      collision_models_->setAlteredAllowedCollisionMatrix(acm);
+    }    
+
+    collision_models_->bodiesUnlock();
     return true;
 
   }
 
   void sendMarkersForGroup(const std::string& group) {
 
-    collision_models_interface_->bodiesLock();
+    collision_models_->bodiesLock();
     
-    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_interface_->getCurrentAllowedCollisionMatrix();
+    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getCurrentAllowedCollisionMatrix();
 
     if(!acm.hasEntry(COLLISION_MAP_NAME)) {
       acm.addEntry(COLLISION_MAP_NAME, false);
+    } else {
+      acm.changeEntry(COLLISION_MAP_NAME, false);
     }
 
+    //ROS_INFO_STREAM("Has collision map " << collision_models_->getCollisionSpace()->hasObject(COLLISION_MAP_NAME));
+
     if(!group.empty()) {
-      collision_models_interface_->disableCollisionsForNonUpdatedLinks(group);
+      collision_models_->disableCollisionsForNonUpdatedLinks(group);
     }    
 
-    planning_models::KinematicState state(collision_models_interface_->getKinematicModel());
+    planning_models::KinematicState state(collision_models_->getKinematicModel());
     csm_->setStateValuesFromCurrentValues(state);
     
     std_msgs::ColorRGBA good_color;
@@ -146,7 +161,7 @@ public:
 
     std_msgs::ColorRGBA col;
     bool send = true;
-    if(collision_models_interface_->isKinematicStateInCollision(state)) {
+    if(collision_models_->isKinematicStateInCollision(state)) {
       col = bad_color; 
       ROS_DEBUG_STREAM("Setting bad color");
     } else {
@@ -157,19 +172,19 @@ public:
     
     visualization_msgs::MarkerArray arr;
     if(group.empty()) {
-      collision_models_interface_->getRobotMarkersGivenState(state,
+      collision_models_->getRobotMarkersGivenState(state,
                                                              arr,
                                                              col,
                                                              "validator",
                                                              ros::Duration(MARKER_DUR));
 
     } else {
-      const planning_models::KinematicModel::JointModelGroup* joint_model_group = collision_models_interface_->getKinematicModel()->getModelGroup(group);
+      const planning_models::KinematicModel::JointModelGroup* joint_model_group = collision_models_->getKinematicModel()->getModelGroup(group);
       if(joint_model_group == NULL) {
         ROS_INFO_STREAM("No joint group " << group);
       }
       std::vector<std::string> group_links = joint_model_group->getGroupLinkNames();
-      collision_models_interface_->getRobotMarkersGivenState(state,
+      collision_models_->getRobotMarkersGivenState(state,
                                                              arr,
                                                              col,
                                                              group,
@@ -180,10 +195,10 @@ public:
       vis_marker_array_publisher_.publish(arr);
     }
     if(!group.empty()) {
-      collision_models_interface_->setAlteredAllowedCollisionMatrix(acm);
+      collision_models_->setAlteredAllowedCollisionMatrix(acm);
     }    
 
-    collision_models_interface_->bodiesUnlock();
+    collision_models_->bodiesUnlock();
   }
 
   void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state) {
@@ -192,7 +207,7 @@ public:
     }
     last_update_time_ = ros::Time::now();
     if(!send_markers_) return;
-    collision_models_interface_->bodiesLock();
+    collision_models_->bodiesLock();
     if(group_name_1_.empty() && group_name_2_.empty()) {
       sendMarkersForGroup("");
     } 
@@ -202,13 +217,13 @@ public:
     if(!group_name_2_.empty()) {
       sendMarkersForGroup(group_name_2_);
     }
-    collision_models_interface_->bodiesUnlock();
+    collision_models_->bodiesUnlock();
   }
 protected:
 
   ros::ServiceServer get_state_validity_service_;
     
-  planning_environment::CollisionModelsInterface* collision_models_interface_;
+  planning_environment::CollisionModels* collision_models_;
   planning_environment::CollisionSpaceMonitor* csm_;
 
   std::string group_name_1_;
