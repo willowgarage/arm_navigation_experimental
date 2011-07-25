@@ -888,18 +888,6 @@ private:
           move_arm_stats_.planning_time = (ros::Time::now()-planning_time).toSec();
           ROS_DEBUG("createPlan succeeded");
           resetToStartState(planning_scene_state_);
-          if(log_to_warehouse_) {
-
-            std::stringstream ss;
-            ss << "Trajectory " << (++ max_trajectory_ID_);
-            warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
-                                                              "planner", 
-                                                              ros::Duration(move_arm_stats_.planning_time),
-                                                              res.trajectory.joint_trajectory,
-                                                              ss.str(),
-                                                              last_mpr_ID_,
-                                                              res.error_code);
-          }
           if(!collision_models_->isJointTrajectoryValid(*planning_scene_state_,
                                                         res.trajectory.joint_trajectory, 
                                                         original_request_.motion_plan_request.goal_constraints,
@@ -940,6 +928,18 @@ private:
 	    state_ = START_CONTROL;
 	    ROS_INFO("Done planning. Transitioning to control");
 	  }
+          if(log_to_warehouse_) {
+
+            std::stringstream ss;
+            ss << "Trajectory " << (++ max_trajectory_ID_);
+            warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
+                                                              "planner",
+                                                              ros::Duration(move_arm_stats_.planning_time),
+                                                              res.trajectory.joint_trajectory,
+                                                              ss.str(),
+                                                              last_mpr_ID_,
+                                                              error_code);
+          }
         }
         else if(action_server_->isActive())
         {
