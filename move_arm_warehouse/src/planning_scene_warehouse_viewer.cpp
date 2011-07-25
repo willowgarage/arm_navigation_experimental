@@ -51,7 +51,6 @@ PlanningSceneVisualizer::PlanningSceneVisualizer(QWidget* parent, planning_scene
 {
   quit_threads_ = false;
   initQtWidgets();
-  setCurrentPlanningScene("", false, false);
   selected_trajectory_ID_ = "";
 }
 
@@ -86,11 +85,14 @@ void PlanningSceneVisualizer::initQtWidgets()
 
   QVBoxLayout* trajectoryBoxLayout = new QVBoxLayout(trajectoryBox);
   file_menu_ = menu_bar_->addMenu("File");
+  planning_scene_menu_ = menu_bar_->addMenu("Planning Scene");
+
   new_planning_scene_action_ = file_menu_->addAction("New Planning Scene ...");
   load_planning_scene_action_ = file_menu_->addAction("Load Planning Scene ...");
   save_planning_scene_action_ = file_menu_->addAction("Save Planning Scene ...");
   new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
-  refresh_action_ = file_menu_->addAction("Refresh Planning Scene...");
+  refresh_action_ = planning_scene_menu_->addAction("Refresh Planning Scene...");
+  view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
   quit_action_ = file_menu_->addAction("Quit");
 
   collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
@@ -188,6 +190,7 @@ void PlanningSceneVisualizer::initQtWidgets()
   connect(this, SIGNAL(updateTables()), this, SLOT(updateStateTriggered()));
   connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
   connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
+  connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -201,7 +204,115 @@ void PlanningSceneVisualizer::initQtWidgets()
   createNewObjectDialog();
   createRequestDialog();
 
-  setCurrentPlanningScene(createNewPlanningScene());
+  setCurrentPlanningScene(createNewPlanningScene(), false, false);
+}
+
+void PlanningSceneVisualizer::createOutcomeDialog()
+{
+  outcome_dialog_ = new QDialog(this);
+  outcome_dialog_->setWindowTitle("Planning Scene Outcomes");
+  QVBoxLayout* layout = new QVBoxLayout(outcome_dialog_);
+
+  QGroupBox* stagesBox = new QGroupBox(outcome_dialog_);
+  stagesBox->setTitle("Planning Stage Outcomes");
+
+  QVBoxLayout* stagesLayout = new QVBoxLayout(stagesBox);
+  stagesBox->setLayout(stagesLayout);
+
+  stage_outcome_table_ = new QTableWidget(stagesBox);
+  stagesLayout->addWidget(stage_outcome_table_);
+
+  QStringList stageHeaders;
+  stageHeaders.append("Pipeline Stage");
+  stageHeaders.append("Outcome");
+
+  stage_outcome_table_->setColumnCount(2);
+  stage_outcome_table_->setRowCount((int)error_map_.size());
+
+  stage_outcome_table_->setHorizontalHeaderLabels(stageHeaders);
+  stage_outcome_table_->setColumnWidth(0, 150);
+  stage_outcome_table_->setColumnWidth(1, 200);
+  stage_outcome_table_->setMinimumWidth(350);
+
+  int r = 0;
+  for(map<string, ArmNavigationErrorCodes>::iterator it = error_map_.begin(); it != error_map_.end(); it++)
+  {
+    QTableWidgetItem* stageItem = new QTableWidgetItem(QString::fromStdString(it->first));
+    stageItem->setFlags(Qt::ItemIsEnabled);
+    stage_outcome_table_->setItem(r,0, stageItem);
+
+    QTableWidgetItem* outcomeItem = new QTableWidgetItem(QString::fromStdString(armNavigationErrorCodeToString(it->second)));
+    outcomeItem->setFlags(Qt::ItemIsEnabled);
+    stage_outcome_table_->setItem(r,1, outcomeItem);
+
+    if(it->second.val != ArmNavigationErrorCodes::SUCCESS)
+    {
+      outcomeItem->setTextColor(QColor(150, 0, 0));
+    }
+
+    r++;
+  }
+
+
+  QGroupBox* trajectoryBox = new QGroupBox(outcome_dialog_);
+  trajectoryBox->setTitle("Trajectory Outcomes");
+
+  QVBoxLayout* trajectoryLayout = new QVBoxLayout(trajectoryBox);
+  trajectoryBox->setLayout(trajectoryLayout);
+
+  trajectory_outcome_table_ = new QTableWidget(trajectoryBox);
+  trajectoryLayout->addWidget(trajectory_outcome_table_);
+
+  QStringList trajectoryHeaders;
+  trajectoryHeaders.append("Trajectory");
+  trajectoryHeaders.append("Stage");
+  trajectoryHeaders.append("Outcome");
+
+  trajectory_outcome_table_->setColumnCount(3);
+  trajectory_outcome_table_->setRowCount((int)(trajectory_map_->size()));
+  trajectory_outcome_table_->setHorizontalHeaderLabels(trajectoryHeaders);
+  trajectory_outcome_table_->setColumnWidth(0, 150);
+  trajectory_outcome_table_->setColumnWidth(1, 150);
+  trajectory_outcome_table_->setColumnWidth(2, 200);
+  trajectory_outcome_table_->setMinimumWidth(550);
+
+  r = 0;
+  for(map<string, TrajectoryData>::iterator it = trajectory_map_->begin(); it != trajectory_map_->end(); it++)
+  {
+    QTableWidgetItem* trajectoryItem = new QTableWidgetItem(QString::fromStdString(it->first));
+    trajectoryItem->setFlags(Qt::ItemIsEnabled);
+    trajectory_outcome_table_->setItem(r, 0, trajectoryItem);
+
+    QTableWidgetItem* stageItem = new QTableWidgetItem(QString::fromStdString(it->second.getSource()));
+    stageItem->setFlags(Qt::ItemIsEnabled);
+    trajectory_outcome_table_->setItem(r, 1, stageItem);
+
+    QTableWidgetItem* outcomeItem = new QTableWidgetItem(QString::fromStdString(armNavigationErrorCodeToString(it->second.trajectory_error_code_)));
+    outcomeItem ->setFlags(Qt::ItemIsEnabled);
+    trajectory_outcome_table_->setItem(r, 2, outcomeItem);
+
+    if(it->second.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS)
+    {
+      outcomeItem->setTextColor(QColor(150, 0, 0));
+      std::stringstream ss;
+      ss << "Bad point: " << it->second.getBadPoint();
+      outcomeItem->setToolTip(QString::fromStdString(ss.str()));
+    }
+
+    r++;
+  }
+
+  layout->addWidget(stagesBox);
+  layout->addWidget(trajectoryBox);
+  outcome_dialog_->setLayout(layout);
+
+}
+
+void PlanningSceneVisualizer::viewOutcomesPressed()
+{
+  createOutcomeDialog();
+  outcome_dialog_->exec();
+  delete outcome_dialog_;
 }
 
 void PlanningSceneVisualizer::refreshSceneButtonPressed()
@@ -239,7 +350,6 @@ void PlanningSceneVisualizer::deleteSelectedMotionPlan()
     lockScene();
     deleteMotionPlanRequest(selected_motion_plan_ID_);
     selected_motion_plan_ID_ = "";
-    emit updateStateTriggered();
     unlockScene();
   }
   else
@@ -257,7 +367,7 @@ void PlanningSceneVisualizer::deleteSelectedTrajectory()
     lockScene();
     deleteTrajectory(selected_trajectory_ID_);
     selected_trajectory_ID_ = "";
-    emit updateStateTriggered();
+    emit updateTables();
     unlockScene();
   }
   else
@@ -460,9 +570,9 @@ void PlanningSceneVisualizer::createMotionPlanTable()
 
       QPushButton* endColorButton = new QPushButton(motion_plan_tree_);
       std::stringstream endColorStream;
-      endColorStream<< "(" << (int)(requestData.getEndColor().r*255) <<" , ";
-      endColorStream << (int)(requestData.getEndColor().g*255) << " , ";
-      endColorStream << (int)(requestData.getEndColor().b*255) << ")";
+      endColorStream<< "(" << (int)(requestData.getGoalColor().r*255) <<" , ";
+      endColorStream << (int)(requestData.getGoalColor().g*255) << " , ";
+      endColorStream << (int)(requestData.getGoalColor().b*255) << ")";
       endColorButton->setText(QString::fromStdString(endColorStream.str()));
       endColorButton->setToolTip(nameItem->text(0));
       endColorButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
@@ -534,7 +644,7 @@ void PlanningSceneVisualizer::motionPlanEndColorButtonClicked()
   {
     std::string trajectoryID = button->toolTip().toStdString();
     MotionPlanRequestData& data = (*motion_plan_map_)[trajectoryID];
-    QColor col(data.getEndColor().r*255, data.getEndColor().g*255, data.getEndColor().b*255);
+    QColor col(data.getGoalColor().r*255, data.getGoalColor().g*255, data.getGoalColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
     std::stringstream colorStream;
     colorStream<< "(" << colorSelected.red()<<" , ";
@@ -548,7 +658,7 @@ void PlanningSceneVisualizer::motionPlanEndColorButtonClicked()
     trajColor.g = colorSelected.greenF();
     trajColor.b = colorSelected.blueF();
     trajColor.a = 0.5f;
-    data.setEndColor(trajColor);
+    data.setGoalColor(trajColor);
     data.refreshColors();
 
   }
@@ -582,7 +692,7 @@ void PlanningSceneVisualizer::motionPlanEndVisibleButtonClicked(bool checked)
     MotionPlanRequestData& data = (*motion_plan_map_)[mprID];
     data.setEndVisible(checked);
     data.setJointControlsVisible(data.areJointControlsVisible(), this);
-    setIKControlsVisible(mprID, EndPosition, button->isChecked());
+    setIKControlsVisible(mprID, GoalPosition, button->isChecked());
   }
 }
 
@@ -643,50 +753,6 @@ void PlanningSceneVisualizer::createNewPlanningScenePressed()
 
 }
 
-void PlanningSceneVisualizer::collisionDisplayChanged(const QString& mode)
-{
-  if(selected_trajectory_ID_ != "")
-  {
-    TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
-    std::string collision_state_display_string = mode.toStdString();
-    std::string disp = "none";
-    if(collision_state_display_string == "Start State")
-    {
-      disp = "scene";
-
-    }
-    else if(collision_state_display_string ==  "Goal State")
-    {
-      disp = "end_effector";
-    }
-    else if(collision_state_display_string == "Planner trajectory state")
-    {
-      disp = "planner";
-    }
-    else if(collision_state_display_string ==  "Filter trajectory state")
-    {
-      disp = "filter";
-    }
-    else if(collision_state_display_string ==  "Monitor trajectory state")
-    {
-      disp = "monitor";
-    }
-    else if(collision_state_display_string ==  "Paused collision state")
-    {
-      disp = "paused";
-    }
-
-    else
-    {
-      disp = "none";
-    }
-
-    std::string arm_group_name = trajectory.getGroupName();
-    MotionPlanRequestData& motionPlan = (*motion_plan_map_)[trajectory.getMotionPlanRequestID()];
-    setShowCollisions(true, disp, arm_group_name, motionPlan);
-  }
-}
-
 void PlanningSceneVisualizer::updateState()
 {
   emit updateTables();
@@ -703,6 +769,7 @@ void PlanningSceneVisualizer::updateStateTriggered()
 void PlanningSceneVisualizer::popupLoadPlanningScenes()
 {
   load_planning_scene_dialog_->show();
+  refreshButtonPressed();
 }
 
 void PlanningSceneVisualizer::refreshButtonPressed()
@@ -744,7 +811,6 @@ void PlanningSceneVisualizer::loadButtonPressed()
     QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),1);
     PlanningSceneData& data = (*planning_scene_map_)[nameItem->text().toStdString()];
     setCurrentPlanningScene(nameItem->text().toStdString(), load_motion_plan_requests_box_->isChecked(), load_trajectories_box_->isChecked());
-    sendPlanningScene(data);
     trajectory_tree_->clear();
     updateJointStates();
     createMotionPlanTable();
@@ -803,7 +869,7 @@ void PlanningSceneVisualizer::playButtonPressed()
   if(selected_trajectory_ID_ != "")
   {
     TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
-    playTrajectory((*motion_plan_map_)[trajectory.getMotionPlanRequestID()], trajectory);
+    playTrajectory((*motion_plan_map_)[trajectory.getMotionPlanRequestID()], (*trajectory_map_)[selected_trajectory_ID_]);
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
     selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_ID_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
@@ -1071,12 +1137,21 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
     }
     else
     {
-      notesStream << errorCodes.size() << " Outcomes recorded. "<<data.getPipelineStages().size() << " trajectories";
+      notesStream << "Last Outcome: " << armNavigationErrorCodeToString(errorCodes.back());
     }
 
     QTableWidgetItem* notesItem = new QTableWidgetItem(QString::fromStdString(notesStream.str()));
     notesItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     planning_scene_table_->setItem(r, 3, notesItem);
+
+    if(errorCodes.size() != 0)
+    {
+      if(errorCodes.back().val != ArmNavigationErrorCodes::SUCCESS)
+      {
+        notesItem->setTextColor(QColor(180, 0, 0));
+      }
+    }
+
     r++;
   }
 

@@ -1,5 +1,13 @@
 <launch>
+	 <param name="/use_sim_time" value="true" />
 
+	  <param name="/robot_description" textfile="$(find planning_models)/test_urdf/robot.xml" />
+
+	  <node name="mongo" type="wrapper.py" pkg="mongodb">
+	    <param name="overwrite" value="false"/>
+	  </node>
+
+	  <param name="warehouse_port" value="27019"/>
   <include file="$(find pr2_arm_navigation_perception)/launch/laser+stereo-perception.launch"/>
 
   <include file="$(find pr2_arm_navigation_actions)/launch/head_monitor.launch"/>

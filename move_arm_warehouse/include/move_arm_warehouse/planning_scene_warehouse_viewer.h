@@ -37,6 +37,8 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <math.h>
+#include <string>
+#include <map>
 
 #include <ros/ros.h>
 
@@ -304,6 +306,8 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
     void createRequestDialog();
     void updateState();
     void onPlanningSceneLoaded(int scene, int numScenes);
+    void createOutcomeDialog();
+
     signals:
       void changeProgress(int progress);
       void updateTables();
@@ -321,7 +325,6 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
     void sliderDragged();
     void replanButtonPressed();
     void trajectoryEditChanged();
-    void collisionDisplayChanged(const QString& mode);
     void createNewPlanningScenePressed();
     void saveCurrentPlanningScene();
     void createNewMotionPlanRequest(std::string group_name, std::string end_effector_name);
@@ -345,19 +348,24 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
     void updateStateTriggered();
     void executeButtonPressed();
     void refreshSceneButtonPressed();
-
+    void viewOutcomesPressed();
 
   protected:
     QLabel* selected_trajectory_label_;
     QLabel* selected_request_label_;
     QMenuBar* menu_bar_;
     QMenu* file_menu_;
+    QMenu* planning_scene_menu_;
     QMenu* collision_object_menu_;
     QAction* new_object_action_;
     QAction* refresh_action_;
+    QAction* view_outcomes_action_;
     QDialog* load_planning_scene_dialog_;
     QDialog* new_object_dialog_;
     QDialog* new_request_dialog_;
+    QDialog* outcome_dialog_;
+    QTableWidget* stage_outcome_table_;
+    QTableWidget* trajectory_outcome_table_;
     QProgressBar* load_scene_progress_;
     QAction* new_planning_scene_action_;
     QAction* new_motion_plan_action_;

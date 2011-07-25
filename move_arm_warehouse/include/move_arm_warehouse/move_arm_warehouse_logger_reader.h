@@ -66,19 +66,19 @@ public:
   void pushMotionPlanRequestToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                         const std::string& stage_name,
                                         const arm_navigation_msgs::MotionPlanRequest& motion_plan_request,
-                                        const std::string& ID = "MPR 1");
+                                        const std::string& ID);
     
   void pushJointTrajectoryToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                       const std::string& trajectory_source,
                                       const ros::Duration& production_time, 
                                       const trajectory_msgs::JointTrajectory& trajectory,
-                                      const std::string& ID = "Trajectory 1",
-                                      const std::string& motion_plan_ID = "MPR 1");
+                                      const std::string& ID,
+                                      const std::string& motion_plan_ID,
+                                      const arm_navigation_msgs::ArmNavigationErrorCodes& error_code);
     
   void pushOutcomeToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                               const std::string& pipeline_stage,
-                              const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes,
-                              const std::string& trajectory_ID = "Trajectory 1");
+                              const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes);
   
   void pushPausedStateToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                   const head_monitor_msgs::HeadMonitorFeedback& feedback);
@@ -95,8 +95,7 @@ public:
   bool getAssociatedOutcomes(const std::string& hostname,
                              const ros::Time& time,
                              std::vector<std::string>& pipeline_names,
-                             std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes,
-                             std::vector<std::string>& trajectory_IDs);
+                             std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes);
 
   bool getAssociatedMotionPlanRequestsStageNames(const std::string& hostname, 
                                                  const ros::Time& time,
@@ -131,7 +130,8 @@ public:
                                       std::vector<trajectory_msgs::JointTrajectory>& trajectories,
                                       std::vector<std::string>& sources,
                                       std::vector<std::string>& IDs,
-                                      std::vector<ros::Duration>& durations);
+                                      std::vector<ros::Duration>& durations,
+                                      std::vector<int32_t>& error_codes);
 
   bool getAssociatedPausedStates(const std::string& hostname, 
                                  const ros::Time& time,

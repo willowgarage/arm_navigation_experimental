@@ -54,6 +54,7 @@ using namespace visualization_msgs;
 using namespace arm_navigation_msgs;
 using namespace actionlib;
 using namespace control_msgs;
+using namespace interactive_markers;
 
 #define MARKER_REFRESH_TIME 0.05
 
@@ -92,6 +93,7 @@ PlanningSceneData::PlanningSceneData(string name, ros::Time timestamp, PlanningS
 
 void PlanningSceneData::getRobotState(KinematicState* state)
 {
+  // Actually converts a robot state message to a kinematic state message (possibly very slow)
   setRobotStateAndComputeTransforms(getPlanningScene().robot_state, *state);
 }
 
@@ -101,7 +103,7 @@ void PlanningSceneData::getRobotState(KinematicState* state)
 
 TrajectoryData::TrajectoryData()
 {
-  setCurrentState( NULL);
+  setCurrentState(NULL);
   setSource("");
   setGroupName("");
   setColor(makeRandomColor(0.3f, 0.6f));
@@ -111,12 +113,12 @@ TrajectoryData::TrajectoryData()
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
   refresh_counter_ = 0;
-  trajectory_error_code_.val = ArmNavigationErrorCodes::SUCCESS;
+  trajectory_error_code_.val = 0;
 }
 
 TrajectoryData::TrajectoryData(string ID, string source, string groupName, JointTrajectory trajectory)
 {
-  setCurrentState( NULL);
+  setCurrentState(NULL);
   setID(ID);
   setSource(source);
   setGroupName(groupName);
@@ -127,7 +129,7 @@ TrajectoryData::TrajectoryData(string ID, string source, string groupName, Joint
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
   refresh_counter_ = 0;
-  trajectory_error_code_.val = ArmNavigationErrorCodes::SUCCESS;
+  trajectory_error_code_.val = 0;
 }
 
 void TrajectoryData::moveThroughTrajectory(int step)
@@ -139,6 +141,7 @@ void TrajectoryData::moveThroughTrajectory(int step)
     return;
   }
 
+  // Possibly negative point
   if((int)getCurrentPoint() + step < 0)
   {
     setCurrentPoint(0);
@@ -147,11 +150,15 @@ void TrajectoryData::moveThroughTrajectory(int step)
   {
     setCurrentPoint((int)getCurrentPoint() + step);
   }
+
+  // Possibly overstepped the end of the trajectory.
   if(getCurrentPoint() >= tsize - 1)
   {
     setCurrentPoint(tsize - 1);
     stop();
   }
+
+  // Create new kinematic state.
   updateCurrentState();
 }
 
@@ -182,10 +189,16 @@ void TrajectoryData::updateCollisionMarkers(CollisionModels* cm_, MotionPlanRequ
     bad_color.r = 1.0f;
     bad_color.g = 0.0f;
     bad_color.b = 0.0f;
+
+    // Get all collisions as little red spheres.
     cm_->getAllCollisionPointMarkers(*state, collision_markers_, bad_color, ros::Duration(MARKER_REFRESH_TIME));
+
     const KinematicState::JointStateGroup* jsg = state->getJointStateGroup(getGroupName());
     Constraints empty_constraints;
-    cm_->isKinematicStateValid(*state, jsg->getJointNames(), trajectory_error_code_, empty_constraints,
+    ArmNavigationErrorCodes code;
+
+    // Update validity of the current state.
+    cm_->isKinematicStateValid(*state, jsg->getJointNames(), code, empty_constraints,
                                motionPlanRequest.getMotionPlanRequest().path_constraints, true);
 
     GetStateValidity::Request val_req;
@@ -208,16 +221,16 @@ MotionPlanRequestData::MotionPlanRequestData(KinematicState* robot_state)
 {
   setSource("");
   setStartColor(makeRandomColor(0.3f, 0.6f));
-  setEndColor(makeRandomColor(0.3f, 0.6f));
+  setGoalColor(makeRandomColor(0.3f, 0.6f));
   setStartEditable(true);
-  setEndEditable(true);
+  setGoalEditable(true);
   setHasGoodIKSolution(true);
   setID("");
   show();
   showCollisions();
-
+  // Note: these must be registered as StateRegistry entries after this request has been created.
   start_state_ = new KinematicState(*robot_state);
-  end_state_ = new KinematicState(*robot_state);
+  goal_state_ = new KinematicState(*robot_state);
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
   refresh_counter_ = 0;
@@ -226,18 +239,18 @@ MotionPlanRequestData::MotionPlanRequestData(KinematicState* robot_state)
 MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPlanRequest request,
                                              KinematicState* robot_state)
 {
-
+  // Note: these must be registered as StateRegistry entries after this request has been created.
   start_state_ = new KinematicState(*robot_state);
-  end_state_ = new KinematicState(*robot_state);
+  goal_state_ = new KinematicState(*robot_state);
 
   setID(ID);
   setSource(source);
   setMotionPlanRequest(request);
 
   setStartColor(makeRandomColor(0.3f, 0.6f));
-  setEndColor(makeRandomColor(0.3f, 0.6f));
+  setGoalColor(makeRandomColor(0.3f, 0.6f));
   setStartEditable(true);
-  setEndEditable(true);
+  setGoalEditable(true);
   setHasGoodIKSolution(true);
   show();
   showCollisions();
@@ -245,9 +258,10 @@ MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPla
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
   refresh_counter_ = 0;
-  joint_controls_visible_ = false;
+  are_joint_controls_visible_ = false;
 }
 
+// Kinematic states must be converted to joint constraint message
 void MotionPlanRequestData::updateGoalState()
 {
   vector<JointConstraint>& constraints = getMotionPlanRequest().goal_constraints.joint_constraints;
@@ -259,9 +273,10 @@ void MotionPlanRequestData::updateGoalState()
     jointValues[constraint.joint_name] = constraint.position;
   }
 
-  end_state_->setKinematicState(jointValues);
+  goal_state_->setKinematicState(jointValues);
 }
 
+// Kinematic state must be converted to robot state message
 void MotionPlanRequestData::updateStartState()
 {
   setRobotStateAndComputeTransforms(getMotionPlanRequest().start_state, *start_state_);
@@ -269,7 +284,7 @@ void MotionPlanRequestData::updateStartState()
 
 void MotionPlanRequestData::setJointControlsVisible(bool visible, PlanningSceneEditor* editor)
 {
-  joint_controls_visible_ = visible;
+  are_joint_controls_visible_ = visible;
 
   if(visible)
   {
@@ -281,19 +296,19 @@ void MotionPlanRequestData::setJointControlsVisible(bool visible, PlanningSceneE
     {
       editor->deleteJointMarkers(*this, StartPosition);
     }
-    if(isEndVisible() && isEndEditable())
+    if(isEndVisible() && isGoalEditable())
     {
-      editor->createJointMarkers(*this, EndPosition);
+      editor->createJointMarkers(*this, GoalPosition);
     }
     else
     {
-      editor->deleteJointMarkers(*this, EndPosition);
+      editor->deleteJointMarkers(*this, GoalPosition);
     }
   }
   else
   {
     editor->deleteJointMarkers(*this, StartPosition);
-    editor->deleteJointMarkers(*this, EndPosition);
+    editor->deleteJointMarkers(*this, GoalPosition);
   }
 }
 
@@ -306,7 +321,7 @@ void MotionPlanRequestData::setStartStateValues(std::map<std::string, double>& j
 void MotionPlanRequestData::setGoalStateValues(std::map<std::string, double>& joint_values)
 {
   setStateChanged(true);
-  end_state_->setKinematicState(joint_values);
+  goal_state_->setKinematicState(joint_values);
 
   int constraints = 0;
   for(std::map<std::string, double>::iterator it = joint_values.begin(); it != joint_values.end(); it++)
@@ -331,15 +346,20 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
       return;
     }
 
+    ///////
+    // Start state block
+    ///////
     std_msgs::ColorRGBA bad_color;
     bad_color.a = 1.0f;
     bad_color.r = 1.0f;
     bad_color.g = 0.0f;
     bad_color.b = 0.0f;
+    // Get all the collision points as little red spheres.
     cm_->getAllCollisionPointMarkers(*state, collision_markers_, bad_color, ros::Duration(MARKER_REFRESH_TIME));
     const KinematicState::JointStateGroup* jsg = state->getJointStateGroup(getGroupName());
     ArmNavigationErrorCodes code;
     Constraints empty_constraints;
+    // Ensure that the state is valid.
     cm_->isKinematicStateValid(*state, jsg->getJointNames(), code, empty_constraints,
                                getMotionPlanRequest().path_constraints, true);
 
@@ -353,6 +373,9 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
       ROS_INFO_STREAM("Something wrong with distance server");
     }
 
+    ////////
+    // End State block
+    ///////
     {
       state = getGoalState();
       collision_markers_.markers.clear();
@@ -385,6 +408,7 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
   }
 }
 
+// Warning: lots of copying going on here.
 std::vector<std::string> MotionPlanRequestData::getJointNamesInGoal()
 {
   std::vector<JointConstraint>& constraints = getMotionPlanRequest().goal_constraints.joint_constraints;
@@ -399,6 +423,7 @@ std::vector<std::string> MotionPlanRequestData::getJointNamesInGoal()
   return toReturn;
 }
 
+// Warning: calls getJointNamesInGoal
 bool MotionPlanRequestData::isJointNameInGoal(std::string joint)
 {
   vector<string> joints = getJointNamesInGoal();
@@ -412,7 +437,6 @@ bool MotionPlanRequestData::isJointNameInGoal(std::string joint)
 
   return false;
 }
-
 
 ////////////////////////////////
 // PLANNING SCENE EDITOR
@@ -435,8 +459,12 @@ PlanningSceneEditor::PlanningSceneEditor()
 
 PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
 {
+  ///////
+  /// Memory initialization
+  /////
   params_ = params;
   monitor_status_ = Idle;
+
   planning_scene_map_ = new map<string, PlanningSceneData> ();
   trajectory_map_ = new map<string, TrajectoryData> ();
   motion_plan_map_ = new map<string, MotionPlanRequestData> ();
@@ -450,6 +478,9 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   robot_state_ = new KinematicState(cm_->getKinematicModel());
   robot_state_->setKinematicStateToDefault();
 
+  ////
+  /// Interactive markers
+  ////
   interactive_marker_server_
       = new interactive_markers::InteractiveMarkerServer("planning_scene_warehouse_viewer_controls", "", false);
 
@@ -460,11 +491,19 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   joint_control_feedback_ptr_ = boost::bind(&PlanningSceneEditor::JointControllerCallback, this, _1);
   ik_control_feedback_ptr_ = boost::bind(&PlanningSceneEditor::IKControllerCallback, this, _1);
 
+
+  //////
+  /// Publishers
+  /////
   joint_state_publisher_ = nh_.advertise<sensor_msgs::JointState> ("joint_states", 10);
   vis_marker_publisher_ = nh_.advertise<visualization_msgs::Marker> (params.vis_topic_name_, 128);
   vis_marker_array_publisher_ = nh_.advertise<visualization_msgs::MarkerArray> (params.vis_topic_name_ + "_array", 128);
   move_arm_warehouse_logger_reader_ = new MoveArmWarehouseLoggerReader();
 
+
+  /////
+  /// Subscribers
+  //////
   if(params.left_arm_group_ != "none")
   {
     ros::service::waitForService(params.left_ik_name_);
@@ -584,6 +623,9 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
     (*non_collision_aware_ik_services_)[params.right_ik_link_] = &non_coll_right_ik_service_client_;
   }
 
+  /////
+  /// Interactive menus
+  /////
   menu_entry_maps_["Collision Object"] = MenuEntryMap();
   menu_entry_maps_["Collision Object Selection"] = MenuEntryMap();
   menu_entry_maps_["IK Control"] = MenuEntryMap();
@@ -596,6 +638,9 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Filter Last Trajectory", ik_control_feedback_ptr_);
 
+  /////
+  /// Connection with sim data
+  /////
   if(params.use_robot_data_)
   {
     state_monitor_ = new KinematicModelStateMonitor(cm_, &transform_listenter_);
@@ -610,10 +655,12 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
   {
     state_monitor_->setStateValuesFromCurrentValues(*robot_state_);
 
+    // Records trajectory if currently executing.
     if(monitor_status_ == Executing)
     {
       std::map<std::string, double> joint_state_map;
       std::map<std::string, double> joint_velocity_map;
+
       //message already been validated in kmsm
       for(unsigned int i = 0; i < joint_state->position.size(); ++i)
       {
@@ -638,17 +685,23 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
 PlanningSceneEditor::~PlanningSceneEditor()
 {
   setRobotState(NULL, true);
+  // TODO: delete everything else
 }
 
 void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadRequests, bool loadTrajectories)
 {
-  current_planning_scene_ID_ = ID;
+  // Need to do this to clear old scene state.
+  deleteKinematicStates();
 
+  current_planning_scene_ID_ = ID;
   if(ID == "")
   {
     return;
   }
 
+  /////
+  /// Get rid of old interactive markers.
+  //////
   for(map<string, SelectableObject>::iterator it = (*selectable_objects_).begin(); it != (*selectable_objects_).end(); it++)
   {
     interactive_marker_server_->erase(it->second.selection_marker_.name);
@@ -665,15 +718,39 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
 
   (*ik_controllers_).clear();
 
-  deleteKinematicStates();
+
+  /////
+  /// Make sure all old trajectories and MPRs are gone.
+  /////
+  for(map<string, MotionPlanRequestData>::iterator it = motion_plan_map_->begin(); it != motion_plan_map_->end(); it ++)
+  {
+    deleteMotionPlanRequest(it->first);
+  }
   motion_plan_map_->clear();
+
+  for(map<string, TrajectoryData>::iterator it = trajectory_map_->begin(); it != trajectory_map_->end(); it++)
+  {
+    deleteTrajectory(it->first);
+  }
   trajectory_map_->clear();
+
 
   if((*planning_scene_map_).find(ID) != (*planning_scene_map_).end())
   {
-    ROS_INFO("Getting requests associated with scene %s", ID.c_str());
+
+    /////
+    /// Load planning scene
+    /////
     PlanningSceneData& scene = (*planning_scene_map_)[ID];
     ros::Time time = scene.getTimeStamp();
+    error_map_.clear();
+    scene.getPipelineStages().clear();
+    scene.getErrorCodes().clear();
+    getPlanningSceneOutcomes(time, scene.getPipelineStages(), scene.getErrorCodes(), error_map_);
+
+    /////
+    /// Create collision object.
+    /////
     for(size_t i = 0; i < scene.getPlanningScene().collision_objects.size(); i++)
     {
       std::stringstream ss;
@@ -682,14 +759,16 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
       createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], ss.str(), "");
     }
 
+    /////
+    /// Load motion plan requests
+    /////
     if(loadRequests)
     {
-      // Get the motion plan requests
       vector<string> IDs;
       vector<string> stageNames;
       vector<MotionPlanRequest> requests;
       getAllAssociatedMotionPlanRequests(time, IDs, stageNames, requests);
-      createMotionPlanRequestData(ID, IDs, stageNames, requests);
+      initMotionPlanRequestData(ID, IDs, stageNames, requests);
 
       for(size_t j = 0; j < IDs.size(); j++)
       {
@@ -703,13 +782,18 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
         std::vector<string> sources;
         std::vector < string > IDs;
         std::vector<ros::Duration> durations;
-        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", time, motionData.getID(), trajs, sources,
-                                                                          IDs, durations);
+        std::vector<int32_t> errors;
 
         max_request_ID_++;
 
+        /////
+        /// Load trajectories
+        /////
         if(loadTrajectories)
         {
+          move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", time, motionData.getID(), trajs, sources,
+                                                                            IDs, durations, errors);
+
           for(size_t k = 0; k < trajs.size(); k++)
           {
             TrajectoryData trajectoryData;
@@ -721,29 +805,39 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
             trajectoryData.setVisible(true);
             trajectoryData.setGroupName(motionData.getGroupName());
             trajectoryData.setDuration(durations[k]);
-            trajectoryData.trajectory_error_code_ = error_map_[trajectoryData.getID()];
+            trajectoryData.trajectory_error_code_.val = errors[k];
 
             scene.getTrajectories().push_back(trajectoryData.getID());
             motionData.getTrajectories().push_back(trajectoryData.getID());
-            (*trajectory_map_)[IDs[k]] = trajectoryData;
-            playTrajectory(motionData, trajectoryData);
 
+            // Make sure we aren't overwriting an existing trajectory
+            if(trajectory_map_->find(trajectoryData.getID()) != trajectory_map_->end())
+            {
+              ROS_INFO("Deleting existing trajectory...");
+              deleteTrajectory(trajectoryData.getID());
+            }
+
+            (*trajectory_map_)[IDs[k]] = trajectoryData;
+            playTrajectory(motionData,(*trajectory_map_)[IDs[k]]);
             max_trajectory_ID_++;
           }
-
         }
 
       }
 
     }
 
+    sendPlanningScene(scene);
   }
+
   interactive_marker_server_->applyChanges();
 }
 
 void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& arr)
 {
   trajectory_map_->erase("");
+
+  // For each trajectory...
   for(map<string, TrajectoryData>::iterator it = (*trajectory_map_).begin(); it != (*trajectory_map_).end(); it++)
   {
 
@@ -758,6 +852,10 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
     }
 
     it->second.updateCurrentState();
+
+    // When the color of a trajectory has changed, we have to wait for
+    // a few milliseconds before the change is registered in rviz.
+    // TODO: Actually use a timeout
     if(it->second.shouldRefreshColors())
     {
       it->second.refresh_counter_++;
@@ -781,16 +879,25 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
         {
           lnames[i] = updated_links[i]->getName();
         }
+
+        // Links in group
         cm_->getRobotMarkersGivenState(*(it->second.getCurrentState()), arr, it->second.getColor(),
                                        it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), &lnames);
+
+        // Bodies held by robot
         cm_->getAttachedCollisionObjectMarkers(*(it->second.getCurrentState()), arr, it->first + "_trajectory",
                                                it->second.getColor(), ros::Duration(MARKER_REFRESH_TIME));
       }
     }
 
+
+    //////
+    /// Get collision markers associated with trajectory.
+    /////
     if(it->second.areCollisionsVisible() && it->second.isVisible())
     {
 
+      // Update markers
       if(it->second.hasStateChanged())
       {
         it->second.updateCollisionMarkers(cm_, (*motion_plan_map_)[it->second.getMotionPlanRequestID()],
@@ -798,6 +905,7 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
         it->second.setStateChanged(false);
       }
 
+      // Then add them to the global array
       for(size_t i = 0; i < it->second.getCollisionMarkers().markers.size(); i++)
       {
         collision_markers_.markers.push_back(it->second.getCollisionMarkers().markers[i]);
@@ -808,10 +916,30 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
 
 void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArray& arr)
 {
+  vector<string> removals;
+
+  // For each motion plan request ...
   for(map<string, MotionPlanRequestData>::iterator it = (*motion_plan_map_).begin(); it != (*motion_plan_map_).end(); it++)
   {
     MotionPlanRequestData& data = it->second;
 
+    // TODO: Find out why this happens.
+    if(motion_plan_map_->find(it->first) == motion_plan_map_->end() || data.getID() == "")
+    {
+      ROS_WARN("Attempting to publish non-existant motion plan request %s Erasing this request!", it->first.c_str());
+      removals.push_back(it->first);
+      continue;
+    }
+
+    // TODO: Find out why this happens.
+    if(data.getStartState() == NULL || data.getGoalState() == NULL)
+    {
+      return;
+    }
+
+    // When a motion plan request has its colors changed,
+    // we must wait a few milliseconds before rviz registers the change.
+    // TODO: Use an actual timer here.
     if(data.shouldRefreshColors())
     {
       data.refresh_counter_++;
@@ -829,6 +957,10 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
       fail_color.r = 1.0;
       fail_color.g = 0.0;
       fail_color.b = 0.0;
+
+      /////
+      /// Get markers for the start
+      /////
       if(data.isStartVisible())
       {
         const vector<const KinematicModel::LinkModel*>& updated_links =
@@ -841,6 +973,8 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
           lnames[i] = updated_links[i]->getName();
         }
 
+        // If we have a good ik solution, publish with the normal color
+        // else use bright red.
         if(data.hasGoodIKSolution())
         {
           cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, data.getStartColor(), it->first + "_start",
@@ -854,6 +988,9 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
 
       }
 
+      /////
+      /// Get markers for the end.
+      /////
       if(data.isEndVisible())
       {
         const vector<const KinematicModel::LinkModel*>& updated_links =
@@ -868,7 +1005,7 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
 
         if(data.hasGoodIKSolution())
         {
-          cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getEndColor(), it->first + "_end",
+          cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getGoalColor(), it->first + "_end",
                                          ros::Duration(MARKER_REFRESH_TIME), &lnames);
         }
         else
@@ -879,19 +1016,33 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
       }
     }
 
+    //////
+    /// Get collision markers for the start and end state.
+    /////
     if(it->second.areCollisionsVisible() && (it->second.isStartVisible() || it->second.isEndVisible()))
     {
+      // Update collision markers
       if(it->second.hasStateChanged())
       {
         it->second.updateCollisionMarkers(cm_, distance_state_validity_service_client_);
         it->second.setStateChanged(false);
       }
+
+      // Add them to the global array.
       for(size_t i = 0; i < it->second.getCollisionMarkers().markers.size(); i++)
       {
         collision_markers_.markers.push_back(it->second.getCollisionMarkers().markers[i]);
       }
     }
 
+  }
+
+  /////
+  /// TODO: Figure out why motion plans are occasionally NULL
+  ////
+  for(size_t i = 0; i < removals.size(); i++)
+  {
+    motion_plan_map_->erase(removals[i]);
   }
 }
 
@@ -908,6 +1059,7 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
   const KinematicState::JointStateGroup* jsg = end_state.getJointStateGroup(group_name);
   motion_plan_request.goal_constraints.joint_constraints.resize(jsg->getJointNames().size());
 
+  // Must convert kinematic state to robot state message.
   vector<double> joint_values;
   jsg->getKinematicStateValues(joint_values);
   for(unsigned int i = 0; i < jsg->getJointNames().size(); i++)
@@ -917,6 +1069,8 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
     motion_plan_request.goal_constraints.joint_constraints[i].tolerance_above = 0.001;
     motion_plan_request.goal_constraints.joint_constraints[i].tolerance_below = 0.001;
   }
+
+  // Constraining pitch and roll
   if(constrain)
   {
     motion_plan_request.group_name += "_cartesian";
@@ -933,27 +1087,32 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
                                             motion_plan_request.goal_constraints.orientation_constraints[0],
                                             motion_plan_request.path_constraints.orientation_constraints[0]);
   }
+
+  // Create start state from kinematic state passed in if robot data is being used
   if(!fromRobotState)
   {
     convertKinematicStateToRobotState(start_state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                       motion_plan_request.start_state);
   }
+  // Otherwise, use the current robot state.
   else
   {
     convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                       motion_plan_request.start_state);
   }
 
+  // Turn the motion plan request message into a MotionPlanData
   std::string id = generateNewMotionPlanID();
   MotionPlanRequestData data(id, "Planner", motion_plan_request, robot_state_);
   data.setGroupName(motion_plan_request.group_name);
   data.setEndEffectorLink(end_effector_name);
-  data.setEndEditable(true);
+  data.setGoalEditable(true);
   if(fromRobotState)
   {
     data.setStartEditable(false);
   }
 
+  // Book keeping for kinematic state storage
   StateRegistry start;
   start.state = data.getStartState();
   start.source = "Motion Plan Request Data Start create request";
@@ -962,16 +1121,17 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
   end.source = "Motion Plan Request Data End from create request";
   states_.push_back(start);
   states_.push_back(end);
+
+
   (*motion_plan_map_)[id] = data;
   data.setPlanningSceneName(planning_scene_ID);
 
+  // Add request to the planning scene
   PlanningSceneData& planningSceneData = (*planning_scene_map_)[planning_scene_ID];
   planningSceneData.getRequests().push_back(data.getID());
 
   motionPlan_ID_Out = data.getID();
-
   createIkControllersFromMotionPlanRequest(data);
-
   sendPlanningScene(planningSceneData);
 }
 
@@ -1005,7 +1165,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
   std::string ID = generateNewTrajectoryID();
   std::string source = "Planner";
 
-  TrajectoryData& trajectoryData = (*trajectory_map_)[trajectoryID_Out];
+  TrajectoryData trajectoryData;
   trajectoryData.setTrajectory(plan_res.trajectory.joint_trajectory);
   trajectoryData.setGroupName(data.getMotionPlanRequest().group_name);
   trajectoryData.setMotionPlanRequestID(data.getID());
@@ -1022,15 +1182,14 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
 
   if(plan_res.error_code.val != plan_res.error_code.SUCCESS)
   {
-    trajectoryData.trajectory_error_code_ = plan_res.error_code;
     ROS_INFO_STREAM("Bad planning error code " << plan_res.error_code.val);
-    trajectoryData.trajectory_error_code_ = plan_res.error_code;
+    trajectoryData.trajectory_error_code_.val = plan_res.error_code.val;
     (*trajectory_map_)[trajectoryID_Out] = trajectoryData;
     data.getTrajectories().push_back(trajectoryData.getID());
 
     return false;
   }
-  trajectoryData.trajectory_error_code_ = plan_res.error_code;
+  trajectoryData.trajectory_error_code_.val = plan_res.error_code.val;
   (*trajectory_map_)[trajectoryID_Out] = trajectoryData;
   data.getTrajectories().push_back(trajectoryData.getID());
   return true;
@@ -1075,6 +1234,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   FilterJointTrajectoryWithConstraints::Request filter_req;
   FilterJointTrajectoryWithConstraints::Response filter_res;
 
+  // Filter request has to have robot state message filled
   convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                     filter_req.start_state);
 
@@ -1084,6 +1244,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   filter_req.path_constraints = requestData.getMotionPlanRequest().path_constraints;
   filter_req.allowed_time = ros::Duration(2.0);
 
+  // Time the filtering
   ros::Time startTime = ros::Time(ros::WallTime::now().toSec());
   if(!trajectory_filter_service_client_.call(filter_req, filter_res))
   {
@@ -1091,6 +1252,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
     return false;
   }
 
+  // Convert returned joint trajectory to TrajectoryData
   TrajectoryData data(generateNewTrajectoryID(), "Trajectory Filterer", trajectory.getGroupName(),
                       filter_res.trajectory);
   data.setPlanningSceneName(requestData.getPlanningSceneName());
@@ -1098,24 +1260,31 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   data.setDuration(ros::Time(ros::WallTime::now().toSec()) - startTime);
   requestData.getTrajectories().push_back(data.getID());
   (*planning_scene_map_)[requestData.getPlanningSceneName()].getTrajectories().push_back(data.getID());
+
+
   if(filter_res.error_code.val != filter_res.error_code.SUCCESS)
   {
     ROS_INFO_STREAM("Bad trajectory_filter error code " << filter_res.error_code.val);
+    data.trajectory_error_code_.val = filter_res.error_code.val;
+    (*trajectory_map_)[data.getID()] = data;
+    filter_ID = data.getID();
     return false;
   }
-  data.trajectory_error_code_ = filter_res.error_code;
-  playTrajectory(requestData, data);
-
-  (*trajectory_map_)[data.getID()] = data;
-
-  filter_ID = data.getID();
-
-  return true;
+  else
+  {
+    data.trajectory_error_code_.val = filter_res.error_code.val;
+    playTrajectory(requestData, (*trajectory_map_)[data.getID()]);
+    (*trajectory_map_)[data.getID()] = data;
+    filter_ID = data.getID();
+    return true;
+  }
 }
 
 void PlanningSceneEditor::updateJointStates()
 {
 
+  // If using robot data, the joint states are handled by whatever is
+  // running on the robot (presumably)
   if(params_.use_robot_data_)
   {
     return;
@@ -1131,6 +1300,7 @@ void PlanningSceneEditor::updateJointStates()
   getRobotState()->getKinematicStateValues(stateMap);
   getRobotState()->setKinematicState(stateMap);
 
+  // Send each joint state out as part of a message to the robot state publisher.
   for(size_t i = 0; i < jointStates.size(); i++)
   {
     KinematicState::JointState* state = jointStates[i];
@@ -1169,16 +1339,16 @@ bool PlanningSceneEditor::getPlanningSceneOutcomes(const ros::Time& time, vector
                                                    vector<ArmNavigationErrorCodes>& error_codes,
                                                    map<std::string, ArmNavigationErrorCodes>& error_map)
 {
-  std::vector<string> names;
-  if(!move_arm_warehouse_logger_reader_->getAssociatedOutcomes("", time, pipeline_stages, error_codes, names))
+  if(!move_arm_warehouse_logger_reader_->getAssociatedOutcomes("", time, pipeline_stages, error_codes))
   {
     ROS_WARN_STREAM("No outcome associated with planning scene");
     return false;
   }
 
+  // Fill error map for convenience
   for(size_t i = 0; i < error_codes.size(); i++)
   {
-    error_map[names[i]] = error_codes[i];
+    error_map[pipeline_stages[i]] = error_codes[i];
   }
 
   return true;
@@ -1211,6 +1381,7 @@ std::string PlanningSceneEditor::createNewPlanningScene()
 
   sendPlanningScene(data);
 
+  (*planning_scene_map_)[data.getName()] = data;
   lock_scene_.unlock();
 
   updateJointStates();
@@ -1232,9 +1403,8 @@ void PlanningSceneEditor::loadAllWarehouseData()
   motion_plan_map_->clear();
   trajectory_map_->clear();
   planning_scene_map_->clear();
-  states_.clear();
   vector<ros::Time> planningSceneTimes;
-  getAllAvailableWarehousePlanningScenes(planningSceneTimes);
+  getAllPlanningSceneTimes(planningSceneTimes);
 
   // For each planning scene
   for(size_t i = 0; i < planningSceneTimes.size(); i++)
@@ -1246,9 +1416,13 @@ void PlanningSceneEditor::loadAllWarehouseData()
 
     ROS_INFO("Got planning scene %s from warehouse.", ID.c_str());
     PlanningSceneData& data = (*planning_scene_map_)[ID];
+    data.getPipelineStages().clear();
+    data.getErrorCodes().clear();
     getPlanningSceneOutcomes(time, data.getPipelineStages(), data.getErrorCodes(), error_map_);
     onPlanningSceneLoaded((int)i, (int)planningSceneTimes.size());
   }
+
+  error_map_.clear();
 }
 
 void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data)
@@ -1271,15 +1445,15 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data)
       TrajectoryData& traj = (*trajectory_map_)[req.getTrajectories()[j]];
       move_arm_warehouse_logger_reader_->pushJointTrajectoryToWarehouse(data.getPlanningScene(), traj.getSource(),
                                                                         traj.getDuration(), traj.getTrajectory(),
-                                                                        traj.getID(), traj.getMotionPlanRequestID());
+                                                                        traj.getID(), traj.getMotionPlanRequestID(), traj.trajectory_error_code_);
       move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(data.getPlanningScene(), traj.getSource(),
-                                                                traj.trajectory_error_code_, traj.getID());
+                                                                traj.trajectory_error_code_);
       ROS_INFO("Saving Trajectory %s", traj.getID().c_str());
     }
   }
 }
 
-bool PlanningSceneEditor::getAllAvailableWarehousePlanningScenes(vector<ros::Time>& planning_scene_times)
+bool PlanningSceneEditor::getAllPlanningSceneTimes(vector<ros::Time>& planning_scene_times)
 {
   move_arm_warehouse_logger_reader_->getAvailablePlanningSceneList("", last_creation_time_query_);
   planning_scene_times = last_creation_time_query_;
@@ -1289,6 +1463,7 @@ bool PlanningSceneEditor::getAllAvailableWarehousePlanningScenes(vector<ros::Tim
 bool PlanningSceneEditor::loadPlanningScene(const ros::Time& time, std::string& ID)
 {
   assert(planning_scene_map_ != NULL);
+  deleteKinematicStates();
   PlanningSceneData data;
   data.setTimeStamp(time);
   data.setName(generateNewPlanningSceneID());
@@ -1448,7 +1623,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   return true;
 }
 
-void PlanningSceneEditor::createMotionPlanRequestData(std::string planning_scene_ID, std::vector<std::string>& IDs,
+void PlanningSceneEditor::initMotionPlanRequestData(std::string planning_scene_ID, std::vector<std::string>& IDs,
                                                       std::vector<std::string>& stages,
                                                       std::vector<arm_navigation_msgs::MotionPlanRequest>& requests)
 {
@@ -1493,11 +1668,13 @@ void PlanningSceneEditor::createMotionPlanRequestData(std::string planning_scene
     PlanningSceneData& planningSceneData = (*planning_scene_map_)[planning_scene_ID];
     planningSceneData.getRequests().push_back(data.getID());
 
-    (*motion_plan_map_)[data.getID()] = data;
-    if(send_collision_markers_)
+    if(motion_plan_map_->find(data.getID()) != motion_plan_map_->end())
     {
-      updateCurrentCollisionSet(collision_marker_state_, mpr.group_name, data);
+      ROS_INFO("Deleting existing motion plan request...");
+      deleteMotionPlanRequest(data.getID());
     }
+    (*motion_plan_map_)[data.getID()] = data;
+
     lock_scene_.unlock();
 
     createIkControllersFromMotionPlanRequest(data);
@@ -1554,17 +1731,14 @@ bool PlanningSceneEditor::getMotionPlanRequest(const ros::Time& time, const stri
 
   (*motion_plan_map_)[data.getID()] = data;
   ID = data.getID();
-  if(send_collision_markers_)
-  {
-    updateCurrentCollisionSet(collision_marker_state_, mpr.group_name, data);
-  }
+
   lock_scene_.unlock();
 
   createIkControllersFromMotionPlanRequest(data);
   return true;
 }
 
-bool PlanningSceneEditor::getAllAssociatedTrajectories(const ros::Time& time, vector<string>& trajectory_sources)
+bool PlanningSceneEditor::getAllAssociatedTrajectorySources(const ros::Time& time, vector<string>& trajectory_sources)
 {
   if(!move_arm_warehouse_logger_reader_->getAssociatedJointTrajectorySources("", time, trajectory_sources))
   {
@@ -1592,36 +1766,6 @@ bool PlanningSceneEditor::getPausedState(const ros::Time& time, const ros::Time&
   return true;
 }
 
-bool PlanningSceneEditor::loadAndPlayTrajectory(MotionPlanRequestData& requestData, const ros::Time& time,
-                                                const string& source_name, unsigned int num, std::string& ID)
-{
-  JointTrajectory traj;
-  ros::Duration dur;
-
-  if(!move_arm_warehouse_logger_reader_->getAssociatedJointTrajectory("", time, source_name, num, dur, traj))
-  {
-    ROS_INFO_STREAM("No source trajectory with name " << source_name);
-    return false;
-  }
-
-  TrajectoryData data;
-  data.setDuration(dur);
-  data.setSource(source_name);
-  data.setTrajectory(traj);
-  data.setID(generateNewTrajectoryID());
-  data.setPlanningSceneName(requestData.getPlanningSceneName());
-  data.setMotionPlanRequestID(requestData.getID());
-  data.setGroupName(requestData.getGroupName());
-  data.setBadPoint(-1);
-  requestData.getTrajectories().push_back(data.getID());
-
-  (*planning_scene_map_)[requestData.getPlanningSceneName()].getTrajectories().push_back(data.getID());
-
-  (*trajectory_map_)[data.getID()] = data;
-  ID = data.getID();
-  return playTrajectory(requestData, data);
-}
-
 bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, TrajectoryData& data)
 {
   lock_scene_.lock();
@@ -1642,6 +1786,7 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
     lock_scene_.unlock();
     return false;
   }
+
   if(data.getCurrentState() == NULL)
   {
     data.setCurrentState(new KinematicState(*robot_state_));
@@ -1650,14 +1795,18 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
     currentState.source = "Trajectory from play trajectory";
     states_.push_back(currentState);
   }
+
   data.setCurrentPoint(0);
+  ArmNavigationErrorCodes oldValue;
+  oldValue.val = data.trajectory_error_code_.val;
+  ArmNavigationErrorCodes& errorCode = data.trajectory_error_code_;
   vector<ArmNavigationErrorCodes> trajectory_error_codes;
-  cm_->isJointTrajectoryValid(*data.getCurrentState(), data.getTrajectory(),
+  cm_->isJointTrajectoryValid(*(data.getCurrentState()), data.getTrajectory(),
                               requestData.getMotionPlanRequest().goal_constraints,
-                              requestData.getMotionPlanRequest().path_constraints, data.trajectory_error_code_,
+                              requestData.getMotionPlanRequest().path_constraints, errorCode,
                               trajectory_error_codes, false);
 
-  if(data.trajectory_error_code_.val != data.trajectory_error_code_.SUCCESS)
+  if(errorCode.val != errorCode.SUCCESS)
   {
     if(trajectory_error_codes.size() > 0)
     {
@@ -1671,78 +1820,12 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
   else
   {
     data.setBadPoint(-1);
+    errorCode.val = oldValue.val;
   }
 
   data.moveThroughTrajectory(0);
   lock_scene_.unlock();
   return true;
-}
-
-void PlanningSceneEditor::setShowCollisions(bool send_collision_markers, const string& csd,
-                                            std::string& arm_group_name, MotionPlanRequestData& data)
-{
-  lock_scene_.lock();
-  send_collision_markers_ = send_collision_markers;
-  if(send_collision_markers_)
-  {
-    updateCurrentCollisionSet(csd, arm_group_name, data);
-  }
-  else
-  {
-    collision_markers_.markers.clear();
-  }
-  lock_scene_.unlock();
-}
-
-void PlanningSceneEditor::updateCurrentCollisionSet(const string& csd, std::string& arm_group_name,
-                                                    MotionPlanRequestData& data)
-{
-  lock_scene_.lock();
-  const KinematicState* state = NULL;
-  if((*trajectory_map_).find(csd) != (*trajectory_map_).end())
-  {
-    state = (*trajectory_map_)[csd].getCurrentState();
-  }
-  else if(csd == "paused")
-  {
-    state = paused_collision_state_;
-  }
-  else
-  {
-    state = robot_state_;
-  }
-
-  collision_marker_state_ = csd;
-  collision_markers_.markers.clear();
-  if(state == NULL)
-  {
-    lock_scene_.unlock();
-    last_collision_set_error_code_.val = 0;
-    return;
-  }
-  if(csd != "none")
-  {
-    cm_->getAllCollisionPointMarkers(*state, collision_markers_, point_color_, ros::Duration(MARKER_REFRESH_TIME));
-    const KinematicState::JointStateGroup* jsg = state->getJointStateGroup(arm_group_name);
-    Constraints empty_constraints;
-    cm_->isKinematicStateValid(*state, jsg->getJointNames(), last_collision_set_error_code_, empty_constraints,
-                               data.getMotionPlanRequest().path_constraints, true);
-
-    GetStateValidity::Request val_req;
-    GetStateValidity::Response val_res;
-    convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
-                                      val_req.robot_state);
-
-    if(!distance_state_validity_service_client_.call(val_req, val_res))
-    {
-      ROS_INFO_STREAM("Something wrong with distance server");
-    }
-  }
-  else
-  {
-    last_collision_set_error_code_.val = 0;
-  }
-  lock_scene_.unlock();
 }
 
 void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObject& object, string name,
@@ -1885,7 +1968,7 @@ void PlanningSceneEditor::JointControllerCallback(const InteractiveMarkerFeedbac
     std::string sub1 = feedback->marker_name.substr(0, feedback->marker_name.rfind("_end_control"));
     ID = sub1.substr(0, sub1.rfind("_mpr_"));
     MPR = sub1.substr(sub1.rfind("_mpr_") + 5, sub1.length());
-    type = EndPosition;
+    type = GoalPosition;
   }
 
   setJointState((*motion_plan_map_)[MPR], type, ID, toBulletTransform(feedback->pose));
@@ -1905,7 +1988,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
   else if(feedback->marker_name.rfind("_end_control") != std::string::npos)
   {
     ID = feedback->marker_name.substr(0, feedback->marker_name.rfind("_end_control"));
-    type = EndPosition;
+    type = GoalPosition;
   }
   else
   {
@@ -1920,7 +2003,8 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
 
     if(type == StartPosition)
     {
-      (*motion_plan_map_)[controller.motion_plan_ID_].getStartState()->updateKinematicStateWithLinkAt((*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
+      (*motion_plan_map_)[controller.motion_plan_ID_].getStartState()->updateKinematicStateWithLinkAt(
+                                                                                                      (*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
                                                                                                       pose);
       findIKSolution = true;
       if(selected_motion_plan_ID_ != controller.motion_plan_ID_)
@@ -1931,7 +2015,8 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
     }
     else
     {
-      (*motion_plan_map_)[controller.motion_plan_ID_].getGoalState()->updateKinematicStateWithLinkAt((*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
+      (*motion_plan_map_)[controller.motion_plan_ID_].getGoalState()->updateKinematicStateWithLinkAt(
+                                                                                                     (*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
                                                                                                      pose);
       findIKSolution = true;
       if(selected_motion_plan_ID_ != controller.motion_plan_ID_)
@@ -2036,9 +2121,9 @@ void PlanningSceneEditor::createIkControllersFromMotionPlanRequest(MotionPlanReq
     createIKController(data, StartPosition);
   }
 
-  if(data.isEndEditable())
+  if(data.isGoalEditable())
   {
-    createIKController(data, EndPosition);
+    createIKController(data, GoalPosition);
   }
 
   interactive_marker_server_->applyChanges();
@@ -2288,7 +2373,6 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
                                     ik_request.robot_state);
   ik_request.ik_seed_state = ik_request.robot_state;
 
-
   map<string, double> joint_values;
   vector<string> joint_names;
 
@@ -2399,7 +2483,7 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
   {
     currentState = data.getStartState();
   }
-  else if(position == EndPosition)
+  else if(position == GoalPosition)
   {
     currentState = data.getGoalState();
   }
@@ -2445,7 +2529,8 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
     // Send state to robot model.
     if(position == StartPosition)
     {
-      convertKinematicStateToRobotState(*currentState, data.getMotionPlanRequest().start_state.joint_state.header.stamp,
+      convertKinematicStateToRobotState(*currentState,
+                                        data.getMotionPlanRequest().start_state.joint_state.header.stamp,
                                         data.getMotionPlanRequest().start_state.joint_state.header.frame_id,
                                         data.getMotionPlanRequest().start_state);
     }
@@ -2499,7 +2584,7 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
     state = data.getStartState();
     sauce = "_start_control";
   }
-  else if(position == EndPosition)
+  else if(position == GoalPosition)
   {
     state = data.getGoalState();
     sauce = "_end_control";
@@ -2512,8 +2597,7 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
     KinematicModel::JointModel* model =
         (KinematicModel::JointModel*)(state->getKinematicModel()->getJointModel(jointName));
     KinematicModel::RevoluteJointModel* revoluteJoint = dynamic_cast<KinematicModel::RevoluteJointModel*> (model);
-    KinematicModel::PrismaticJointModel* prismaticJoint =
-        dynamic_cast<KinematicModel::PrismaticJointModel*> (model);
+    KinematicModel::PrismaticJointModel* prismaticJoint = dynamic_cast<KinematicModel::PrismaticJointModel*> (model);
 
     std::string controlName = jointName + "_mpr_" + data.getID() + sauce;
     joint_clicked_map_[controlName] = false;
@@ -2522,11 +2606,9 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
     {
       string parentLinkName = model->getParentLinkModel()->getName();
       string childLinkName = model->getChildLinkModel()->getName();
-      btTransform
-          transform =
-              state->getLinkState(parentLinkName)->getGlobalLinkTransform()
-                  * (state->getKinematicModel()->getLinkModel(childLinkName)->getJointOriginTransform()
-                      * (state->getJointState(jointName)->getVariableTransform()));
+      btTransform transform = state->getLinkState(parentLinkName)->getGlobalLinkTransform()
+          * (state->getKinematicModel()->getLinkModel(childLinkName)->getJointOriginTransform()
+              * (state->getJointState(jointName)->getVariableTransform()));
 
       joint_prev_transform_map_[controlName] = transform;
 
@@ -2542,7 +2624,7 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
           double y = meshShape->vertices[3 * i];
           double z = meshShape->vertices[3 * i];
 
-          if(abs(maxDimension) < abs(sqrt(x*x+y*y+z*z)))
+          if(abs(maxDimension) < abs(sqrt(x * x + y * y + z * z)))
           {
             maxDimension = abs(x);
           }
@@ -2561,20 +2643,12 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
 
       if(revoluteJoint != NULL)
       {
-        makeInteractive1DOFRotationMarker(transform,
-                                          revoluteJoint->axis_,
-                                          controlName,
-                                          "",
-                                          (float)maxDimension,
+        makeInteractive1DOFRotationMarker(transform, revoluteJoint->axis_, controlName, "", (float)maxDimension,
                                           state->getJointState(jointName)->getJointStateValues()[0]);
       }
       else if(prismaticJoint != NULL)
       {
-        makeInteractive1DOFTranslationMarker(transform,
-                                             prismaticJoint->axis_,
-                                             controlName,
-                                             "",
-                                             (float)maxDimension,
+        makeInteractive1DOFTranslationMarker(transform, prismaticJoint->axis_, controlName, "", (float)maxDimension,
                                              state-> getJointState(jointName)->getJointStateValues()[0]);
       }
 
@@ -2584,8 +2658,7 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
 }
 
 void PlanningSceneEditor::makeInteractive1DOFTranslationMarker(btTransform transform, btVector3 axis, string name,
-                                                               string description, float scale,
-                                                               float value)
+                                                               string description, float scale, float value)
 {
   InteractiveMarker marker;
   marker.header.frame_id = cm_->getWorldFrameId();
@@ -2697,7 +2770,6 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionType type)
 {
 
-
   //Joint space method
 
   KinematicState* currentState = NULL;
@@ -2724,7 +2796,7 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
     {
       KinematicState::JointState* jointState = jointStates[i];
       map<string, pair<double, double> > bounds = jointState->getJointModel()->getAllVariableBounds();
-      for(map<string, pair<double,double> >::iterator it = bounds.begin(); it != bounds.end(); it++)
+      for(map<string, pair<double, double> >::iterator it = bounds.begin(); it != bounds.end(); it++)
       {
         if(!mpr.isJointNameInGoal(it->first))
         {
@@ -2735,7 +2807,7 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
         {
           continue;
         }
-        double randVal = ((double)random() / (double)RAND_MAX)*(range*0.99) + it->second.first;
+        double randVal = ((double)random() / (double)RAND_MAX) * (range * 0.99) + it->second.first;
         stateMap[it->first] = randVal;
       }
     }
@@ -2747,7 +2819,7 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
       goodSolution = true;
       break;
     }
-    numIterations ++;
+    numIterations++;
   }
 
   if(!goodSolution)
@@ -2759,7 +2831,6 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
   {
     ROS_INFO("Found a good random solution in %d iterations", numIterations);
   }
-
 
   if(type == StartPosition)
   {
@@ -2783,80 +2854,80 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
   mpr.setJointControlsVisible(mpr.areJointControlsVisible(), this);
 
   /* Old workspace method
-  btTransform currentPose;
+   btTransform currentPose;
 
-  if(type == StartPosition)
-  {
-    currentPose = mpr.getStartState()->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
-  }
-  else
-  {
-    currentPose = mpr.getGoalState()->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
-  }
+   if(type == StartPosition)
+   {
+   currentPose = mpr.getStartState()->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
+   }
+   else
+   {
+   currentPose = mpr.getGoalState()->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
+   }
 
-  int maxTries = 10;
-  int numTries = 0;
-  bool found = false;
-  double posVariance = 0.5;
-  double angleVariance = 0.5;
+   int maxTries = 10;
+   int numTries = 0;
+   bool found = false;
+   double posVariance = 0.5;
+   double angleVariance = 0.5;
 
-  while(!found && numTries < maxTries)
-  {
+   while(!found && numTries < maxTries)
+   {
 
-    double xVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
-    double yVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
-    double zVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
+   double xVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
+   double yVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
+   double zVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
 
-    double xAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
-    double yAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
-    double zAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
+   double xAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
+   double yAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
+   double zAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
 
-    double x = currentPose.getOrigin().x() + xVar;
-    double y = currentPose.getOrigin().y() + yVar;
-    double z = currentPose.getOrigin().z() + zVar;
+   double x = currentPose.getOrigin().x() + xVar;
+   double y = currentPose.getOrigin().y() + yVar;
+   double z = currentPose.getOrigin().z() + zVar;
 
-    double xA = currentPose.getRotation().x() + xAngleVar;
-    double yA = currentPose.getRotation().y() + yAngleVar;
-    double zA = currentPose.getRotation().z() + zAngleVar;
+   double xA = currentPose.getRotation().x() + xAngleVar;
+   double yA = currentPose.getRotation().y() + yAngleVar;
+   double zA = currentPose.getRotation().z() + zAngleVar;
 
-    btVector3 newPos(x, y, z);
-    btQuaternion newOrient(xA, yA, zA, 1.0);
-    btTransform newTrans(newOrient, newPos);
+   btVector3 newPos(x, y, z);
+   btQuaternion newOrient(xA, yA, zA, 1.0);
+   btTransform newTrans(newOrient, newPos);
 
-    if(type == StartPosition)
-    {
-      mpr.getStartState()->updateKinematicStateWithLinkAt(mpr.getEndEffectorLink(), newTrans);
-    }
-    else
-    {
-      mpr.getGoalState()->updateKinematicStateWithLinkAt(mpr.getEndEffectorLink(), newTrans);
-    }
+   if(type == StartPosition)
+   {
+   mpr.getStartState()->updateKinematicStateWithLinkAt(mpr.getEndEffectorLink(), newTrans);
+   }
+   else
+   {
+   mpr.getGoalState()->updateKinematicStateWithLinkAt(mpr.getEndEffectorLink(), newTrans);
+   }
 
-    if(!solveIKForEndEffectorPose(mpr, type, true, false))
-    {
-      if(mpr.hasGoodIKSolution())
-      {
-        mpr.refreshColors();
-      }
-      mpr.setHasGoodIKSolution(false);
-    }
-    else
-    {
-      if(!mpr.hasGoodIKSolution())
-      {
-        mpr.refreshColors();
-      }
-      mpr.setHasGoodIKSolution(true);
-    }
-    if(mpr.hasGoodIKSolution())
-    {
-      found = true;
-    }
+   if(!solveIKForEndEffectorPose(mpr, type, true, false))
+   {
+   if(mpr.hasGoodIKSolution())
+   {
+   mpr.refreshColors();
+   }
+   mpr.setHasGoodIKSolution(false);
+   }
+   else
+   {
+   if(!mpr.hasGoodIKSolution())
+   {
+   mpr.refreshColors();
+   }
+   mpr.setHasGoodIKSolution(true);
+   }
+   if(mpr.hasGoodIKSolution())
+   {
+   found = true;
+   }
 
-    numTries++;
-    posVariance *= 1.1;
-  }
-  */
+   numTries++;
+   posVariance *= 1.1;
+   }
+   */
 }
 
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
@@ -2878,4 +2949,191 @@ void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGo
   selected_trajectory_ID_ = logged.getID();
   updateState();
   ROS_INFO("CREATING TRAJECTORY %s", logged.getID().c_str());
+}
+
+void PlanningSceneEditor::getAllRobotStampedTransforms(const planning_models::KinematicState& state,
+                                  vector<geometry_msgs::TransformStamped>& trans_vector, const ros::Time& stamp)
+{
+  trans_vector.clear();
+  const map<string, geometry_msgs::TransformStamped>& transforms = cm_->getSceneTransformMap();
+  geometry_msgs::TransformStamped transvec;
+  for(map<string, geometry_msgs::TransformStamped>::const_iterator it = transforms.begin(); it
+      != transforms.end(); it++)
+  {
+    if(it->first != cm_->getWorldFrameId())
+    {
+      trans_vector.push_back(it->second);
+    }
+  }
+  for(unsigned int i = 0; i < state.getLinkStateVector().size(); i++)
+  {
+    const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[i];
+
+    if(ls->getName() != cm_->getWorldFrameId())
+    {
+      geometry_msgs::TransformStamped ts;
+      ts.header.stamp = stamp;
+      ts.header.frame_id = cm_->getWorldFrameId();
+
+      ts.child_frame_id = ls->getName();
+      tf::transformTFToMsg(ls->getGlobalLinkTransform(), ts.transform);
+      trans_vector.push_back(ts);
+    }
+  }
+}
+
+void PlanningSceneEditor::sendTransformsAndClock()
+{
+  if(robot_state_ == NULL)
+  {
+    return;
+  }
+
+  if(!params_.use_robot_data_)
+  {
+    ros::WallTime cur_time = ros::WallTime::now();
+    rosgraph_msgs::Clock c;
+    c.clock.nsec = cur_time.nsec;
+    c.clock.sec = cur_time.sec;
+    //clock_publisher_.publish(c);
+
+
+    getAllRobotStampedTransforms(*robot_state_, robot_transforms_, c.clock);
+    transform_broadcaster_.sendTransform(robot_transforms_);
+  }
+}
+
+MenuHandler::EntryHandle PlanningSceneEditor::registerSubMenuEntry(string menu, string name, string subMenu,
+                                                                   MenuHandler::FeedbackCallback& callback)
+{
+
+  MenuHandler::EntryHandle toReturn = menu_handler_map_[menu].insert(menu_entry_maps_[menu][subMenu], name, callback);
+  menu_entry_maps_[menu][name] = toReturn;
+  return toReturn;
+}
+
+MenuHandler::EntryHandle PlanningSceneEditor::registerMenuEntry(string menu, string entryName,
+                                                                MenuHandler::FeedbackCallback& callback)
+{
+  MenuHandler::EntryHandle toReturn = menu_handler_map_[menu].insert(entryName, callback);
+  menu_entry_maps_[menu][entryName] = toReturn;
+  return toReturn;
+}
+
+void PlanningSceneEditor::deleteTrajectory(std::string ID)
+{
+  if(trajectory_map_->find(ID) != trajectory_map_->end())
+  {
+
+    if(current_planning_scene_ID_ != "")
+    {
+      PlanningSceneData& data = (*planning_scene_map_)[current_planning_scene_ID_];
+      MotionPlanRequestData& requestData = (*motion_plan_map_)[(*trajectory_map_)[ID].getMotionPlanRequestID()];
+
+      std::vector<std::string>::iterator erasure = data.getTrajectories().end();
+      for(std::vector<std::string>::iterator it = data.getTrajectories().begin(); it != data.getTrajectories().end(); it++)
+      {
+        if((*it) == ID)
+        {
+          erasure = it;
+          break;
+        }
+      }
+
+      if(erasure != data.getTrajectories().end())
+      {
+        data.getTrajectories().erase(erasure);
+      }
+
+      std::vector<std::string>::iterator mprerasure = requestData.getTrajectories().end();
+      bool found = false;
+      int i = 0;
+      for(std::vector<std::string>::iterator it = requestData.getTrajectories().begin(); it
+          != requestData.getTrajectories().end(); it++)
+      {
+        if((*it) == ID)
+        {
+          mprerasure = it;
+          found = true;
+          break;
+        }
+        i++;
+      }
+
+      if(found)
+      {
+        requestData.getTrajectories().erase(mprerasure);
+      }
+    }
+
+    for(size_t i = 0; i < states_.size(); i++)
+    {
+      if(states_[i].state == (*trajectory_map_)[ID].getCurrentState())
+      {
+        states_[i].state = NULL;
+        states_[i].source = "Delete trajectory";
+      }
+    }
+
+    (*trajectory_map_)[ID].reset();
+    trajectory_map_->erase(ID);
+
+  }
+}
+
+void PlanningSceneEditor::deleteMotionPlanRequest(std::string ID)
+{
+  if(motion_plan_map_->find(ID) != motion_plan_map_->end())
+  {
+    for(size_t i = 0; i < states_.size(); i++)
+    {
+      if(states_[i].state == (*motion_plan_map_)[ID].getStartState() || states_[i].state
+          == (*motion_plan_map_)[ID].getGoalState())
+      {
+        states_[i].state = NULL;
+        states_[i].source = "Delete motion plan request";
+      }
+    }
+    (*motion_plan_map_)[ID].reset();
+
+    MotionPlanRequestData& motionPlanData = (*motion_plan_map_)[ID];
+    for(size_t i = 0; i < motionPlanData.getTrajectories().size(); i++)
+    {
+      deleteTrajectory(motionPlanData.getTrajectories()[i]);
+    }
+
+    motion_plan_map_->erase(ID);
+    interactive_marker_server_->erase(ID + "_start_control");
+    interactive_marker_server_->erase(ID + "_end_control");
+
+    if(current_planning_scene_ID_ != "")
+    {
+      PlanningSceneData& data = (*planning_scene_map_)[current_planning_scene_ID_];
+      std::vector<std::string>::iterator erasure = data.getRequests().end();
+
+      for(std::vector<std::string>::iterator it = data.getRequests().begin(); it != data.getRequests().end(); it++)
+      {
+        if((*it) == ID)
+        {
+          erasure = it;
+          break;
+        }
+      }
+
+      if(erasure != data.getRequests().end())
+      {
+        data.getRequests().erase(erasure);
+      }
+    }
+
+    updateState();
+  }
+}
+
+void PlanningSceneEditor::executeTrajectory(std::string trajectory_ID)
+{
+  if(trajectory_map_->find(trajectory_ID) != trajectory_map_->end())
+  {
+    executeTrajectory((*trajectory_map_)[trajectory_ID]);
+  }
 }

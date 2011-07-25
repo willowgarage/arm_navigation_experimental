@@ -46,14 +46,14 @@
 
 	  <node name="mongo" type="wrapper.py" pkg="mongodb">
 	    <param name="overwrite" value="false"/>
-	    <param name="database_path" value="/u/gjones/db"/>
+	    <param name="database_path" value="/tmp/db"/>
 	  </node>
 
 	  <param name="warehouse_port" value="27019"/>
 
 	  <node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
 
-	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
+	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer" launch-prefix="xterm -e gdb --args"/>
 
 	<!-- Called when left arm executes trajectory using controllers -->
 	<param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />

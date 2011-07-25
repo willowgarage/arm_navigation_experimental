@@ -427,7 +427,7 @@ class WarehouseComponentsVisualizer
     //////
     inline void logMotionPlanRequest(std::string& stage_name, arm_navigation_msgs::MotionPlanRequest& motion_plan_request)
     {
-      logger_->pushMotionPlanRequestToWarehouse(planning_scene_, stage_name, motion_plan_request);
+      logger_->pushMotionPlanRequestToWarehouse(planning_scene_, stage_name, motion_plan_request, "MPR 1");
     }
 
     //////
@@ -435,7 +435,8 @@ class WarehouseComponentsVisualizer
     //////
     inline void logTrajectory(std::string& source, ros::Duration& production_time, trajectory_msgs::JointTrajectory& trajectory)
     {
-      logger_->pushJointTrajectoryToWarehouse(planning_scene_, source, production_time, trajectory);
+      ArmNavigationErrorCodes errorCodes;
+      logger_->pushJointTrajectoryToWarehouse(planning_scene_, source, production_time, trajectory, "Trajectory 1", "MPR 1", errorCodes);
     }
 
     //////
