@@ -890,6 +890,7 @@ void PlanningSceneVisualizer::filterButtonPressed()
     string filterID;
     MotionPlanRequestData& data = (*motion_plan_map_)[trajectory.getMotionPlanRequestID()];
     filterTrajectory(data,trajectory, filterID);
+    playTrajectory(data, (*trajectory_map_)[filterID]);
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
     selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_ID_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));

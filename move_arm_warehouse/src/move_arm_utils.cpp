@@ -1268,6 +1268,8 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
     data.trajectory_error_code_.val = filter_res.error_code.val;
     (*trajectory_map_)[data.getID()] = data;
     filter_ID = data.getID();
+    data.setVisible(true);
+    data.play();
     return false;
   }
   else
@@ -1276,6 +1278,8 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
     playTrajectory(requestData, (*trajectory_map_)[data.getID()]);
     (*trajectory_map_)[data.getID()] = data;
     filter_ID = data.getID();
+    data.setVisible(true);
+    data.play();
     return true;
   }
 }
@@ -2145,8 +2149,14 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
   }
 
   btTransform transform = state->getLinkState(data.getEndEffectorLink())->getGlobalCollisionBodyTransform();
-
   InteractiveMarker marker;
+
+  if(interactive_marker_server_->get(data.getID() + nametag, marker))
+  {
+    interactive_marker_server_->setPose(data.getID() + nametag, toGeometryPose(transform));
+    return;
+  }
+
   marker.header.frame_id = "/" + cm_->getWorldFrameId();
   marker.pose.position.x = transform.getOrigin().x();
   marker.pose.position.y = transform.getOrigin().y();
@@ -2526,6 +2536,7 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
     currentState->getKinematicStateValues(stateMap);
     currentState->setKinematicState(stateMap);
 
+
     // Send state to robot model.
     if(position == StartPosition)
     {
@@ -2545,8 +2556,9 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
       }
     }
 
-    createJointMarkers(data, position);
+
     createIKController(data, position);
+    createJointMarkers(data, position);
   }
   else
   {
@@ -2596,8 +2608,6 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
     const string& jointName = jointNames[i];
     KinematicModel::JointModel* model =
         (KinematicModel::JointModel*)(state->getKinematicModel()->getJointModel(jointName));
-    KinematicModel::RevoluteJointModel* revoluteJoint = dynamic_cast<KinematicModel::RevoluteJointModel*> (model);
-    KinematicModel::PrismaticJointModel* prismaticJoint = dynamic_cast<KinematicModel::PrismaticJointModel*> (model);
 
     std::string controlName = jointName + "_mpr_" + data.getID() + sauce;
     joint_clicked_map_[controlName] = false;
@@ -2612,12 +2622,23 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
 
       joint_prev_transform_map_[controlName] = transform;
 
+      InteractiveMarker dummy;
+      if(interactive_marker_server_->get(controlName, dummy))
+      {
+        dummy.header.frame_id = cm_->getWorldFrameId();
+        interactive_marker_server_->setPose(controlName, toGeometryPose(transform), dummy.header);
+        continue;
+      }
+
       const shapes::Shape* linkShape = model->getChildLinkModel()->getLinkShape();
       const shapes::Mesh* meshShape = dynamic_cast<const shapes::Mesh*> (linkShape);
 
+      KinematicModel::RevoluteJointModel* revoluteJoint = dynamic_cast<KinematicModel::RevoluteJointModel*> (model);
+      KinematicModel::PrismaticJointModel* prismaticJoint = dynamic_cast<KinematicModel::PrismaticJointModel*> (model);
       double maxDimension = 0.0f;
       if(meshShape != NULL)
       {
+
         for(unsigned int i = 0; i < meshShape->vertexCount; i++)
         {
           double x = meshShape->vertices[3 * i];
