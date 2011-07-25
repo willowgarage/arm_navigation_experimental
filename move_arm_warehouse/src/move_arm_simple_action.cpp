@@ -1314,6 +1314,8 @@ private:
     current_planning_scene_ = planning_scene_res.planning_scene;
 
     if(log_to_warehouse_) {
+      // Change time stamp to avoid saving sim time.
+      current_planning_scene_.robot_state.joint_state.header.stamp = ros::Time(ros::WallTime::now().toSec());
       warehouse_logger_->pushPlanningSceneToWarehouse(current_planning_scene_);
     }
 
