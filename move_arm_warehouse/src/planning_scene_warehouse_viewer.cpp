@@ -1156,6 +1156,8 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
     r++;
   }
 
+  planning_scene_table_->sortByColumn(2);
+
 
 }
 

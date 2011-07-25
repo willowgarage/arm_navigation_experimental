@@ -190,6 +190,7 @@ void TrajectoryData::updateCollisionMarkers(CollisionModels* cm_, MotionPlanRequ
     bad_color.g = 0.0f;
     bad_color.b = 0.0f;
 
+    cm_->disableCollisionsForNonUpdatedLinks(getGroupName());
     // Get all collisions as little red spheres.
     cm_->getAllCollisionPointMarkers(*state, collision_markers_, bad_color, ros::Duration(MARKER_REFRESH_TIME));
 
@@ -201,6 +202,7 @@ void TrajectoryData::updateCollisionMarkers(CollisionModels* cm_, MotionPlanRequ
     cm_->isKinematicStateValid(*state, jsg->getJointNames(), code, empty_constraints,
                                motionPlanRequest.getMotionPlanRequest().path_constraints, true);
 
+    cm_->revertAllowedCollisionToDefault();
     GetStateValidity::Request val_req;
     GetStateValidity::Response val_res;
     convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
@@ -354,6 +356,7 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
     bad_color.r = 1.0f;
     bad_color.g = 0.0f;
     bad_color.b = 0.0f;
+    cm_->disableCollisionsForNonUpdatedLinks(getGroupName());
     // Get all the collision points as little red spheres.
     cm_->getAllCollisionPointMarkers(*state, collision_markers_, bad_color, ros::Duration(MARKER_REFRESH_TIME));
     const KinematicState::JointStateGroup* jsg = state->getJointStateGroup(getGroupName());
@@ -405,6 +408,8 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
         ROS_INFO_STREAM("Something wrong with distance server");
       }
     }
+
+    cm_->revertAllowedCollisionToDefault();
   }
 }
 

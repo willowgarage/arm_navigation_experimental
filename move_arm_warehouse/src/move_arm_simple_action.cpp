@@ -977,17 +977,7 @@ private:
           arm_navigation_msgs::ArmNavigationErrorCodes error_code;
           std::vector<arm_navigation_msgs::ArmNavigationErrorCodes> traj_error_codes;
           resetToStartState(planning_scene_state_);
-          if(log_to_warehouse_) {
-            std::stringstream ss;
-            ss << "Trajectory " << (++ max_trajectory_ID_);
-            warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
-                                                              "filter",
-                                                              ros::Duration(move_arm_stats_.smoothing_time),
-                                                              filtered_trajectory,
-                                                              ss.str(),
-                                                              last_mpr_ID_,
-                                                              res.error_code);
-          }
+
           if(!collision_models_->isJointTrajectoryValid(*planning_scene_state_,
                                                         filtered_trajectory,
                                                         original_request_.motion_plan_request.goal_constraints,
@@ -1027,6 +1017,15 @@ private:
             warehouse_logger_->pushOutcomeToWarehouse(current_planning_scene_,
                                                       "filter",
                                                       error_code);
+            std::stringstream ss;
+            ss << "Trajectory " << (++ max_trajectory_ID_);
+            warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
+                                                              "filter",
+                                                              ros::Duration(move_arm_stats_.smoothing_time),
+                                                              filtered_trajectory,
+                                                              ss.str(),
+                                                              last_mpr_ID_,
+                                                              error_code);
           }
           current_trajectory_ = filtered_trajectory;
         } else {
