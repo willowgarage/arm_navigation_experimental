@@ -1804,11 +1804,15 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
   ArmNavigationErrorCodes oldValue;
   oldValue.val = data.trajectory_error_code_.val;
   ArmNavigationErrorCodes& errorCode = data.trajectory_error_code_;
+  cm_->disableCollisionsForNonUpdatedLinks(data.getGroupName());
+
   vector<ArmNavigationErrorCodes> trajectory_error_codes;
   cm_->isJointTrajectoryValid(*(data.getCurrentState()), data.getTrajectory(),
                               requestData.getMotionPlanRequest().goal_constraints,
                               requestData.getMotionPlanRequest().path_constraints, errorCode,
                               trajectory_error_codes, false);
+
+  cm_->revertAllowedCollisionToDefault();
 
   if(errorCode.val != errorCode.SUCCESS)
   {
