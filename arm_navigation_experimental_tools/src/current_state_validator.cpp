@@ -85,10 +85,13 @@ public:
     collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getCurrentAllowedCollisionMatrix();
     if(!acm.hasEntry(COLLISION_MAP_NAME)) {
       acm.addEntry(COLLISION_MAP_NAME, false);
-    } else {
-      acm.changeEntry(COLLISION_MAP_NAME, false);
       collision_models_->setAlteredAllowedCollisionMatrix(acm);
     }
+
+    bool allowed = false;
+    acm.getAllowedCollision(COLLISION_MAP_NAME, "r_forearm_link", allowed);
+    ROS_INFO_STREAM("Coll and forearm entry " << allowed); 
+
 
     if(!req.group_name.empty()) {
       collision_models_->disableCollisionsForNonUpdatedLinks(req.group_name);
