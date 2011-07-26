@@ -798,5 +798,6 @@ template class BVHModel<KDOP<18> >;
 template class BVHModel<KDOP<24> >;
 template class BVHModel<OBB>;
 template class BVHModel<AABB>;
+template class BVHModel<RSS>;
 
 }

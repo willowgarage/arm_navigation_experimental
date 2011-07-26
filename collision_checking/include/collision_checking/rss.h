@@ -38,6 +38,7 @@
 #define COLLISION_CHECKING_RSS_H
 
 #include "collision_checking/BVH_defs.h"
+#include "collision_checking/vec_3f.h"
 
 namespace collision_checking
 {
@@ -48,7 +49,7 @@ public:
   /** \brief Orientation of RSS */
   Vec3f axis[3];
 
-  /** \brief position of rectangle */
+  /** \brief position of rectangle (origin of the rectangle) */
   Vec3f Tr;
 
   /** \brief side lengths of rectangle */
@@ -74,7 +75,7 @@ public:
   inline bool contain(const Vec3f& p) const;
 
   /** \brief A simple way to merge the RSS and a point, not compact. */
-  inline RSS& operator += (const Vec3f& p);
+  RSS& operator += (const Vec3f& p);
 
   /** \brief Merge the RSS and another RSS */
   inline RSS& operator += (const RSS& other)
@@ -84,7 +85,7 @@ public:
   }
 
   /** \brief Return the merged RSS of current RSS and the other one */
-  inline RSS operator + (const RSS& other) const;
+  RSS operator + (const RSS& other) const;
 
   /** \brief Width of the RSS */
   inline BVH_REAL width() const
@@ -121,7 +122,47 @@ public:
   {
     return Tr;
   }
+
+  /** \brief the distance between two RSS */
+  BVH_REAL distance(const RSS& other) const;
+
+protected:
+
+  /** \brief Clip val between a and b */
+  static void clipToRange(BVH_REAL& val, BVH_REAL a, BVH_REAL b);
+
+  /** \brief Finds the parameters t & u corresponding to the two closest points on a pair of line segments.
+   * The first segment is defined as Pa + A*t, 0 <= t <= a,  where "Pa" is one endpoint of the segment, "A" is a unit vector
+   * pointing to the other endpoint, and t is a scalar that produces all the points between the two endpoints. Since "A" is a unit
+   * vector, "a" is the segment's length.
+   * The second segment is defined as Pb + B*u, 0 <= u <= b.
+   * Many of the terms needed by the algorithm are already computed for other purposes,so we just pass these terms into the function
+   * instead of complete specifications of each segment. "T" in the dot products is the vector betweeen Pa and Pb.
+   * Reference: "On fast computation of distance between line segments." Vladimir J. Lumelsky, in Information Processing Letters, no. 21, pages 55-61, 1985.
+   */
+  static void segCoords(BVH_REAL& t, BVH_REAL& u, BVH_REAL a, BVH_REAL b, BVH_REAL A_dot_B, BVH_REAL A_dot_T, BVH_REAL B_dot_T);
+
+  /** \brief Returns whether the nearest point on rectangle edge
+   * Pb + B*u, 0 <= u <= b, to the rectangle edge,
+   * Pa + A*t, 0 <= t <= a, is within the half space
+   * determined by the point Pa and the direction Anorm.
+   *
+   * A,B, and Anorm are unit vectors.
+   * T is the vector between Pa and Pb.
+   */
+  static bool inVoronoi(BVH_REAL a, BVH_REAL b, BVH_REAL Anorm_dot_B, BVH_REAL Anorm_dot_T, BVH_REAL A_dot_B, BVH_REAL A_dot_T, BVH_REAL B_dot_T);
+
+public:
+
+  static BVH_REAL rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL a[2], const BVH_REAL b[2]);
+
 };
+
+
+BVH_REAL distance(const Vec3f R0[3], const Vec3f& T0, const RSS& b1, const RSS& b2);
+
+bool overlap(const Vec3f R0[3], const Vec3f& T0, const RSS& b1, const RSS& b2);
+
 
 }
 
