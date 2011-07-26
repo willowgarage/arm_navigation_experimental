@@ -257,6 +257,133 @@ TEST(TestSuite, collisionObjectTest)
   }
 }
 
+/////
+/// @brief Tests 1000 random operations
+/////
+TEST(TestSuite, stressTest)
+{
+  ROS_WARN("*************STARTING STRESS TEST**********");
+  std::string currentPlanningScene = editor->createNewPlanningScene();
+  std::string lastMotionPlan = "";
+  std::string lastTrajectory = "";
+  std::string lastCollisionObject = "";
+
+  for(int i = 0; i < 1000; i++)
+  {
+    float randOperation = randFloat(0.0, 1.0f);
+
+    if(randOperation < 0.05)
+    {
+      ROS_INFO("\t\tOperation %d:\tCreate New Scene", i);
+      currentPlanningScene = editor->createNewPlanningScene();
+    }
+    else if(randOperation < 0.2)
+    {
+      ROS_INFO("\t\tOperation %d:\tCreate New MPR", i);
+      std::string rightarm = RIGHT_ARM_GROUP;
+      std::string rightik = RIGHT_IK_LINK;
+      editor->createMotionPlanRequest(*(editor->getRobotState()),
+                                      *(editor->getRobotState()),
+                                      rightarm, rightik,false,
+                                      currentPlanningScene, lastMotionPlan,false);
+      editor->randomlyPerturb((*(editor->motion_plan_map_))[lastMotionPlan], GoalPosition);
+    }
+    else if(randOperation < 0.3)
+    {
+      if(lastMotionPlan != "")
+      {
+        ROS_INFO("\t\tOperation %d:\tDelete MPR", i);
+        editor->deleteMotionPlanRequest(lastMotionPlan);
+        lastMotionPlan = "";
+        lastTrajectory = "";
+      }
+    }
+    else if(randOperation < 0.4)
+    {
+
+      ROS_INFO("\t\tOperation %d:\tCreate Object", i);
+      geometry_msgs::Pose pose;
+      PlanningSceneEditor::GeneratedShape shape;
+      float scaleX;
+      float scaleY;
+      float scaleZ;
+      pose.position.x = randFloat(-1.5f, 1.5f);
+      pose.position.y = randFloat(-1.5f, 1.5f);
+      pose.position.z = randFloat(-1.5f, 1.5f);
+      pose.orientation.x = randFloat(0.0f, 1.0f);
+      pose.orientation.y = randFloat(0.0f, 1.0f);
+      pose.orientation.z = randFloat(0.0f, 1.0f);
+      pose.orientation.w = 1.0f;
+
+      float rand = randFloat(0.0f, 1.0f);
+      if(rand < 0.333f)
+      {
+        shape = PlanningSceneEditor::Box;
+      }
+      else if(rand < 0.666f)
+      {
+        shape = PlanningSceneEditor::Cylinder;
+      }
+      else
+      {
+        shape = PlanningSceneEditor::Sphere;
+      }
+
+      scaleX = randFloat(0.01f, 0.2f);
+      scaleY = randFloat(0.01f, 0.2f);
+      scaleZ = randFloat(0.01f, 0.2f);
+
+      lastCollisionObject = editor->createCollisionObject(pose, shape, scaleX, scaleY, scaleZ);
+    }
+    else if(randOperation < 0.5)
+    {
+      if(lastCollisionObject != "")
+      {
+        ROS_INFO("\t\tOperation %d:\tDelete Object", i);
+        editor->deleteCollisionObject(lastCollisionObject);
+        lastCollisionObject = "";
+      }
+    }
+    else if(randOperation < 0.6)
+    {
+      if(lastMotionPlan != "")
+      {
+        ROS_INFO("\t\tOperation %d:\tPlan Trajectory", i);
+        editor->planToRequest(lastMotionPlan, lastTrajectory);
+        editor->playTrajectory((*(editor->motion_plan_map_))[lastMotionPlan],(*(editor->trajectory_map_))[lastTrajectory]);
+      }
+    }
+    else if(randOperation < 0.7)
+    {
+      if(lastTrajectory != "")
+      {
+        ROS_INFO("\t\tOperation %d:\tDelete Trajectory", i);
+        editor->deleteTrajectory(lastTrajectory);
+        lastTrajectory = "";
+      }
+    }
+    else if(randOperation < 0.8)
+    {
+      if(lastTrajectory != "" && lastMotionPlan != "")
+      {
+        ROS_INFO("\t\tOperation %d:\tFilter Trajectory", i);
+        editor->filterTrajectory((*(editor->motion_plan_map_))[lastMotionPlan],(*(editor->trajectory_map_))[lastTrajectory],lastTrajectory);
+        editor->playTrajectory((*(editor->motion_plan_map_))[lastMotionPlan],(*(editor->trajectory_map_))[lastTrajectory]);
+        lastTrajectory = "";
+      }
+    }
+    else
+    {
+      if(lastMotionPlan != "")
+      {
+        ROS_INFO("\t\tOperation %d:\tRandom Start Pos", i);
+        editor->randomlyPerturb((*(editor->motion_plan_map_))[lastMotionPlan], StartPosition);
+      }
+    }
+  }
+}
+
+
 
 void spinThread()
 {
@@ -268,7 +395,6 @@ void spinThread()
   {
     ros::spinOnce();
     editor->sendMarkers();
-    editor->sendTransformsAndClock();
     usleep(10000);
   }
 }
