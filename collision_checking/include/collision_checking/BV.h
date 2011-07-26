@@ -41,6 +41,7 @@
 #include "collision_checking/kDOP.h"
 #include "collision_checking/aabb.h"
 #include "collision_checking/obb.h"
+#include "collision_checking/rss.h"
 
 /** \brief Main namespace */
 namespace collision_checking

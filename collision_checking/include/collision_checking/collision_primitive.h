@@ -266,6 +266,14 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
                     BVH_CollideResult* res, BVHFrontList* front_list = NULL);
 
+/** \brief Recursive collision kernel between two RSS trees: for rigid motion */
+void collideRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
+                    const Vec3f R[3], const Vec3f& T,
+                    int b1, int b2,
+                    Point* vertices1, Point* vertices2,
+                    Triangle* tri_indices1, Triangle* tri_indices2,
+                    BVH_CollideResult* res, BVHFrontList* front_list = NULL);
+
 /** \brief Recursive self collision kernel on one BV tree */
 template<typename BV>
 void selfCollideRecurse(BVNode<BV>* tree, int b,
@@ -607,6 +615,14 @@ void propagateBVHFrontList(BVNode<BV>* tree1, BVNode<BV>* tree2,
 
 /** \brief BVH front list propagation for collision of OBB trees */
 void propagateBVHFrontList(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
+                           Vec3f R[3], const Vec3f& T,
+                           Point* vertices1, Point* vertices2,
+                           Triangle* tri_indices1, Triangle* tri_indices2,
+                           BVH_CollideResult* res,
+                           BVHFrontList* front_list);
+
+/** \brief RSS front list propagation for collision of RSS trees */
+void propagateBVHFrontList(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                            Vec3f R[3], const Vec3f& T,
                            Point* vertices1, Point* vertices2,
                            Triangle* tri_indices1, Triangle* tri_indices2,
