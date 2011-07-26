@@ -210,7 +210,114 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
   }
 }
 
+void collideRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
+                    const Vec3f R[3], const Vec3f& T,
+                    int b1, int b2,
+                    Point* vertices1, Point* vertices2,
+                    Triangle* tri_indices1, Triangle* tri_indices2,
+                    BVH_CollideResult* res, BVHFrontList* front_list)
+{
+  BVNode<RSS>* node1 = tree1 + b1;
+  BVNode<RSS>* node2 = tree2 + b2;
 
+  bool l1 = node1->isLeaf();
+  bool l2 = node2->isLeaf();
+
+  if(l1 && l2)
+  {
+    if(front_list) front_list->push_back(BVHFrontNode(b1, b2));
+
+    res->num_bv_tests++;
+    if(!overlap(R, T, node1->bv, node2->bv)) return;
+
+    res->num_tri_tests++;
+
+    Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
+    Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+
+    Point p1, p2, p3, q1, q2, q3;
+    p1 = vertices1[tri_id1[0]];
+    p2 = vertices1[tri_id1[1]];
+    p3 = vertices1[tri_id1[2]];
+
+    q1 = vertices2[tri_id2[0]];
+    q2 = vertices2[tri_id2[1]];
+    q3 = vertices2[tri_id2[2]];
+
+    BVH_REAL penetration;
+    Vec3f normal;
+    int n_contacts;
+    Vec3f contacts[2];
+
+    if(res->num_max_contacts == 0) // only interested in collision or not
+    {
+      if(Intersect::intersect_Triangle(Vec3f(p1[0], p1[1], p1[2]),
+                                       Vec3f(p2[0], p2[1], p2[2]),
+                                       Vec3f(p3[0], p3[1], p3[2]),
+                                       Vec3f(q1[0], q1[1], q1[2]),
+                                       Vec3f(q2[0], q2[1], q2[2]),
+                                       Vec3f(q3[0], q3[1], q3[2]),
+                                       R, T))
+      {
+          res->add(-node1->first_child - 1, -node2->first_child - 1);
+      }
+    }
+    else // need compute the contact information
+    {
+      if(Intersect::intersect_Triangle(Vec3f(p1[0], p1[1], p1[2]),
+                                       Vec3f(p2[0], p2[1], p2[2]),
+                                       Vec3f(p3[0], p3[1], p3[2]),
+                                       Vec3f(q1[0], q1[1], q1[2]),
+                                       Vec3f(q2[0], q2[1], q2[2]),
+                                       Vec3f(q3[0], q3[1], q3[2]),
+                                       R, T,
+                                       contacts,
+                                       (unsigned int*)&n_contacts,
+                                       &penetration,
+                                       &normal))
+      {
+        for(int i = 0; i < n_contacts; ++i)
+          res->add(-node1->first_child - 1, -node2->first_child - 1, contacts[i], penetration, normal);
+      }
+    }
+
+
+    return;
+  }
+
+  res->num_bv_tests++;
+  if(!overlap(R, T, node1->bv, node2->bv))
+  {
+    if(front_list) front_list->push_back(BVHFrontNode(b1, b2));
+    return;
+  }
+
+  BVH_REAL sz1 = node1->bv.size();
+  BVH_REAL sz2 = node2->bv.size();
+
+  if(l2 || (!l1 && (sz1 > sz2)))
+  {
+    int c1 = node1->first_child;
+    int c2 = c1 + 1;
+
+    collideRecurse(tree1, tree2, R, T, c1, b2, vertices1, vertices2, tri_indices1, tri_indices2, res, front_list);
+
+    if(res->numPairs() > 0 && ((res->num_max_contacts == 0) || (res->num_max_contacts <= res->numPairs()))) return;
+
+    collideRecurse(tree1, tree2, R, T, c2, b2, vertices1, vertices2, tri_indices1, tri_indices2, res, front_list);
+  }
+  else
+  {
+    int c1 = node2->first_child;
+    int c2 = c1 + 1;
+
+    collideRecurse(tree1, tree2, R, T, b1, c1, vertices1, vertices2, tri_indices1, tri_indices2, res, front_list);
+
+    if(res->numPairs() > 0 && ((res->num_max_contacts == 0) || (res->num_max_contacts <= res->numPairs()))) return;
+
+    collideRecurse(tree1, tree2, R, T, b1, c2, vertices1, vertices2, tri_indices1, tri_indices2, res, front_list);
+  }
+}
 
 void propagateBVHFrontList(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
                            Vec3f R[3], const Vec3f& T,
@@ -227,6 +334,80 @@ void propagateBVHFrontList(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
     int b2 = front_iter->right;
     BVNode<OBB>* node1 = tree1 + b1;
     BVNode<OBB>* node2 = tree2 + b2;
+
+
+    bool l1 = node1->isLeaf();
+    bool l2 = node2->isLeaf();
+
+    if(l1 & l2)
+    {
+      front_iter->valid = false; // the front node is no longer valid, in collideRecurse will add again.
+      collideRecurse(tree1, tree2, R, T, b1, b2, vertices1, vertices2, tri_indices1, tri_indices2, res, &append);
+    }
+    else
+    {
+      res->num_bv_tests++;
+      if(!overlap(R, T, node1->bv, node2->bv))
+      {
+        front_iter->valid = false; // the front node is no longer valid
+
+        BVH_REAL sz1 = node1->bv.size();
+        BVH_REAL sz2 = node2->bv.size();
+
+        if(l2 || (!l1 && (sz1 > sz2)))
+        {
+          int c1 = node1->first_child;
+          int c2 = c1 + 1;
+
+          collideRecurse(tree1, tree2, R, T, c1, b2, vertices1, vertices2, tri_indices1, tri_indices2, res, &append);
+
+          collideRecurse(tree1, tree2, R, T, c2, b2, vertices1, vertices2, tri_indices1, tri_indices2, res, &append);
+        }
+        else
+        {
+          int c1 = node2->first_child;
+          int c2 = c1 + 1;
+
+          collideRecurse(tree1, tree2, R, T, b1, c1, vertices1, vertices2, tri_indices1, tri_indices2, res, &append);
+
+          collideRecurse(tree1, tree2, R, T, b1, c2, vertices1, vertices2, tri_indices1, tri_indices2, res, &append);
+        }
+      }
+    }
+  }
+
+
+  // clean the old front list (remove invalid node)
+  for(front_iter = front_list->begin(); front_iter != front_list->end();)
+  {
+    if(!front_iter->valid)
+      front_iter = front_list->erase(front_iter);
+    else
+      ++front_iter;
+  }
+
+  for(front_iter = append.begin(); front_iter != append.end(); ++front_iter)
+  {
+    front_list->push_back(*front_iter);
+  }
+}
+
+
+void propagateBVHFrontList(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
+                           Vec3f R[3], const Vec3f& T,
+                           Point* vertices1, Point* vertices2,
+                           Triangle* tri_indices1, Triangle* tri_indices2,
+                           BVH_CollideResult* res,
+                           BVHFrontList* front_list)
+{
+  BVHFrontList::iterator front_iter;
+  BVHFrontList append;
+  for(front_iter = front_list->begin(); front_iter != front_list->end(); ++front_iter)
+  {
+    int b1 = front_iter->left;
+    int b2 = front_iter->right;
+    BVNode<RSS>* node1 = tree1 + b1;
+    BVNode<RSS>* node2 = tree2 + b2;
 
 
     bool l1 = node1->isLeaf();

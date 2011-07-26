@@ -442,6 +442,9 @@ namespace collision_checking
   }
 #endif
 
+  Vec3f MxV(const Vec3f M[3], const Vec3f& v);
+  Vec3f MTxV(const Vec3f M[3], const Vec3f& v);
+
 }
 
 #endif

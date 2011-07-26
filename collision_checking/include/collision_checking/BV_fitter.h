@@ -42,6 +42,7 @@
 #include "collision_checking/primitive.h"
 #include "collision_checking/vec_3f.h"
 #include "collision_checking/obb.h"
+#include "collision_checking/rss.h"
 #include <iostream>
 
 /** \brief Main namespace */
@@ -211,29 +212,70 @@ private:
   /** \brief Fit OBB for six point (two triangles) */
   static inline OBB fit6(Point* ps);
 
-  /** \brief Compute the covariance matrix for a set or subset of points. */
-  static void getCovariance(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f M[3]);
-
-  /** \brief Compute the covariance matrix for a set or subset of triangles. */
-  static void getCovariance(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f M[3]);
-
-  /** \brief Compute the eigen value and vector for a given matrix a. */
-  static void Meigen(Vec3f a[3], BVH_REAL dout[3], Vec3f vout[3]);
-
-  /** \brief Compute the bounding volume extent and center for a set or subset of points.
-   * The bounding volume axes are known.
-   */
-  static void getExtentAndCenter(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f axis[3], Vec3f& center, Vec3f& extent);
-
-  /** \brief Compute the bounding volume extent and center for a set or subset of points.
-   * The bounding volume axes are known.
-   */
-  static void getExtentAndCenter(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f axis[3], Vec3f& center, Vec3f& extent);
-
   /** \brief Fit OBB for n points */
   static OBB fitn(Point* ps, int n);
 };
 
+
+/** \brief Specification of BVFitter for RSS bounding volume */
+template<>
+class BVFitter<RSS>
+{
+public:
+
+  /** \brief Compute a bounding volume that fits a set of n points. */
+  static RSS fit(Point* ps, int n);
+
+  /** \brief Prepare the geometry primitive data for fitting */
+  void set(Point* vertices_, Triangle* tri_indices_, BVHModelType type_)
+  {
+    vertices = vertices_;
+    prev_vertices = NULL;
+    tri_indices = tri_indices_;
+    type = type_;
+  }
+
+  /** \brief Prepare the geometry primitive data for fitting */
+  void set(Point* vertices_, Point* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
+  {
+    vertices = vertices_;
+    prev_vertices = prev_vertices_;
+    tri_indices = tri_indices_;
+    type = type_;
+  }
+
+  /** \brief Compute a bounding volume that fits a set of primitives (points or triangles).
+   * The primitive data was set by set function and primitive_indices is the primitive index relative to the data.
+   */
+  RSS fit(unsigned int* primitive_indices, int num_primitives);
+
+  /** \brief Clear the geometry primitive data */
+  void clear()
+  {
+    vertices = NULL;
+    prev_vertices = NULL;
+    tri_indices = NULL;
+    type = BVH_MODEL_UNKNOWN;
+  }
+
+private:
+
+  Point* vertices;
+  Point* prev_vertices;
+  Triangle* tri_indices;
+  BVHModelType type;
+
+  /** \brief Fit RSS for one point */
+  static RSS fit1(Point* ps);
+
+  static RSS fit2(Point* ps);
+
+  static RSS fit3(Point* ps);
+
+  /** \brief Fit RSS for n points */
+  static RSS fitn(Point* ps, int n);
+
+};
 
 }
 

@@ -43,4 +43,16 @@ const float Vec3f::EPSILON = 1e-11;
 #else
 const BVH_REAL Vec3f::EPSILON = 1e-11;
 #endif
+
+Vec3f MxV(const Vec3f M[3], const Vec3f& v)
+{
+  return Vec3f(M[0].dot(v), M[1].dot(v), M[2].dot(v));
+}
+
+Vec3f MTxV(const Vec3f M[3], const Vec3f& v)
+{
+  return M[0] * v[0] + M[1] * v[1] + M[2] * v[2];
+}
+
+
 }
