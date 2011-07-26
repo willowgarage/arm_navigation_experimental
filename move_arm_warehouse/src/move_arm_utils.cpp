@@ -695,6 +695,8 @@ PlanningSceneEditor::~PlanningSceneEditor()
 
 void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadRequests, bool loadTrajectories)
 {
+  lockScene();
+
   // Need to do this to clear old scene state.
   deleteKinematicStates();
 
@@ -836,6 +838,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
   }
 
   interactive_marker_server_->applyChanges();
+  unlockScene();
 }
 
 void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& arr)
@@ -1136,7 +1139,7 @@ void PlanningSceneEditor::createMotionPlanRequest(planning_models::KinematicStat
   planningSceneData.getRequests().push_back(data.getID());
 
   motionPlan_ID_Out = data.getID();
-  createIkControllersFromMotionPlanRequest(data);
+  createIkControllersFromMotionPlanRequest(data, false);
   sendPlanningScene(planningSceneData);
 }
 
@@ -1557,6 +1560,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                     planning_scene_req.planning_scene_diff.robot_state);
 
+
   deleteKinematicStates();
 
   if(robot_state_ != NULL)
@@ -1638,6 +1642,7 @@ void PlanningSceneEditor::initMotionPlanRequestData(std::string planning_scene_I
 {
   for(size_t i = 0; i < requests.size(); i++)
   {
+    lockScene();
     MotionPlanRequest& mpr = requests[i];
     cm_->disableCollisionsForNonUpdatedLinks(mpr.group_name);
 
@@ -1686,7 +1691,8 @@ void PlanningSceneEditor::initMotionPlanRequestData(std::string planning_scene_I
 
     lock_scene_.unlock();
 
-    createIkControllersFromMotionPlanRequest(data);
+    createIkControllersFromMotionPlanRequest(data, false);
+    unlockScene();
 
   }
 }
@@ -1743,7 +1749,7 @@ bool PlanningSceneEditor::getMotionPlanRequest(const ros::Time& time, const stri
 
   lock_scene_.unlock();
 
-  createIkControllersFromMotionPlanRequest(data);
+  createIkControllersFromMotionPlanRequest(data, false);
   return true;
 }
 
@@ -2127,22 +2133,22 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
   interactive_marker_server_->applyChanges();
 }
 
-void PlanningSceneEditor::createIkControllersFromMotionPlanRequest(MotionPlanRequestData& data)
+void PlanningSceneEditor::createIkControllersFromMotionPlanRequest(MotionPlanRequestData& data, bool rePose)
 {
   if(data.isStartEditable())
   {
-    createIKController(data, StartPosition);
+    createIKController(data, StartPosition, rePose);
   }
 
   if(data.isGoalEditable())
   {
-    createIKController(data, GoalPosition);
+    createIKController(data, GoalPosition, rePose);
   }
 
   interactive_marker_server_->applyChanges();
 }
 
-void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, PositionType type)
+void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, PositionType type, bool rePose)
 {
   KinematicState* state = NULL;
   std::string nametag = "";
@@ -2157,14 +2163,17 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
     nametag = "_end_control";
   }
 
-  btTransform transform = state->getLinkState(data.getEndEffectorLink())->getGlobalCollisionBodyTransform();
+  btTransform transform = state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
   InteractiveMarker marker;
 
-  if(interactive_marker_server_->get(data.getID() + nametag, marker))
+
+  if(interactive_marker_server_->get(data.getID() + nametag, marker) && rePose)
   {
-    interactive_marker_server_->setPose(data.getID() + nametag, toGeometryPose(transform));
+    geometry_msgs::Pose pose =  toGeometryPose(transform);
+    interactive_marker_server_->setPose(data.getID() + nametag, pose);
     return;
   }
+
 
   marker.header.frame_id = "/" + cm_->getWorldFrameId();
   marker.pose.position.x = transform.getOrigin().x();
@@ -2228,6 +2237,15 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
 
 }
 
+void PlanningSceneEditor::deleteCollisionObject(std::string& name)
+{
+  (*selectable_objects_)[name].collision_object_.operation.operation
+      = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
+  interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  interactive_marker_server_->applyChanges();
+}
+
 void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMarkerFeedbackConstPtr &feedback)
 {
   if(feedback->marker_name.rfind("collision_object") == string::npos)
@@ -2244,10 +2262,7 @@ void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMark
     case InteractiveMarkerFeedback::MENU_SELECT:
       if(feedback->menu_entry_id == menu_entry_maps_["Collision Object Selection"]["Delete"])
       {
-        (*selectable_objects_)[name].collision_object_.operation.operation
-            = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
-        interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
-        sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+        deleteCollisionObject(name);
       }
       else if(feedback->menu_entry_id == menu_entry_maps_["Collision Object Selection"]["Select"])
       {
@@ -2319,7 +2334,7 @@ void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarke
   interactive_marker_server_->applyChanges();
 }
 
-void PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, PlanningSceneEditor::GeneratedShape shape,
+std::string PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, PlanningSceneEditor::GeneratedShape shape,
                                                 float scaleX, float scaleY, float scaleZ)
 {
   lockScene();
@@ -2350,6 +2365,11 @@ void PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, Planni
       object.dimensions.resize(1);
       object.dimensions[0] = scaleX * 0.5f;
       break;
+    default:
+      object.type = arm_navigation_msgs::Shape::SPHERE;
+      object.dimensions.resize(1);
+      object.dimensions[0] = scaleX * 0.5f;
+      break;
   };
 
   collision_object.shapes.push_back(object);
@@ -2363,7 +2383,10 @@ void PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, Planni
   ROS_INFO("Sending planning scene %s", current_planning_scene_ID_.c_str());
 
   sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+
   unlockScene();
+  return collision_object.id;
+
 }
 
 bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
@@ -2566,7 +2589,7 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
     }
 
 
-    createIKController(data, position);
+    createIKController(data, position, true);
     createJointMarkers(data, position);
   }
   else
@@ -2583,12 +2606,21 @@ void PlanningSceneEditor::deleteJointMarkers(MotionPlanRequestData& data, Positi
     if(type == StartPosition)
     {
       std::string markerName = jointNames[i] + "_mpr_" + data.getID() + "_start_control";
-      interactive_marker_server_->erase(markerName);
+
+      InteractiveMarker dummy;
+      if(interactive_marker_server_->get(markerName, dummy))
+      {
+        interactive_marker_server_->erase(markerName);
+      }
     }
     else
     {
       std::string markerName = jointNames[i] + "_mpr_" + data.getID() + "_end_control";
-      interactive_marker_server_->erase(markerName);
+      InteractiveMarker dummy;
+      if(interactive_marker_server_->get(markerName, dummy))
+      {
+        interactive_marker_server_->erase(markerName);
+      }
     }
   }
 }
@@ -2777,7 +2809,7 @@ void PlanningSceneEditor::setIKControlsVisible(std::string ID, PositionType type
   }
   else
   {
-    createIKController((*motion_plan_map_)[ID], type);
+    createIKController((*motion_plan_map_)[ID], type, false);
     interactive_marker_server_->applyChanges();
   }
 }
@@ -2799,6 +2831,7 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 
 void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionType type)
 {
+  lockScene();
 
   //Joint space method
 
@@ -2855,6 +2888,7 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
   if(!goodSolution)
   {
     currentState->setKinematicState(originalState);
+    unlockScene();
     return;
   }
   else
@@ -2877,87 +2911,13 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
       constraint.position = stateMap[constraint.joint_name];
     }
   }
-
   mpr.setHasGoodIKSolution(true);
-  mpr.refreshColors();
-  createIkControllersFromMotionPlanRequest(mpr);
+  createIKController(mpr, type, false);
   mpr.setJointControlsVisible(mpr.areJointControlsVisible(), this);
+  interactive_marker_server_->applyChanges();
+  mpr.refreshColors();
+  unlockScene();
 
-  /* Old workspace method
-   btTransform currentPose;
-
-   if(type == StartPosition)
-   {
-   currentPose = mpr.getStartState()->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
-   }
-   else
-   {
-   currentPose = mpr.getGoalState()->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
-   }
-
-   int maxTries = 10;
-   int numTries = 0;
-   bool found = false;
-   double posVariance = 0.5;
-   double angleVariance = 0.5;
-
-   while(!found && numTries < maxTries)
-   {
-
-   double xVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
-   double yVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
-   double zVar = posVariance * ((double)random() / (double)RAND_MAX) - posVariance / 2.0;
-
-   double xAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
-   double yAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
-   double zAngleVar = angleVariance * ((double)random() / (double)RAND_MAX) - angleVariance / 2.0;
-
-   double x = currentPose.getOrigin().x() + xVar;
-   double y = currentPose.getOrigin().y() + yVar;
-   double z = currentPose.getOrigin().z() + zVar;
-
-   double xA = currentPose.getRotation().x() + xAngleVar;
-   double yA = currentPose.getRotation().y() + yAngleVar;
-   double zA = currentPose.getRotation().z() + zAngleVar;
-
-   btVector3 newPos(x, y, z);
-   btQuaternion newOrient(xA, yA, zA, 1.0);
-   btTransform newTrans(newOrient, newPos);
-
-   if(type == StartPosition)
-   {
-   mpr.getStartState()->updateKinematicStateWithLinkAt(mpr.getEndEffectorLink(), newTrans);
-   }
-   else
-   {
-   mpr.getGoalState()->updateKinematicStateWithLinkAt(mpr.getEndEffectorLink(), newTrans);
-   }
-
-   if(!solveIKForEndEffectorPose(mpr, type, true, false))
-   {
-   if(mpr.hasGoodIKSolution())
-   {
-   mpr.refreshColors();
-   }
-   mpr.setHasGoodIKSolution(false);
-   }
-   else
-   {
-   if(!mpr.hasGoodIKSolution())
-   {
-   mpr.refreshColors();
-   }
-   mpr.setHasGoodIKSolution(true);
-   }
-   if(mpr.hasGoodIKSolution())
-   {
-   found = true;
-   }
-
-   numTries++;
-   posVariance *= 1.1;
-   }
-   */
 }
 
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
@@ -3052,6 +3012,7 @@ MenuHandler::EntryHandle PlanningSceneEditor::registerMenuEntry(string menu, str
 
 void PlanningSceneEditor::deleteTrajectory(std::string ID)
 {
+  lockScene();
   if(trajectory_map_->find(ID) != trajectory_map_->end())
   {
 
@@ -3109,10 +3070,12 @@ void PlanningSceneEditor::deleteTrajectory(std::string ID)
     trajectory_map_->erase(ID);
 
   }
+  unlockScene();
 }
 
 void PlanningSceneEditor::deleteMotionPlanRequest(std::string ID)
 {
+  lockScene();
   if(motion_plan_map_->find(ID) != motion_plan_map_->end())
   {
     for(size_t i = 0; i < states_.size(); i++)
@@ -3158,6 +3121,7 @@ void PlanningSceneEditor::deleteMotionPlanRequest(std::string ID)
 
     updateState();
   }
+  unlockScene();
 }
 
 void PlanningSceneEditor::executeTrajectory(std::string trajectory_ID)

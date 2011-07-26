@@ -1020,7 +1020,7 @@ namespace planning_scene_utils
   ////
   class PlanningSceneEditor
   {
-    protected:
+    public:
       /////
       /// Enum GeneratedShape
       /// @brief These kinds of shapes can be created by the editor.
@@ -1029,6 +1029,7 @@ namespace planning_scene_utils
       {
         Box, Cylinder, Sphere
       };
+    protected:
 
       /////
       /// Enum MonitorStatus
@@ -1416,23 +1417,26 @@ namespace planning_scene_utils
       /// @param scaleX the size of the object in the x direction in meters.
       /// @param scaleY the size of the object in the y direction in meters.
       /// @param scaleZ the size of the object in the z direction in meters.
+      /// @return the unique ID of the collision object
       /////
-      void createCollisionObject(geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY,
+      std::string createCollisionObject(geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY,
                                  float scaleZ);
 
       //////
       /// @brief creates a 6DOF control over the end effector of either the start or goal position of the given request.
       /// @param data the motion plan request to create a 6DOF control over
       /// @param type either the start or goal position of the request
+      /// @param rePose, if the interactive marker already exists, should it be re-posed?
       //////
-      void createIKController(MotionPlanRequestData& data, PositionType type);
+      void createIKController(MotionPlanRequestData& data, PositionType type, bool rePose = true);
 
       /////
       /// @brief creates both the start and goal 6DOF controls for the given request, but only if those are visible and
       /// editable.
       /// @param data the motion plan request to create 6DOF controls for.
+      /// @param rePose, if the interactive markers already exist, should they be re-posed?
       //////
-      void createIkControllersFromMotionPlanRequest(MotionPlanRequestData& data);
+      void createIkControllersFromMotionPlanRequest(MotionPlanRequestData& data, bool rePose = true);
 
       /////
       /// @brief creates 1DOF controls for each of the joints of the given request and its start and end positions.
@@ -1708,6 +1712,14 @@ namespace planning_scene_utils
         stream << max_planning_scene_ID_;
         return stream.str();
       }
+
+
+      //////
+      /// @brief Removes the collision object with the specified name from the world.
+      /// @param name the unique ID of the object.
+      //////
+      void deleteCollisionObject(std::string& name);
+
 
       inline void lockScene()
       {
