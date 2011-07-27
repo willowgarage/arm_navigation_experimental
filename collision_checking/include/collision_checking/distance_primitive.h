@@ -56,7 +56,7 @@ struct BVH_DistanceResult
   /** \brief Query time used */
   BVH_REAL query_time_seconds;
 
-  /** \brief relative and absolute error */
+  /** \brief relative and absolute error, default value is 0.01 for both terms */
   BVH_REAL rel_err;
   BVH_REAL abs_err;
 

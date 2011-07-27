@@ -122,10 +122,8 @@ int distance(const BVHModel<RSS>& model1, const Vec3f R1[3], const Vec3f& T1,
                                                 Vec3f(last_tri2_points[1][0], last_tri2_points[1][1], last_tri2_points[1][2]),
                                                 Vec3f(last_tri2_points[2][0], last_tri2_points[2][1], last_tri2_points[2][2]),
                                                 R, T, last_tri_P, last_tri_Q);
-
   res->p1 = last_tri_P;
   res->p2 = last_tri_Q;
-
 
   if(res->qsize <= 2)
   {

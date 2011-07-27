@@ -54,11 +54,12 @@ struct BVT
   int b1, b2;
 };
 
+/** \brief Comparer between two BVT */
 struct BVT_Comparer
 {
   bool operator() (const BVT& lhs, const BVT& rhs) const
   {
-    return lhs.d < rhs.d;
+    return lhs.d > rhs.d;
   }
 };
 
@@ -78,7 +79,7 @@ BVH_DistanceResult::BVH_DistanceResult()
   last_tri_id1 = 0;
   last_tri_id2 = 0;
 
-  /** relative and absolute error */
+  /** default relative and absolute error */
   rel_err = (BVH_REAL)0.01;
   abs_err = (BVH_REAL)0.01;
 
@@ -141,7 +142,7 @@ void distanceQueueRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                                                  R, T,
                                                  P1, P2);
 
-      if(d< res->distance)
+      if(d < res->distance)
       {
         res->distance = d;
 

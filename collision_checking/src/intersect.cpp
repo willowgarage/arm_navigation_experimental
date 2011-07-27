@@ -1512,8 +1512,7 @@ BVH_REAL TriangleDistance::triDistance(const Vec3f& S1, const Vec3f& S2, const V
   Vec3f T1_transformed = MxV(R, T1) + Tl;
   Vec3f T2_transformed = MxV(R, T2) + Tl;
   Vec3f T3_transformed = MxV(R, T3) + Tl;
-
-  return triDistance(S1, S2, S3, T1, T2, T3, R, Tl, P, Q);
+  return triDistance(S1, S2, S3, T1_transformed, T2_transformed, T3_transformed, P, Q);
 }
 
 }
