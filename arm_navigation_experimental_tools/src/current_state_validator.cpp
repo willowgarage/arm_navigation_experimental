@@ -82,15 +82,19 @@ public:
   {
     collision_models_->bodiesLock();
 
-    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getDefaultAllowedCollisionMatrix();
-
+    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getCurrentAllowedCollisionMatrix();
     if(!acm.hasEntry(COLLISION_MAP_NAME)) {
       acm.addEntry(COLLISION_MAP_NAME, false);
       collision_models_->setAlteredAllowedCollisionMatrix(acm);
-    } 
+    }
+
+    bool allowed = false;
+    acm.getAllowedCollision(COLLISION_MAP_NAME, "r_forearm_link", allowed);
+    ROS_INFO_STREAM("Coll and forearm entry " << allowed); 
+
 
     if(!req.group_name.empty()) {
-      collision_models_->disableCollisionsForNonUpdatedLinks(req.group_name, true);
+      collision_models_->disableCollisionsForNonUpdatedLinks(req.group_name);
     }    
 
     planning_models::KinematicState state(collision_models_->getKinematicModel());
@@ -117,7 +121,7 @@ public:
                                              path_constraints);
 
     if(!req.group_name.empty()) {
-      collision_models_->revertAllowedCollisionToDefault();
+      collision_models_->setAlteredAllowedCollisionMatrix(acm);
     }    
 
     collision_models_->bodiesUnlock();
@@ -129,17 +133,18 @@ public:
 
     collision_models_->bodiesLock();
     
-    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getDefaultAllowedCollisionMatrix();
+    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = collision_models_->getCurrentAllowedCollisionMatrix();
 
     if(!acm.hasEntry(COLLISION_MAP_NAME)) {
       acm.addEntry(COLLISION_MAP_NAME, false);
-      collision_models_->setAlteredAllowedCollisionMatrix(acm);
-    } 
+    } else {
+      acm.changeEntry(COLLISION_MAP_NAME, false);
+    }
 
     //ROS_INFO_STREAM("Has collision map " << collision_models_->getCollisionSpace()->hasObject(COLLISION_MAP_NAME));
 
     if(!group.empty()) {
-      collision_models_->disableCollisionsForNonUpdatedLinks(group, true);
+      collision_models_->disableCollisionsForNonUpdatedLinks(group);
     }    
 
     planning_models::KinematicState state(collision_models_->getKinematicModel());
@@ -171,10 +176,10 @@ public:
     visualization_msgs::MarkerArray arr;
     if(group.empty()) {
       collision_models_->getRobotMarkersGivenState(state,
-                                                   arr,
-                                                   col,
-                                                   "validator",
-                                                   ros::Duration(MARKER_DUR));
+                                                             arr,
+                                                             col,
+                                                             "validator",
+                                                             ros::Duration(MARKER_DUR));
 
     } else {
       const planning_models::KinematicModel::JointModelGroup* joint_model_group = collision_models_->getKinematicModel()->getModelGroup(group);
@@ -183,18 +188,19 @@ public:
       }
       std::vector<std::string> group_links = joint_model_group->getGroupLinkNames();
       collision_models_->getRobotMarkersGivenState(state,
-                                                   arr,
-                                                   col,
-                                                   group,
-                                                   ros::Duration(MARKER_DUR),
-                                                   &group_links);      
+                                                             arr,
+                                                             col,
+                                                             group,
+                                                             ros::Duration(MARKER_DUR),
+                                                             &group_links);      
     }
     if(send) {
       vis_marker_array_publisher_.publish(arr);
     }
     if(!group.empty()) {
-      collision_models_->revertAllowedCollisionToDefault();
+      collision_models_->setAlteredAllowedCollisionMatrix(acm);
     }    
+
     collision_models_->bodiesUnlock();
   }
 
@@ -240,7 +246,7 @@ protected:
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "current_state_validator");
+  ros::init(argc, argv, "clear_known_objects");
 
   ros::AsyncSpinner spinner(1); // Use 2 threads
   spinner.start();

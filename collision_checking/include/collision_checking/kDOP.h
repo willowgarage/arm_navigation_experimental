@@ -39,6 +39,7 @@
 
 #include <cstdlib>
 #include <limits>
+#include <iostream>
 #include "collision_checking/BVH_defs.h"
 #include "collision_checking/vec_3f.h"
 
@@ -269,6 +270,15 @@ public:
   inline Vec3f center() const
   {
     return Vec3f(dist_[0] + dist_[N / 2], dist_[1] + dist_[N / 2 + 1], dist_[2] + dist_[N / 2 + 2]) * 0.5;
+  }
+
+  /** \brief The distance between two KDOP<N>
+   * Not implemented.
+   */
+  BVH_REAL distance(const KDOP<N>& other) const
+  {
+    std::cerr << "KDOP distance not implemented!" << std::endl;
+    return 0.0;
   }
 
 private:

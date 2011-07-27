@@ -92,6 +92,11 @@ struct BVNode
     return bv.overlap(other.bv);
   }
 
+  BVH_REAL distance(const BVNode& other) const
+  {
+    return bv.distance(other.bv);
+  }
+
 };
 
 /** \brief A class describing the bounding hierarchy of a mesh model */

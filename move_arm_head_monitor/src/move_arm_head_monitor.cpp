@@ -133,7 +133,6 @@ protected:
   double max_point_distance_;
 
   bool do_monitoring_;
-  bool do_preplan_scan_;
 
   head_monitor_msgs::HeadMonitorStatus current_execution_status_;
 
@@ -153,7 +152,6 @@ public:
     private_handle_.param<double>("point_sphere_size", point_sphere_size_, .01);
     private_handle_.param<double>("pause_time", pause_time_, 5.0);
     private_handle_.param<double>("max_point_distance", max_point_distance_, 1.0);
-    private_handle_.param<bool>("do_preplan_scan", do_preplan_scan_, true);
     private_handle_.param<bool>("do_monitoring", do_monitoring_, true);
 
     std::string robot_description_name = root_handle_.resolveName("robot_description", true);
@@ -477,20 +475,14 @@ public:
       ROS_WARN_STREAM("Got preplan in something other than IDLE mode");
     }
 
+    current_execution_status_.status = current_execution_status_.PREPLAN_SCAN;
+
     //need a kinematic state
     planning_models::KinematicState state(collision_models_interface_->getKinematicModel());
     
     kmsm_->setStateValuesFromCurrentValues(state);
 
     moveInsideSafetyLimits(goal, state);
-
-    if(!do_preplan_scan_) {
-      collision_models_interface_->bodiesUnlock();
-      head_preplan_scan_action_server_.setSucceeded(res);
-      return;
-    }
-
-    current_execution_status_.status = current_execution_status_.PREPLAN_SCAN;
 
     kmsm_->setStateValuesFromCurrentValues(state);
 
@@ -908,7 +900,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "move_arm_head_monitor");
 
-  ros::AsyncSpinner spinner(2); 
+  ros::AsyncSpinner spinner(4); 
   spinner.start();
 
   HeadMonitor head_monitor;

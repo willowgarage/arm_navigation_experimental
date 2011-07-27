@@ -41,8 +41,10 @@ src/environment_objects.cpp
 src/environmentBVH.cpp 
 src/interval_tree.cpp)
 
+set(THIRDPARTY_PATH /wg/stor1a/jpan/Workspace/thirdparty/)
+include_directories(${THIRDPARTY_PATH}/include)
+link_libraries("-L/${THIRDPARTY_PATH}/lib/ -lPQP")
 rosbuild_add_executable(test_collision_core test/test_collision_core.cpp)
-target_link_libraries(test_collision_core collision_space_ccd)
 target_link_libraries(test_collision_core assimp)
 
 rosbuild_add_gtest(test_collision_space_ccd test/test_collision_space_ccd.cpp)

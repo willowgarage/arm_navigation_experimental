@@ -719,9 +719,9 @@ private:
     goal.target_link = head_monitor_link_;
     goal.time_offset = ros::Duration(head_monitor_time_offset_);
 
-    ROS_DEBUG("Sending trajectory for monitoring with %d points and timestamp: %f",(int)goal.joint_trajectory.points.size(),goal.joint_trajectory.header.stamp.toSec());
+    ROS_INFO("Sending trajectory for monitoring with %d points and timestamp: %f",(int)goal.joint_trajectory.points.size(),goal.joint_trajectory.header.stamp.toSec());
     for(unsigned int i=0; i < goal.joint_trajectory.joint_names.size(); i++)
-      ROS_DEBUG("Joint: %d name: %s",i,goal.joint_trajectory.joint_names[i].c_str());
+      ROS_INFO("Joint: %d name: %s",i,goal.joint_trajectory.joint_names[i].c_str());
 
     /*    for(unsigned int i = 0; i < goal.trajectory.points.size(); i++)
           {
@@ -926,7 +926,7 @@ private:
 	    visualizePlan(current_trajectory_);
 	    //          printTrajectory(current_trajectory_);
 	    state_ = START_CONTROL;
-	    ROS_DEBUG("Done planning. Transitioning to control");
+	    ROS_INFO("Done planning. Transitioning to control");
 	  }
           if(log_to_warehouse_) {
 
@@ -1092,7 +1092,7 @@ private:
                                                           "ok",
                                                           move_arm_action_result_.error_code);
               }
-              ROS_DEBUG("Reached goal");
+              ROS_INFO("Reached goal");
             }
             return true;
           }
@@ -1147,7 +1147,7 @@ private:
       ROS_WARN_STREAM("Preplan scan failed");
     }
 
-    if(!getAndSetPlanningScene(goal->planning_scene_diff, goal->operations)) {
+    if(!getAndSetPlanningScene(goal->planning_scene_diff)) {
       ROS_INFO("Problem setting planning scene");
       move_arm_action_result_.error_code.val = move_arm_action_result_.error_code.INCOMPLETE_ROBOT_STATE;
       action_server_->setAborted(move_arm_action_result_);
@@ -1204,9 +1204,9 @@ private:
           move_arm_action_result_.error_code.val = 0;
           const arm_navigation_msgs::MoveArmGoalConstPtr& new_goal = action_server_->acceptNewGoal();
           moveArmGoalToPlannerRequest(new_goal,req);
-          ROS_DEBUG("Received new goal, will preempt previous goal");
-          if(!getAndSetPlanningScene(new_goal->planning_scene_diff, new_goal->operations)) {
-            ROS_INFO("Problem setting planning scene"); 
+          ROS_INFO("Received new goal, will preempt previous goal");
+          if(!getAndSetPlanningScene(new_goal->planning_scene_diff)) {
+            ROS_INFO("Problem setting planning scene");
             move_arm_action_result_.error_code.val = move_arm_action_result_.error_code.INCOMPLETE_ROBOT_STATE;
             action_server_->setAborted(move_arm_action_result_);
             return;
@@ -1237,7 +1237,7 @@ private:
         }
         else               //if we've been preempted explicitly we need to shut things down
         {
-          ROS_DEBUG("The move arm action was preempted by the action client. Preempting this goal.");
+          ROS_INFO("The move arm action was preempted by the action client. Preempting this goal.");
           if(state_ == MONITOR) {
             head_monitor_client_->cancelGoal();
           }
@@ -1277,7 +1277,7 @@ private:
     //TODO - parse goal state for success or failure
     head_monitor_done_ = true;
     head_monitor_error_code_ = result->error_code;
-    ROS_DEBUG_STREAM("Actual trajectory with " << result->actual_trajectory.points.size());
+    ROS_INFO_STREAM("Actual trajectory with " << result->actual_trajectory.points.size());
     if(log_to_warehouse_) {
       std::stringstream ss;
       ss << "Trajectory " << (++ max_trajectory_ID_);
@@ -1290,24 +1290,20 @@ private:
   }
 
   void monitorFeedbackCallback(const head_monitor_msgs::HeadMonitorFeedbackConstPtr& feedback) {
-    ROS_DEBUG_STREAM("Got feedback from monitor");
+    ROS_INFO_STREAM("Got feedback from monitor");
     if(log_to_warehouse_) {
       warehouse_logger_->pushPausedStateToWarehouse(current_planning_scene_,
                                                     *feedback);
     }
   }
 
-  bool getAndSetPlanningScene(const arm_navigation_msgs::PlanningScene& planning_diff,
-                              const arm_navigation_msgs::OrderedCollisionOperations& operations) {
+  bool getAndSetPlanningScene(const arm_navigation_msgs::PlanningScene& planning_diff) {
     arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
     arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
 
     revertPlanningScene();
 
-    planning_scene_req.operations = operations;
     planning_scene_req.planning_scene_diff = planning_diff;
-
-    ROS_DEBUG_STREAM("Getting and setting planning scene");
 
     if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) {
       ROS_WARN("Can't get planning scene");
@@ -1399,7 +1395,7 @@ private:
                                                             collision_models_->getWorldFrameId(),
                                                             d_path.robot_state);
     display_joint_goal_publisher_.publish(d_path);
-    ROS_DEBUG("Displaying move arm joint goal.");
+    ROS_INFO("Displaying move arm joint goal.");
   }
   void visualizeJointGoal(const trajectory_msgs::JointTrajectory &trajectory)
   {

@@ -31,5 +31,5 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 rosbuild_add_boost_directories()
 
-rosbuild_add_library(collision_checking src/BVH_model.cpp src/intersect.cpp src/collision_primitive.cpp src/distance_primitive.cpp src/obb.cpp src/rss.cpp src/vec_3f.cpp src/BV_fitter.cpp src/BVH_split_rule.cpp src/collision.cpp)
+rosbuild_add_library(collision_checking src/BVH_model.cpp src/intersect.cpp src/collision_primitive.cpp src/distance_primitive.cpp src/obb.cpp src/rss.cpp src/vec_3f.cpp src/BV_fitter.cpp src/BVH_split_rule.cpp src/collision.cpp src/proximity.cpp)
 

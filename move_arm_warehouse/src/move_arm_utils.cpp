@@ -2239,13 +2239,11 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
 
 void PlanningSceneEditor::deleteCollisionObject(std::string& name)
 {
-  lockScene();
   (*selectable_objects_)[name].collision_object_.operation.operation
       = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
   interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
   sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
   interactive_marker_server_->applyChanges();
-  unlockScene();
 }
 
 void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMarkerFeedbackConstPtr &feedback)
