@@ -41,6 +41,7 @@
 #include "collision_checking/vec_3f.h"
 #include <iostream>
 #include <limits>
+#include <iostream>
 
 /** \brief Main namespace */
 namespace collision_checking
@@ -152,6 +153,15 @@ public:
   inline Vec3f center() const
   {
     return To;
+  }
+
+  /** \brief The distance between two OBB
+   * Not implemented
+   */
+  BVH_REAL distance(const OBB& other) const
+  {
+    std::cerr << "OBB distance not implemented!" << std::endl;
+    return 0.0;
   }
 
 

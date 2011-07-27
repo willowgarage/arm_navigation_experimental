@@ -41,7 +41,7 @@
 #include "collision_checking/BVH_defs.h"
 #include "collision_checking/vec_3f.h"
 #include <limits>
-
+#include <iostream>
 
 /** \brief Main namespace */
 namespace collision_checking
@@ -176,6 +176,15 @@ public:
   inline  Vec3f center() const
   {
     return (min_ + max_) * 0.5;
+  }
+
+  /** \brief The distance between two AABB 
+   * Not implemented.
+   */
+  BVH_REAL distance(const AABB& other) const
+  {
+    std::cerr << "AABB distance not implemented!" << std::endl;
+    return 0.0;
   }
 };
 
