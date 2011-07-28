@@ -9,6 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/collision_checking</url>
   <depend package="rosconsole"/>
+  <depend package="bullet" />
   <export>
    <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lcollision_checking"/>
   </export>

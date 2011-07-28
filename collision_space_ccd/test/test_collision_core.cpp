@@ -1,6 +1,7 @@
 #include "collision_checking/collision.h"
 #include "collision_checking/proximity.h"
 #include "collision_checking/continuous_collision.h"
+#include "collision_checking/collision_geom.h"
 #include <limits>
 
 #include <cstdio>
@@ -92,6 +93,17 @@ static const int num_max_contacts = 10000;
 
 int main(int argc, char** argv)
 {
+  /*
+  CollisionMesh<OBB>* cl = makeCylinder<OBB>(3, 10);
+  std::vector<Point> ps;
+  std::vector<Triangle> ts;
+  for(unsigned int i = 0; i < cl->model.num_vertices; ++i)
+    ps.push_back(cl->model.vertices[i]);
+  for(unsigned int i = 0; i < cl->model.num_tris; ++i)
+    ts.push_back(cl->model.tri_indices[i]);
+  saveOBjFile("test.obj", ps, ts);
+  */
+
   std::vector<Point> p1, p2;
   std::vector<Triangle> t1, t2;
   loadOBJFile("env.obj", p1, t1);

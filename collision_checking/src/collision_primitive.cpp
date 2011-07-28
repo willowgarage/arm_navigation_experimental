@@ -139,6 +139,7 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
     int n_contacts;
     Vec3f contacts[2];
 
+
     if(res->num_max_contacts == 0) // only interested in collision or not
     {
       if(Intersect::intersect_Triangle(Vec3f(p1[0], p1[1], p1[2]),
@@ -167,7 +168,10 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
                                        &normal))
       {
         for(int i = 0; i < n_contacts; ++i)
+        {
+          if(res->num_max_contacts <= res->numPairs()) break;
           res->add(-node1->first_child - 1, -node2->first_child - 1, contacts[i], penetration, normal);
+        }
       }
     }
 
@@ -249,6 +253,7 @@ void collideRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
     int n_contacts;
     Vec3f contacts[2];
 
+
     if(res->num_max_contacts == 0) // only interested in collision or not
     {
       if(Intersect::intersect_Triangle(Vec3f(p1[0], p1[1], p1[2]),
@@ -277,7 +282,10 @@ void collideRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                                        &normal))
       {
         for(int i = 0; i < n_contacts; ++i)
+        {
+          if(res->num_max_contacts <= res->numPairs()) break;
           res->add(-node1->first_child - 1, -node2->first_child - 1, contacts[i], penetration, normal);
+        }
       }
     }
 
