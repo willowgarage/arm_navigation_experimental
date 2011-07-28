@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <LinearMath/btVector3.h>
 #include <LinearMath/btTransform.h>
-#define USE_PQP 1
+//#define USE_PQP 1
 #if USE_PQP
 #include <PQP/PQP.h>
 #endif
