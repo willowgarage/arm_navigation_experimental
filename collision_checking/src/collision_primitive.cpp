@@ -122,8 +122,8 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
 
     res->num_tri_tests++;
 
-    Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-    Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+    Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+    Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
     Point p1, p2, p3, q1, q2, q3;
     p1 = vertices1[tri_id1[0]];

@@ -502,47 +502,6 @@ inline CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot)
     }
   }
 
-
-
-
-  /*
-
-  for(unsigned int i = 0; i < tot;++i)
-    points.push_back(Point(r * cos(phi + phid * i), r * sin(phi + phid * i), h / 2));
-  for(unsigned int i = 0; i < tot; ++i)
-    points.push_back(Point(r * cos(phi + phid * i), r * sin(phi + phid * i), - h / 2));
-  points.push_back(Point(0, 0, h / 2));
-  points.push_back(Point(0, 0, -h / 2));
-
-
-
-
-  for(unsigned int i = 0; i < tot; ++i)
-  {
-    Triangle tmp(tot * 2, i, ((i == tot - 1) ? 0 : (i + 1)));
-    tri_indices.push_back(tmp);
-  }
-
-  for(unsigned int i = 0; i < tot; ++i)
-  {
-    Triangle tmp(tot * 2 + 1, ((i == tot - 1) ? tot : (i + 1 + tot)), i + tot);
-    tri_indices.push_back(tmp);
-  }
-
-  for(unsigned int i = 0; i < tot; ++i)
-  {
-    int a, b, c, d;
-    a = i;
-    b = (i == tot - 1) ? 0 : (i + 1);
-    c = i + tot;
-    d = (i == tot - 1) ? tot : (i + 1 + tot);
-
-    tri_indices.push_back(Triangle(b, a, c));
-    tri_indices.push_back(Triangle(b, c, d));
-  }
-
-  */
-
   CollisionMesh<BV>* m = new CollisionMesh<BV>;
   m->model.beginModel();
   m->model.addSubModel(points, tri_indices);
