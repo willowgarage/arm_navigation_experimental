@@ -43,14 +43,12 @@
 #include <cstdlib>
 #include <algorithm>
 
-#define SSE 0
-
 /** \brief Main namespace */
 namespace collision_checking
 {
 
 
-#if SSE
+#if COLLISION_USE_SSE
 #include <xmmintrin.h>
 #include <pmmintrin.h>
   inline __m128 _mm_cross_ps(__m128 a , __m128 b)
@@ -81,7 +79,7 @@ namespace collision_checking
       const unsigned int mantissa:23, exp:8, sign:1;
     };
 
-    ieee754_QNAN() : f(0.0), mantissa(0x7FFFFF), exp(0xFF), sign(0x0) {}
+    ieee754_QNAN() : f(0.0f), mantissa(0x7FFFFF), exp(0xFF), sign(0x0) {}
   } __attribute__ ((aligned (16)));
 
 
@@ -103,7 +101,7 @@ namespace collision_checking
       v_[0] = v[0];
       v_[1] = v[1];
       v_[2] = v[2];
-      v_[3] = 0;
+      v_[3] = 0.0f;
     }
 
     Vec3f(float x, float y, float z)
@@ -111,7 +109,7 @@ namespace collision_checking
       v_[0] = x;
       v_[1] = y;
       v_[2] = z;
-      v_[3] = 0;
+      v_[3] = 0.0f;
     }
 
 
@@ -227,7 +225,7 @@ namespace collision_checking
     /** \brief Set the vector using new values */
     inline Vec3f& setValue(float x, float y, float z)
     {
-      v_[0] = x; v_[1] = y; v_[2] = z; v_[3] = 0;
+      v_[0] = x; v_[1] = y; v_[2] = z; v_[3] = 0.0f;
       return *this;
     }
 
@@ -378,7 +376,7 @@ namespace collision_checking
       BVH_REAL sqr_length = v_[0] * v_[0] + v_[1] * v_[1] + v_[2] * v_[2];
       if(!isSmall(sqr_length, EPSILON * EPSILON))
       {
-        BVH_REAL inv_length = 1.0 / sqrt(sqr_length);
+        BVH_REAL inv_length = (BVH_REAL)1.0 / (BVH_REAL)sqrt(sqr_length);
         v_[0] *= inv_length;
         v_[1] *= inv_length;
         v_[2] *= inv_length;

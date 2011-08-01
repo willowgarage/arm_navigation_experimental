@@ -262,7 +262,7 @@ int BVHModel<BV>::addSubModel(const std::vector<Point>& ps, const std::vector<Tr
 
   for(int i = 0; i < num_tris_to_add; ++i)
   {
-    Triangle t = ts[i];
+    const Triangle& t = ts[i];
     tri_indices[num_tris] = Triangle(t[0] + offset, t[1] + offset, t[2] + offset);
     num_tris++;
   }
@@ -639,10 +639,10 @@ int BVHModel<BV>::recursiveBuildTree(int bv_id, int first_primitive, int num_pri
       if(type == BVH_MODEL_POINTCLOUD) p = vertices[cur_primitive_indices[i]];
       else if(type == BVH_MODEL_TRIANGLES)
       {
-        Triangle t = tri_indices[cur_primitive_indices[i]];
-        Point p1 = vertices[t[0]];
-        Point p2 = vertices[t[1]];
-        Point p3 = vertices[t[2]];
+        const Triangle& t = tri_indices[cur_primitive_indices[i]];
+        const Point& p1 = vertices[t[0]];
+        const Point& p2 = vertices[t[1]];
+        const Point& p3 = vertices[t[2]];
         BVH_REAL x = (p1[0] + p2[0] + p3[0]) / 3;
         BVH_REAL y = (p1[1] + p2[1] + p3[1]) / 3;
         BVH_REAL z = (p1[2] + p2[2] + p3[2]) / 3;
@@ -725,8 +725,9 @@ int BVHModel<BV>::recursiveRefitTree_bottomup(int bv_id)
       }
       else
       {
-        Point v = vertices[primitive_id];
-        bv = BVFitter<BV>::fit(&v, 1);
+        // Point v = vertices[primitive_id];
+        // bv = BVFitter<BV>::fit(&v, 1);
+        bv = BVFitter<BV>::fit(vertices + primitive_id, 1);
       }
 
       bvnode->bv = bv;
@@ -734,8 +735,7 @@ int BVHModel<BV>::recursiveRefitTree_bottomup(int bv_id)
     else if(type == BVH_MODEL_TRIANGLES)
     {
       BV bv;
-      Triangle triangle = tri_indices[primitive_id];
-
+      const Triangle& triangle = tri_indices[primitive_id];
 
       if(prev_vertices)
       {
