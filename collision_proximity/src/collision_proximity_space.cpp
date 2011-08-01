@@ -421,8 +421,6 @@ btTransform CollisionProximitySpace::getInverseWorldTransform(const planning_mod
 void CollisionProximitySpace::syncObjectsWithCollisionSpace(const planning_models::KinematicState& state)
 {
   btTransform inv = getInverseWorldTransform(state);
-  ROS_INFO("Inverse transform %f %f %f %f %f %f %f", inv.getOrigin().x(), inv.getOrigin().y(), inv.getOrigin().z(),
-           inv.getRotation().x(),inv.getRotation().y(), inv.getRotation().z(), inv.getRotation().w());
   const collision_space::EnvironmentObjects *eo = collision_models_interface_->getCollisionSpace()->getObjects();
   std::vector<std::string> ns = eo->getNamespaces();
   for(unsigned int i = 0; i < ns.size(); i++) {
@@ -432,6 +430,7 @@ void CollisionProximitySpace::syncObjectsWithCollisionSpace(const planning_model
     for(unsigned int j = 0; j < no.shape.size(); j++) {
       BodyDecomposition* bd = new BodyDecomposition(ns[i]+"_"+makeStringFromUnsignedInt(j), no.shape[j], resolution_);
       bd->updatePose(inv*no.shape_pose[j]);
+      btTransform trans = bd->getBody()->getPose();
       bdv->addToVector(bd); 
     }
     static_object_map_[ns[i]] = bdv;
@@ -485,10 +484,6 @@ void CollisionProximitySpace::prepareEnvironmentDistanceField(const planning_mod
       it++) {
     for(unsigned int i = 0; i < it->second->getSize(); i++) {
       std::vector<btVector3> obj_points = it->second->getBodyDecomposition(i)->getCollisionPoints();
-      for(unsigned int j = 0; j < obj_points.size(); j++) {
-        //body pose already accounts for inverse transform
-        obj_points[j] = it->second->getBodyDecomposition(i)->getBody()->getPose()*obj_points[j];
-      }
       all_points.insert(all_points.end(),obj_points.begin(), obj_points.end());
     }
   }

@@ -1,13 +1,10 @@
 
 <launch> 
-	  <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
-
-  <param name="robot_description_file_name" value="$(find planning_models)/test_urdf/robot.xml"/>
-	<node pkg="chomp_motion_planner" name="chomp_motion_planner" type="chomp_planner_node" args="collision_map:=collision_map_occ" respawn="true" output="screen" clear_params="true" launch-prefix="xterm -e gdb --args">
+	<node pkg="chomp_motion_planner" name="chomp_motion_planner" type="chomp_planner_node" args="collision_map:=collision_map_occ" respawn="true" output="screen" clear_params="true">
                 <rosparam command="load" file="$(find chomp_motion_planner)/config/chomp_pr2_right_arm.yaml" />
 	
 		<param name="animate_path" value="false"/>
-		
+		<param name="use_additional_trajectory_filter" value="false"/>		
 		<param name="trajectory_duration" value="3.0"/>
 		<param name="trajectory_discretization" value="0.02"/>
 		<param name="learning_rate" value="100000.0" />
