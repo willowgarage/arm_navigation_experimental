@@ -40,6 +40,7 @@
 #include <fstream>
 #include <vector>
 #include <boost/math/constants/constants.hpp>
+#include <LinearMath/btTransform.h>
 #include "collision_checking/collision.h"
 
 namespace collision_checking
@@ -97,9 +98,9 @@ CollisionMesh<BV>* makeMesh(const std::vector<Point>& points, const std::vector<
 template<typename BV>
 CollisionMesh<BV>* makeBox(double a, double b, double c);
 template<typename BV>
-CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot = 32);
+CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot = 16);
 template<typename BV>
-CollisionMesh<BV>* makeSphere(double r, unsigned int seg = 32, unsigned int ring = 32);
+CollisionMesh<BV>* makeSphere(double r, unsigned int seg = 16, unsigned int ring = 16);
 
 template<typename BV>
 struct CollisionMesh : public CollisionGeom
@@ -245,6 +246,8 @@ public:
   void computeAABB()
   {
     AABB aabb_;
+
+    /* Compute an exact AABB from vertices, slow :(
     if(ccd)
     {
       for(int i = 0; i < model.num_vertices; ++i)
@@ -267,6 +270,120 @@ public:
         btVector3 v1 = t1 * v;
         aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       }
+    }
+    */
+
+    /* So we only compute a rough AABB from rotated OBB */
+
+    if(ccd)
+    {
+      BVNode<OBB>* obb = model.bvs;
+      Vec3f p;
+      btVector3 v;
+      btVector3 v1;
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+      v1 = t2 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+    }
+    else
+    {
+      BVNode<OBB>* obb = model.bvs;
+      Vec3f p;
+      btVector3 v;
+      btVector3 v1;
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * obb->bv.extent[0] + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * obb->bv.extent[1] + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * obb->bv.extent[2];
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
+
+      p = obb->bv.To + obb->bv.axis[0] * (-obb->bv.extent[0]) + obb->bv.axis[1] * (-obb->bv.extent[1]) + obb->bv.axis[2] * (-obb->bv.extent[2]);
+      v = btVector3(p[0], p[1], p[2]);
+      v1 = t1 * v;
+      aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
     }
 
     aabb = aabb_;
@@ -336,35 +453,53 @@ inline CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot)
   phid = pi * 2 / tot;
   phi = 0;
 
-  for(unsigned int i = 0; i < tot;++i)
+  double circle_edge = phid * r;
+  unsigned int h_num = ceil(h / circle_edge);
+  double hd = h / h_num;
+
+  for(unsigned int i = 0; i < tot; ++i)
     points.push_back(Point(r * cos(phi + phid * i), r * sin(phi + phid * i), h / 2));
+
+  for(unsigned int i = 0; i < h_num - 1; ++i)
+  {
+    for(unsigned int j = 0; j < tot; ++j)
+    {
+      points.push_back(Point(r * cos(phi + phid * j), r * sin(phi + phid * j), h / 2 - (i + 1) * hd));
+    }
+  }
+
   for(unsigned int i = 0; i < tot; ++i)
     points.push_back(Point(r * cos(phi + phid * i), r * sin(phi + phid * i), - h / 2));
+
   points.push_back(Point(0, 0, h / 2));
   points.push_back(Point(0, 0, -h / 2));
 
   for(unsigned int i = 0; i < tot; ++i)
   {
-    Triangle tmp(tot * 2, i, ((i == tot - 1) ? 0 : (i + 1)));
+    Triangle tmp((h_num + 1) * tot, i, ((i == tot - 1) ? 0 : (i + 1)));
     tri_indices.push_back(tmp);
   }
 
   for(unsigned int i = 0; i < tot; ++i)
   {
-    Triangle tmp(tot * 2 + 1, ((i == tot - 1) ? tot : (i + 1 + tot)), i + tot);
+    Triangle tmp((h_num + 1) * tot + 1, h_num * tot + i, h_num * tot + ((i == tot - 1) ? 0 : (i + 1)));
     tri_indices.push_back(tmp);
   }
 
-  for(unsigned int i = 0; i < tot; ++i)
+  for(unsigned int i = 0; i < h_num; ++i)
   {
-    int a, b, c, d;
-    a = i;
-    b = (i == tot - 1) ? 0 : (i + 1);
-    c = i + tot;
-    d = (i == tot - 1) ? tot : (i + 1 + tot);
+    for(unsigned int j = 0; j < tot; ++j)
+    {
+      int a, b, c, d;
+      a = j;
+      b = (j == tot - 1) ? 0 : (j + 1);
+      c = j + tot;
+      d = (j == tot - 1) ? tot : (j + 1 + tot);
 
-    tri_indices.push_back(Triangle(b, a, c));
-    tri_indices.push_back(Triangle(b, c, d));
+      int start = i * tot;
+      tri_indices.push_back(Triangle(start + b, start + a, start + c));
+      tri_indices.push_back(Triangle(start + b, start + c, start + d));
+    }
   }
 
   CollisionMesh<BV>* m = new CollisionMesh<BV>;

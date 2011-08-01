@@ -1,11 +1,13 @@
 #include "collision_checking/collision.h"
+#include "collision_checking/proximity.h"
 #include "collision_checking/continuous_collision.h"
+#include "collision_checking/collision_geom.h"
 #include <limits>
 
 #include <cstdio>
 #include <LinearMath/btVector3.h>
 #include <LinearMath/btTransform.h>
-
+//#define USE_PQP 1
 #if USE_PQP
 #include <PQP/PQP.h>
 #endif
@@ -66,10 +68,42 @@ bool continuous_collide_Test(const btTransform& T, const btTransform& T2,
                         bool refit_bottomup = true, bool verbose = true);
 
 
-static const int num_max_contacts = 10;
+bool distance_Test(const btTransform& T,
+                   const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                   const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                   SplitMethodType split_method,
+                   bool verbose = true);
+
+bool distanceQueue_Test(const btTransform& T,
+                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        SplitMethodType split_method,
+                        bool verbose = true);
+
+bool distance_PQP(const btTransform& T,
+                  const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                  const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
+
+
+bool distance_PQP2(const btTransform& T,
+                   const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                   const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
+
+static const int num_max_contacts = 10000;
 
 int main(int argc, char** argv)
 {
+  /*
+  CollisionMesh<OBB>* cl = makeCylinder<OBB>(3, 10);
+  std::vector<Point> ps;
+  std::vector<Triangle> ts;
+  for(unsigned int i = 0; i < cl->model.num_vertices; ++i)
+    ps.push_back(cl->model.vertices[i]);
+  for(unsigned int i = 0; i < cl->model.num_tris; ++i)
+    ts.push_back(cl->model.tri_indices[i]);
+  saveOBjFile("test.obj", ps, ts);
+  */
+
   std::vector<Point> p1, p2;
   std::vector<Triangle> t1, t2;
   loadOBJFile("env.obj", p1, t1);
@@ -84,7 +118,7 @@ int main(int argc, char** argv)
   std::vector<btTransform> transforms_ccd2; // t1;
   BVH_REAL extents[] = {-3000, -3000, 0, 3000, 3000, 3000};
   BVH_REAL delta_trans[] = {1, 1, 1};
-  int n = 1000;
+  int n = 10;
   generateRandomTransform(extents, transforms, transforms2, delta_trans, 0.005 * 2 * 3.1415, n);
 /*
   generateRandomTransform_ccd(extents, transforms_ccd, transforms_ccd2, delta_trans, 0.005 * 2 * 3.1415, n, p1, t1, p2, t2);
@@ -133,6 +167,35 @@ int main(int argc, char** argv)
   }
 */
 
+
+  for(unsigned int i = 0; i < transforms.size(); ++i)
+  {
+    std::cout << "distance test id " << i << std::endl;
+
+#if USE_PQP
+    collide_PQP(transforms[i], p1, t1, p2, t2);
+
+    distance_PQP(transforms[i], p1, t1, p2, t2);
+
+    distance_PQP2(transforms[i], p1, t1, p2, t2);
+#endif
+
+    distance_Test(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEAN);
+
+    distance_Test(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_BV_CENTER);
+
+    distance_Test(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEDIAN);
+
+    distanceQueue_Test(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEAN);
+
+    distanceQueue_Test(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_BV_CENTER);
+
+    distanceQueue_Test(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEDIAN);
+  }
+
+  return 1;
+
+
   for(unsigned int i = 0 ; i < transforms.size(); ++i)
   {
     std::cout << "test id " << i << std::endl;
@@ -148,6 +211,12 @@ int main(int argc, char** argv)
     collide_Test<OBB>(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_BV_CENTER);
 
     collide_Test<OBB>(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEDIAN);
+
+    collide_Test<RSS>(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEAN);
+
+    collide_Test<RSS>(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_BV_CENTER);
+
+    collide_Test<RSS>(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEDIAN);
 
     collide_Test2(transforms[i], p1, t1, p2, t2, SPLIT_METHOD_MEAN);
 
@@ -744,6 +813,265 @@ bool collide_Test2(const btTransform& T,
   }
 }
 
+
+bool distance_Test(const btTransform& T,
+                     const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                     const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                     SplitMethodType split_method,
+                     bool verbose)
+{
+  BVHModel<RSS> m1;
+  BVHModel<RSS> m2;
+  m1.bv_splitter.setSplitType(split_method);
+  m2.bv_splitter.setSplitType(split_method);
+
+  m1.beginModel();
+  m1.addSubModel(vertices1, triangles1);
+  m1.endModel();
+
+  m2.beginModel();
+  m2.addSubModel(vertices2, triangles2);
+  m2.endModel();
+
+  Vec3f R1[3];
+  Vec3f R2[3] = {Vec3f(1, 0, 0), Vec3f(0, 1, 0), Vec3f(0, 0, 1)};
+  Vec3f T1;
+  Vec3f T2(0, 0, 0);
+
+  btVector3 t = T.getOrigin();
+  T1 = Vec3f(t.x(), t.y(), t.z());
+  btMatrix3x3 r = T.getBasis();
+  for(int i = 0; i < 3; ++i)
+  {
+    R1[i] = Vec3f(r[i].x(), r[i].y(), r[i].z());
+  }
+
+  BVH_DistanceResult res;
+  distance(m1, R1, T1, m2, R2, T2, &res);
+
+  if(verbose)
+  {
+    std::cout << "distance " << res.distance << std::endl;
+    std::cout << res.p1[0] << " " << res.p1[1] << " " << res.p1[2] << std::endl;
+    std::cout << res.p2[0] << " " << res.p2[1] << " " << res.p2[2] << std::endl;
+    std::cout << res.num_bv_tests << " " << res.num_tri_tests << std::endl;
+  }
+
+  return true;
+}
+
+
+bool distanceQueue_Test(const btTransform& T,
+                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        SplitMethodType split_method,
+                        bool verbose)
+{
+  BVHModel<RSS> m1;
+  BVHModel<RSS> m2;
+  m1.bv_splitter.setSplitType(split_method);
+  m2.bv_splitter.setSplitType(split_method);
+
+  m1.beginModel();
+  m1.addSubModel(vertices1, triangles1);
+  m1.endModel();
+
+  m2.beginModel();
+  m2.addSubModel(vertices2, triangles2);
+  m2.endModel();
+
+  Vec3f R1[3];
+  Vec3f R2[3] = {Vec3f(1, 0, 0), Vec3f(0, 1, 0), Vec3f(0, 0, 1)};
+  Vec3f T1;
+  Vec3f T2(0, 0, 0);
+
+  btVector3 t = T.getOrigin();
+  T1 = Vec3f(t.x(), t.y(), t.z());
+  btMatrix3x3 r = T.getBasis();
+  for(int i = 0; i < 3; ++i)
+  {
+    R1[i] = Vec3f(r[i].x(), r[i].y(), r[i].z());
+  }
+
+  BVH_DistanceResult res;
+  res.qsize = 20;
+  distance(m1, R1, T1, m2, R2, T2, &res);
+
+  if(verbose)
+  {
+    std::cout << "distance " << res.distance << std::endl;
+    std::cout << res.p1[0] << " " << res.p1[1] << " " << res.p1[2] << std::endl;
+    std::cout << res.p2[0] << " " << res.p2[1] << " " << res.p2[2] << std::endl;
+    std::cout << res.num_bv_tests << " " << res.num_tri_tests << std::endl;
+  }
+
+  return true;
+}
+
+
+#if USE_PQP
+bool distance_PQP(const btTransform& T,
+                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
+{
+  PQP_Model m1, m2;
+
+  m1.BeginModel();
+  for(unsigned int i = 0; i < triangles1.size(); ++i)
+  {
+    Triangle t = triangles1[i];
+    Point p1 = vertices1[t[0]];
+    Point p2 = vertices1[t[1]];
+    Point p3 = vertices1[t[2]];
+
+    btVector3 v1(p1[0], p1[1], p1[2]);
+    btVector3 v2(p2[0], p2[1], p2[2]);
+    btVector3 v3(p3[0], p3[1], p3[2]);
+
+    v1 = T * v1;
+    v2 = T * v2;
+    v3 = T * v3;
+
+    PQP_REAL q1[3];
+    PQP_REAL q2[3];
+    PQP_REAL q3[3];
+
+    q1[0] = v1.x(); q1[1] = v1.y(); q1[2] = v1.z();
+    q2[0] = v2.x(); q2[1] = v2.y(); q2[2] = v2.z();
+    q3[0] = v3.x(); q3[1] = v3.y(); q3[2] = v3.z();
+
+    m1.AddTri(q1, q2, q3, i);
+  }
+
+  m1.EndModel();
+
+
+  m2.BeginModel();
+  for(unsigned int i = 0; i < triangles2.size(); ++i)
+  {
+    Triangle t = triangles2[i];
+    Point p1 = vertices2[t[0]];
+    Point p2 = vertices2[t[1]];
+    Point p3 = vertices2[t[2]];
+
+    PQP_REAL q1[3];
+    PQP_REAL q2[3];
+    PQP_REAL q3[3];
+
+    q1[0] = p1[0]; q1[1] = p1[1]; q1[2] = p1[2];
+    q2[0] = p2[0]; q2[1] = p2[1]; q2[2] = p2[2];
+    q3[0] = p3[0]; q3[1] = p3[1]; q3[2] = p3[2];
+
+    m2.AddTri(q1, q2, q3, i);
+  }
+
+  m2.EndModel();
+
+
+  PQP_DistanceResult res;
+  PQP_REAL R1[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+  PQP_REAL R2[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+  PQP_REAL T1[3] = {0, 0, 0};
+  PQP_REAL T2[3] = {0, 0, 0};
+
+  PQP_Distance(&res, R1, T1, &m1, R2, T2, &m2, 0.01, 0.01);
+
+
+
+  if(verbose)
+  {
+    std::cout << "distance " << res.distance << std::endl;
+    std::cout << res.p1[0] << " " << res.p1[1] << " " << res.p1[2] << std::endl;
+    std::cout << res.p2[0] << " " << res.p2[1] << " " << res.p2[2] << std::endl;
+    std::cout << res.num_bv_tests << " " << res.num_tri_tests << std::endl;
+  }
+
+  return true;
+}
+
+
+bool distance_PQP2(const btTransform& T,
+                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
+{
+  PQP_Model m1, m2;
+
+  m1.BeginModel();
+  for(unsigned int i = 0; i < triangles1.size(); ++i)
+  {
+    Triangle t = triangles1[i];
+    Point p1 = vertices1[t[0]];
+    Point p2 = vertices1[t[1]];
+    Point p3 = vertices1[t[2]];
+
+    PQP_REAL q1[3];
+    PQP_REAL q2[3];
+    PQP_REAL q3[3];
+
+    q1[0] = p1[0]; q1[1] = p1[1]; q1[2] = p1[2];
+    q2[0] = p2[0]; q2[1] = p2[1]; q2[2] = p2[2];
+    q3[0] = p3[0]; q3[1] = p3[1]; q3[2] = p3[2];
+
+    m1.AddTri(q1, q2, q3, i);
+  }
+
+  m1.EndModel();
+
+
+  m2.BeginModel();
+  for(unsigned int i = 0; i < triangles2.size(); ++i)
+  {
+    Triangle t = triangles2[i];
+    Point p1 = vertices2[t[0]];
+    Point p2 = vertices2[t[1]];
+    Point p3 = vertices2[t[2]];
+
+    PQP_REAL q1[3];
+    PQP_REAL q2[3];
+    PQP_REAL q3[3];
+
+    q1[0] = p1[0]; q1[1] = p1[1]; q1[2] = p1[2];
+    q2[0] = p2[0]; q2[1] = p2[1]; q2[2] = p2[2];
+    q3[0] = p3[0]; q3[1] = p3[1]; q3[2] = p3[2];
+
+    m2.AddTri(q1, q2, q3, i);
+  }
+
+  m2.EndModel();
+
+
+  PQP_DistanceResult res;
+  PQP_REAL R1[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+  PQP_REAL R2[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+  PQP_REAL T1[3] = {0, 0, 0};
+  PQP_REAL T2[3] = {0, 0, 0};
+  btVector3 t = T.getOrigin();
+  T1[0] = t.x();
+  T1[1] = t.y();
+  T1[2] = t.z();
+  btMatrix3x3 r = T.getBasis();
+  for(int i = 0; i < 3; ++i)
+  {
+    R1[i][0] = r[i].x();
+    R1[i][1] = r[i].y();
+    R1[i][2] = r[i].z();
+  }
+
+
+  PQP_Distance(&res, R1, T1, &m1, R2, T2, &m2, 0.01, 0.01);
+
+  if(verbose)
+  {
+    std::cout << "distance " << res.distance << std::endl;
+    std::cout << res.p1[0] << " " << res.p1[1] << " " << res.p1[2] << std::endl;
+    std::cout << res.p2[0] << " " << res.p2[1] << " " << res.p2[2] << std::endl;
+    std::cout << res.num_bv_tests << " " << res.num_tri_tests << std::endl;
+  }
+
+  return true;
+}
+
+#endif
 
 template<typename BV>
 bool collide_front_Test(const btTransform& T, const btTransform& T2,

@@ -34,54 +34,54 @@
 
 /** \author Jia Pan */
 
-#ifndef COLLISION_CHECKING_BVH_DEFS_H
-#define COLLISION_CHECKING_BVH_DEFS_H
+
+#ifndef COLLISION_CHECKING_PROXIMITY_H
+#define COLLISION_CHECKING_PROXIMITY_H
+
+#include "collision_checking/distance_primitive.h"
+
 
 namespace collision_checking
 {
 
-typedef double BVH_REAL;
-
-/** \brief States for BVH construction
- * empty->begun->processed ->replace_begun->processed -> ......
- *                         |
- *                         |-> update_begun -> updated -> .....
- * */
-enum BVHBuildState
+/** \brief Proximity query between two BVH models, only support mesh-mesh now */
+template<typename BV>
+int distance(const BVHModel<BV>& model1, const BVHModel<BV>& model2, BVH_DistanceResult* res)
 {
-  BVH_BUILD_STATE_EMPTY,            // empty state, immediately after constructor
-  BVH_BUILD_STATE_BEGUN,            // after beginModel(), state for adding geometry primitives
-  BVH_BUILD_STATE_PROCESSED,        // after tree has been build, ready for cd use
-  BVH_BUILD_STATE_UPDATE_BEGUN,     // after beginUpdateModel(), state for updating geometry primitives
-  BVH_BUILD_STATE_UPDATED,          // after tree has been build for updated geometry, ready for ccd use
-  BVH_BUILD_STATE_REPLACE_BEGUN,    // after beginReplaceModel(), state for replacing geometry primitives
-};
+  if(model1.build_state != BVH_BUILD_STATE_PROCESSED && model1.build_state != BVH_BUILD_STATE_UPDATED)
+  {
+    std::cerr << "BVH Error: Must finish BVH model construction before call distance()!" << std::endl;
+    return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
+  }
 
-/** \brief Error code for BVH */
-enum BVHReturnCode
-{
-  BVH_OK = 0,
-  BVH_ERR_MODEL_OUT_OF_MEMORY = -1,
-  BVH_ERR_OUT_OF_MEMORY = -2,
-  BVH_ERR_UNPROCESSED_MODEL = -3,
-  BVH_ERR_BUILD_OUT_OF_SEQUENCE = -4,
-  BVH_ERR_BUILD_EMPTY_MODEL = -5,
-  BVH_ERR_BUILD_EMPTY_PREVIOUS_FRAME = -6,
-  BVH_ERR_UNSUPPORTED_FUNCTION = -7,
-  BVH_ERR_UNUPDATED_MODEL = -8,
-  BVH_ERR_INCORRECT_DATA = -9,
-  BVH_ERR_UNKNOWN = -10
-};
+  {
+    std::cerr << "BVH Error: Must finish BVH model construction before call distance()!" << std::endl;
+    return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
+  }
 
-/** \brief BVH model type */
-enum BVHModelType
-{
-  BVH_MODEL_UNKNOWN,
-  BVH_MODEL_TRIANGLES,
-  BVH_MODEL_POINTCLOUD
-};
+  // currently only support the mesh-mesh collision
+  if(model1.getModelType() != BVH_MODEL_TRIANGLES || model2.getModelType()!= BVH_MODEL_TRIANGLES)
+  {
+    std::cerr << "BVH Error: Proximity query only supported between two triangle models." << std::endl;
+    return BVH_ERR_UNSUPPORTED_FUNCTION;
+  }
 
+  std::cerr << "BVH Error: Proximity query does not support for most BVs." << std::endl;
+
+  return BVH_ERR_UNSUPPORTED_FUNCTION;
+}
+
+
+
+
+
+/** \brief Proximity query between two RSS models, only support mesh-mesh
+ * For RSS, we provide a specification that need not update the mesh vertices
+ */
+int distance(const BVHModel<RSS>& model1, const Vec3f R1[3], const Vec3f& T1,
+                  const BVHModel<RSS>& model2, const Vec3f R2[3], const Vec3f& T2, BVH_DistanceResult* res);
 
 }
+
 
 #endif

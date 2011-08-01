@@ -875,370 +875,6 @@ void EnvironmentModelBVH<BV>::testGeomCollision(CollisionData* cdata, CollisionG
   }
 }
 
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::unregisterGeom(CollisionGeom* geom)
-{
-  // must sorted before
-  setup();
-
-  EndPoint g;
-  g.value = geom->aabb.min_[0];
-  typename std::vector<EndPoint>::iterator start1 = std::lower_bound(endpoints[0].begin(), endpoints[0].end(), g, SortByValue());
-  g.value = geom->aabb.max_[0];
-  typename std::vector<EndPoint>::iterator end1 = std::upper_bound(start1, endpoints[0].end(), g, SortByValue());
-
-  if(start1 < end1)
-  {
-    unsigned int start_id = start1 - endpoints[0].begin();
-    unsigned int end_id = end1 - endpoints[0].begin();
-    unsigned int cur_id = start_id;
-    for(unsigned int i = start_id; i < end_id; ++i)
-    {
-      if(endpoints[0][i].g != geom)
-      {
-        if(i == cur_id) cur_id++;
-        else
-        {
-          endpoints[0][cur_id] = endpoints[0][i];
-          cur_id++;
-        }
-      }
-    }
-    if(cur_id < end_id)
-    {
-      endpoints[0].resize(endpoints[0].size() - 2);
-    }
-  }
-
-  g.value = geom->aabb.min_[1];
-  typename std::vector<EndPoint>::iterator start2 = std::lower_bound(endpoints[1].begin(), endpoints[1].end(), g, SortByValue());
-  g.value = geom->aabb.max_[1];
-  typename std::vector<EndPoint>::iterator end2 = std::upper_bound(start2, endpoints[1].end(), g, SortByValue());
-
-  if(start2 < end2)
-  {
-    unsigned int start_id = start2 - endpoints[1].begin();
-    unsigned int end_id = end2 - endpoints[1].begin();
-    unsigned int cur_id = start_id;
-    for(unsigned int i = start_id; i < end_id; ++i)
-    {
-      if(endpoints[1][i].g != geom)
-      {
-        if(i == cur_id) cur_id++;
-        else
-        {
-          endpoints[1][cur_id] = endpoints[1][i];
-          cur_id++;
-        }
-      }
-    }
-    if(cur_id < end_id)
-    {
-      endpoints[1].resize(endpoints[1].size() - 2);
-    }
-  }
-
-
-  g.value = geom->aabb.min_[2];
-  typename std::vector<EndPoint>::iterator start3 = std::lower_bound(endpoints[2].begin(), endpoints[2].end(), g, SortByValue());
-  g.value = geom->aabb.max_[2];
-  typename std::vector<EndPoint>::iterator end3 = std::upper_bound(start3, endpoints[2].end(), g, SortByValue());
-
-  if(start3 < end3)
-  {
-    unsigned int start_id = start3 - endpoints[2].begin();
-    unsigned int end_id = end3 - endpoints[2].begin();
-    unsigned int cur_id = start_id;
-    for(unsigned int i = start_id; i < end_id; ++i)
-    {
-      if(endpoints[2][i].g != geom)
-      {
-        if(i == cur_id) cur_id++;
-        else
-        {
-          endpoints[2][cur_id] = endpoints[2][i];
-          cur_id++;
-        }
-      }
-    }
-    if(cur_id < end_id)
-    {
-      endpoints[2].resize(endpoints[2].size() - 2);
-    }
-  }
-}
-
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::registerGeom(CollisionGeom* geom)
-{
-  EndPoint p, q;
-
-  p.g = geom;
-  q.g = geom;
-  p.type = 0;
-  q.type = 1;
-  p.value = geom->aabb.min_[0];
-  q.value = geom->aabb.max_[0];
-  endpoints[0].push_back(p);
-  endpoints[0].push_back(q);
-
-  p.value = geom->aabb.min_[1];
-  q.value = geom->aabb.max_[1];
-  endpoints[1].push_back(p);
-  endpoints[1].push_back(q);
-
-  p.value = geom->aabb.min_[2];
-  q.value = geom->aabb.max_[2];
-  endpoints[2].push_back(p);
-  endpoints[2].push_back(q);
-  setup_ = false;
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::setup()
-{
-  if(!setup_)
-  {
-    std::sort(endpoints[0].begin(), endpoints[0].end(), SortByValue());
-    std::sort(endpoints[1].begin(), endpoints[1].end(), SortByValue());
-    std::sort(endpoints[2].begin(), endpoints[2].end(), SortByValue());
-
-    for(int i = 0; i < 3; ++i)
-      delete interval_trees[i];
-
-    for(int i = 0; i < 3; ++i)
-      interval_trees[i] = new IntervalTree;
-
-    for(unsigned int i = 0; i < endpoints[0].size(); ++i)
-    {
-      EndPoint p = endpoints[0][i];
-      CollisionGeom* g = p.g;
-      if(p.type == 0)
-      {
-        SAPInterval* ivl1 = new SAPInterval(g->aabb.min_[0], g->aabb.max_[0], g);
-        SAPInterval* ivl2 = new SAPInterval(g->aabb.min_[1], g->aabb.max_[1], g);
-        SAPInterval* ivl3 = new SAPInterval(g->aabb.min_[2], g->aabb.max_[2], g);
-        interval_trees[0]->insert(ivl1);
-        interval_trees[1]->insert(ivl2);
-        interval_trees[2]->insert(ivl3);
-      }
-    }
-
-    setup_ = true;
-  }
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::clear()
-{
-  endpoints[0].clear();
-  endpoints[1].clear();
-  endpoints[2].clear();
-  setup_ = false;
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::getGeoms(std::vector<CollisionGeom*>& geoms) const
-{
-  geoms.resize(endpoints[0].size() / 2);
-  unsigned int j = 0;
-  for(unsigned int i = 0; i < endpoints[0].size(); ++i)
-  {
-    if(endpoints[0][i].type == 0)
-    {
-      geoms[j] = endpoints[0][i].g; j++;
-    }
-  }
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::update()
-{
-  setup_ = false;
-
-  for(unsigned int i = 0; i < endpoints[0].size(); ++i)
-  {
-    if(endpoints[0][i].type == 0)
-      endpoints[0][i].value = endpoints[0][i].g->aabb.min_[0];
-    else
-      endpoints[0][i].value = endpoints[0][i].g->aabb.max_[0];
-  }
-
-  for(unsigned int i = 0; i < endpoints[1].size(); ++i)
-  {
-    if(endpoints[1][i].type == 0)
-      endpoints[1][i].value = endpoints[1][i].g->aabb.min_[1];
-    else
-      endpoints[1][i].value = endpoints[1][i].g->aabb.max_[1];
-  }
-
-  for(unsigned int i = 0; i < endpoints[2].size(); ++i)
-  {
-    if(endpoints[2][i].type == 0)
-      endpoints[2][i].value = endpoints[2][i].g->aabb.min_[2];
-    else
-      endpoints[2][i].value = endpoints[2][i].g->aabb.max_[2];
-  }
-
-  setup();
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::collide(CollisionGeom* geom, CollisionData* cdata) const
-{
-  static const unsigned int CUTOFF = 100;
-
-  std::deque<Interval*> results0, results1, results2;
-
-  results0 = interval_trees[0]->query(geom->aabb.min_[0], geom->aabb.max_[0]);
-  if(results0.size() > CUTOFF)
-  {
-    results1 = interval_trees[1]->query(geom->aabb.min_[1], geom->aabb.max_[1]);
-    if(results1.size() > CUTOFF)
-    {
-      results2 = interval_trees[2]->query(geom->aabb.min_[2], geom->aabb.max_[2]);
-      if(results2.size() > CUTOFF)
-      {
-        int d1 = results0.size();
-        int d2 = results1.size();
-        int d3 = results2.size();
-
-        if(d1 >= d2 && d1 >= d3)
-        {
-          for(unsigned int i = 0; i < results0.size(); ++i)
-          {
-            SAPInterval* ivl = (SAPInterval*)results0[i];
-            EnvironmentModelBVH<BV>::testGeomCollision(cdata, ivl->g, geom);
-          }
-        }
-        else if(d2 >= d1 && d2 >= d3)
-        {
-          for(unsigned int i = 0; i < results1.size(); ++i)
-          {
-            SAPInterval* ivl = (SAPInterval*)results1[i];
-            EnvironmentModelBVH<BV>::testGeomCollision(cdata, ivl->g, geom);
-          }
-        }
-        else
-        {
-          for(unsigned int i = 0; i < results2.size(); ++i)
-          {
-            SAPInterval* ivl = (SAPInterval*)results2[i];
-            EnvironmentModelBVH<BV>::testGeomCollision(cdata, ivl->g, geom);
-          }
-        }
-      }
-      else
-      {
-        for(unsigned int i = 0; i < results2.size(); ++i)
-        {
-          SAPInterval* ivl = (SAPInterval*)results2[i];
-          EnvironmentModelBVH<BV>::testGeomCollision(cdata, ivl->g, geom);
-        }
-      }
-    }
-    else
-    {
-      for(unsigned int i = 0; i < results1.size(); ++i)
-      {
-        SAPInterval* ivl = (SAPInterval*)results1[i];
-        EnvironmentModelBVH<BV>::testGeomCollision(cdata, ivl->g, geom);
-      }
-    }
-  }
-  else
-  {
-    for(unsigned int i = 0; i < results0.size(); ++i)
-    {
-      SAPInterval* ivl = (SAPInterval*)results0[i];
-      EnvironmentModelBVH<BV>::testGeomCollision(cdata, ivl->g, geom);
-    }
-  }
-
-  results0.clear();
-  results1.clear();
-  results2.clear();
-
-  //checkColl(endpoints[0].begin(), endpoints[0].end(), geom, cdata);
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::collide(CollisionData* cdata) const
-{
-  std::set<CollisionGeom*> active;
-  std::set<std::pair<CollisionGeom*, CollisionGeom*> > overlap;
-  unsigned int n = endpoints[0].size();
-  double diff_x = endpoints[0][0].value - endpoints[0][n-1].value;
-  double diff_y = endpoints[1][0].value - endpoints[1][n-1].value;
-  double diff_z = endpoints[2][0].value - endpoints[2][n-1].value;
-
-  int axis = 0;
-  if(diff_y > diff_x && diff_y > diff_z)
-    axis = 1;
-  else if(diff_z > diff_y && diff_z > diff_x)
-    axis = 2;
-
-  for(unsigned int i = 0; i < n; ++i)
-  {
-    const EndPoint& endpoint = endpoints[axis][i];
-    CollisionGeom* index = endpoint.g;
-    if(endpoint.type == 0)
-    {
-      std::set<CollisionGeom*>::iterator iter = active.begin();
-      std::set<CollisionGeom*>::iterator end = active.end();
-      for(; iter != end; ++iter)
-      {
-        CollisionGeom* active_index = *iter;
-        const AABB& b0 = active_index->aabb;
-        const AABB& b1 = index->aabb;
-
-        int axis2 = (axis + 1) % 3;
-        int axis3 = (axis + 2) % 3;
-
-        if(b0.axisOverlap(b1, axis2)
-          && b0.axisOverlap(b1, axis3))
-        {
-          std::pair<std::set<std::pair<CollisionGeom*, CollisionGeom*> >::iterator, bool> insert_res;
-          if(active_index < index)
-            insert_res = overlap.insert(std::make_pair(active_index, index));
-          else
-            insert_res = overlap.insert(std::make_pair(index, active_index));
-
-          if(insert_res.second)
-          {
-            EnvironmentModelBVH<BV>::testGeomCollision(cdata, active_index, index);
-            if (cdata->done && !cdata->exhaustive)
-              return;
-          }
-        }
-      }
-      active.insert(index);
-    }
-    else
-      active.erase(index);
-  }
-}
-
-template<typename BV>
-void EnvironmentModelBVH<BV>::SAPManager::checkColl(typename std::vector<EndPoint>::const_iterator start, typename std::vector<EndPoint>::const_iterator end, CollisionGeom* geom, CollisionData* cdata) const
-{
-  std::set<CollisionGeom*> mask;
-
-  for(typename std::vector<EndPoint>::const_iterator pos = start; pos != end; ++pos)
-  {
-    std::pair<std::set<CollisionGeom*>::iterator,bool> res = mask.insert(pos->g);
-    if(res.second)
-    {
-      if(pos->g->aabb.overlap(geom->aabb))
-      {
-        EnvironmentModelBVH<BV>::testGeomCollision(cdata, pos->g, geom);
-      }
-    }
-  }
-}
-
 template<typename BV>
 void EnvironmentModelBVH<BV>::testCollision(CollisionData *cdata) const
 {
@@ -1265,7 +901,7 @@ void EnvironmentModelBVH<BV>::testEnvironmentCollision(CollisionData *cdata) con
 }
 
 template<typename BV>
-bool EnvironmentModelBVH<BV>::hasObject(const std::string& ns)
+bool EnvironmentModelBVH<BV>::hasObject(const std::string& ns) const
 {
   if(coll_namespaces_.find(ns) != coll_namespaces_.end())
   {
@@ -1380,153 +1016,265 @@ CollisionGeom* EnvironmentModelBVH<BV>::copyGeom(CollisionGeom* geom) const
 {
   // TODO
   return NULL;
-  /*
-  int c = dGeomGetClass(geom);
-  dGeomID ng = NULL;
-  bool location = true;
-  switch (c)
-  {
-  case dSphereClass:
-    ng = dCreateSphere(space, dGeomSphereGetRadius(geom));
-    break;
-  case dBoxClass:
-    {
-      dVector3 r;
-      dGeomBoxGetLengths(geom, r);
-      ng = dCreateBox(space, r[0], r[1], r[2]);
-    }
-    break;
-  case dCylinderClass:
-    {
-      dReal r, l;
-      dGeomCylinderGetParams(geom, &r, &l);
-      ng = dCreateCylinder(space, r, l);
-    }
-    break;
-  case dPlaneClass:
-    {
-      dVector4 p;
-      dGeomPlaneGetParams(geom, p);
-      ng = dCreatePlane(space, p[0], p[1], p[2], p[3]);
-      location = false;
-    }
-    break;
-  case dTriMeshClass:
-    {
-      dTriMeshDataID tdata = dGeomTriMeshGetData(geom);
-      dTriMeshDataID cdata = dGeomTriMeshDataCreate();
-      for (unsigned int i = 0 ; i < sourceStorage.mesh.size() ; ++i)
-        if (sourceStorage.mesh[i].data == tdata)
-        {
-          unsigned int p = storage.mesh.size();
-          storage.mesh.resize(p + 1);
-          storage.mesh[p].n_vertices = sourceStorage.mesh[i].n_vertices;
-          storage.mesh[p].n_indices = sourceStorage.mesh[i].n_indices;
-          storage.mesh[p].indices = new dTriIndex[storage.mesh[p].n_indices];
-          for (int j = 0 ; j < storage.mesh[p].n_indices ; ++j)
-            storage.mesh[p].indices[j] = sourceStorage.mesh[i].indices[j];
-          storage.mesh[p].vertices = new double[storage.mesh[p].n_vertices];
-          for (int j = 0 ; j < storage.mesh[p].n_vertices ; ++j)
-            storage.mesh[p].vertices[j] = sourceStorage.mesh[i].vertices[j];
-          dGeomTriMeshDataBuildDouble(cdata, storage.mesh[p].vertices, sizeof(double) * 3, storage.mesh[p].n_vertices, storage.mesh[p].indices, storage.mesh[p].n_indices, sizeof(dTriIndex) * 3);
-          storage.mesh[p].data = cdata;
-          break;
-        }
-      ng = dCreateTriMesh(space, cdata, NULL, NULL, NULL);
-    }
-    break;
-  default:
-    assert(0); // this should never happen
-    break;
-  }
-    
-  if (ng && location)
-  {
-    const dReal *pos = dGeomGetPosition(geom);
-    dGeomSetPosition(ng, pos[0], pos[1], pos[2]);
-    dQuaternion q;
-    dGeomGetQuaternion(geom, q);
-    dGeomSetQuaternion(ng, q);
-  }
-    
-  return ng;
-  */
 }
 
 template<typename BV>
 EnvironmentModel* EnvironmentModelBVH<BV>::clone(void) const
 {
+  // TODO
   return NULL;
-  /*
-  EnvironmentModelBVH *env = new EnvironmentModelBVH();
-  env->default_collision_matrix_ = default_collision_matrix_;
-  env->default_link_padding_map_ = default_link_padding_map_;
-  env->verbose_ = verbose_;
-  env->robot_scale_ = robot_scale_;
-  env->default_robot_padding_ = default_robot_padding_;
-  env->robot_model_ = new planning_models::KinematicModel(*robot_model_);
-  env->createODERobotModel();
+}
 
-  for (std::map<std::string, CollisionNamespace*>::const_iterator it = coll_namespaces_.begin() ; it != coll_namespaces_.end() ; ++it) {
-    // construct a map of the shape pointers we have; this points to the index positions where they are stored;
-    std::map<void*, int> shapePtrs;
-    const EnvironmentObjects::NamespaceObjects &ns = objects_->getObjects(it->first);
-    unsigned int n = ns.static_shape.size();
-    for (unsigned int i = 0 ; i < n ; ++i)
-      shapePtrs[ns.static_shape[i]] = -1 - i;
-    n = ns.shape.size();
-    for (unsigned int i = 0 ; i < n ; ++i)
-      shapePtrs[ns.shape[i]] = i;
-    
-    // copy the collision namespace structure, geom by geom
-    CollisionNamespace *cn = new CollisionNamespace(it->first);
-    env->coll_namespaces_[it->first] = cn;
-    n = it->second->geoms.size();
-    cn->geoms.reserve(n);
-    for (unsigned int i = 0 ; i < n ; ++i)
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::unregisterGeom(CollisionGeom* geom)
+{
+  setup();
+  CollisionGeom* found = NULL;
+  std::vector<CollisionGeom*>::iterator pos_start1 = std::lower_bound(geoms_x.begin(), geoms_x.end(), geom, SortByXTest());
+  std::vector<CollisionGeom*>::iterator pos_end1 = std::upper_bound(pos_start1, geoms_x.end(), geom, SortByXTest());
+  while(pos_start1 < pos_end1)
+  {
+    if(*pos_start1 == geom)
     {
-      dGeomID newGeom = copyGeom(cn->space, cn->storage, it->second->geoms[i], it->second->storage);
-      int idx = shapePtrs[dGeomGetData(it->second->geoms[i])];
-      if (idx < 0) // static geom
-      {
-        shapes::StaticShape *newShape = shapes::cloneShape(ns.static_shape[-idx - 1]);
-        dGeomSetData(newGeom, reinterpret_cast<void*>(newShape));
-        env->objects_->addObject(it->first, newShape);
-      }
-      else // movable geom
-      {
-        shapes::Shape *newShape = shapes::cloneShape(ns.shape[idx]);
-        dGeomSetData(newGeom, reinterpret_cast<void*>(newShape));
-        env->objects_->addObject(it->first, newShape, ns.shape_pose[idx]);
-      }
-      cn->geoms.push_back(newGeom);
+      found = *pos_start1;
+      geoms_x.erase(pos_start1);
+      break;
     }
-    std::vector<dGeomID> geoms;
-    it->second->collide2.getGeoms(geoms);
-    n = geoms.size();
-    for (unsigned int i = 0 ; i < n ; ++i)
+    ++pos_start1;
+  }
+
+  std::vector<CollisionGeom*>::iterator pos_start2 = std::lower_bound(geoms_y.begin(), geoms_y.end(), geom, SortByYTest());
+  std::vector<CollisionGeom*>::iterator pos_end2 = std::upper_bound(pos_start2, geoms_y.end(), geom, SortByYTest());
+  while(pos_start2 < pos_end2)
+  {
+    if(*pos_start2 == geom)
     {
-      dGeomID newGeom = copyGeom(cn->space, cn->storage, geoms[i], it->second->storage);
-      int idx = shapePtrs[dGeomGetData(geoms[i])];
-      if (idx < 0) // static geom
+      assert(found == *pos_start2);
+      geoms_y.erase(pos_start2);
+      break;
+    }
+    ++pos_start2;
+  }
+
+  std::vector<CollisionGeom*>::iterator pos_start3 = std::lower_bound(geoms_z.begin(), geoms_z.end(), geom, SortByZTest());
+  std::vector<CollisionGeom*>::iterator pos_end3 = std::upper_bound(pos_start3, geoms_z.end(), geom, SortByZTest());
+  while(pos_start3 < pos_end3)
+  {
+    if(*pos_start3 == geom)
+    {
+      assert(found == *pos_start3);
+      geoms_z.erase(pos_start3);
+      break;
+    }
+    ++pos_start3;
+  }
+}
+
+
+
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::registerGeom(CollisionGeom* geom)
+{
+  geoms_x.push_back(geom);
+  geoms_y.push_back(geom);
+  geoms_z.push_back(geom);
+  setup_ = false;
+}
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::setup()
+{
+  if(!setup_)
+  {
+    std::sort(geoms_x.begin(), geoms_x.end(), SortByXLow());
+    std::sort(geoms_y.begin(), geoms_y.end(), SortByYLow());
+    std::sort(geoms_z.begin(), geoms_z.end(), SortByZLow());
+    setup_ = true;
+  }
+}
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::update()
+{
+  setup();
+}
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::clear()
+{
+  geoms_x.clear();
+  geoms_y.clear();
+  geoms_z.clear();
+  setup_ = false;
+}
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::getGeoms(std::vector<CollisionGeom*>& geoms) const
+{
+  geoms.resize(geoms_x.size());
+  for(unsigned int i = 0; i < geoms.size(); ++i)
+    geoms[i] = geoms_x[i];
+}
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::collide(CollisionGeom* geom, CollisionData* cdata) const
+{
+  static const unsigned int CUTOFF = 100;
+
+  assert(setup_);
+
+  std::vector<CollisionGeom*>::const_iterator pos_start1 = std::lower_bound(geoms_x.begin(), geoms_x.end(), geom, SortByXTest());
+  if(pos_start1 != geoms_x.end())
+  {
+    std::vector<CollisionGeom*>::const_iterator pos_end1 = std::upper_bound(pos_start1, geoms_x.end(), geom, SortByXTest());
+    unsigned int d1 = pos_end1 - pos_start1;
+
+    if(d1 > CUTOFF)
+    {
+      std::vector<CollisionGeom*>::const_iterator pos_start2 = std::lower_bound(geoms_y.begin(), geoms_y.end(), geom, SortByYTest());
+      if(pos_start2 != geoms_y.end())
       {
-        shapes::StaticShape *newShape = shapes::cloneShape(ns.static_shape[-idx - 1]);
-        dGeomSetData(newGeom, reinterpret_cast<void*>(newShape));
-        env->objects_->addObject(it->first, newShape);
+        std::vector<CollisionGeom*>::const_iterator pos_end2 = std::upper_bound(pos_start2, geoms_y.end(), geom, SortByYTest());
+        unsigned int d2 = pos_end2 - pos_start2;
+
+        if(d2 > CUTOFF)
+        {
+          std::vector<CollisionGeom*>::const_iterator pos_start3 = std::lower_bound(geoms_z.begin(), geoms_z.end(), geom, SortByZTest());
+          if(pos_start3 != geoms_z.end())
+          {
+            std::vector<CollisionGeom*>::const_iterator pos_end3 = std::upper_bound(pos_start3, geoms_z.end(), geom, SortByZTest());
+            unsigned int d3 = pos_end3 - pos_start3;
+
+            if(d3 > CUTOFF)
+            {
+              if(d3 <= d2 && d3 <= d1)
+                checkColl(pos_start3, pos_end3, geom, cdata);
+              else
+              {
+                if(d2 <= d3 && d2 <= d1)
+                  checkColl(pos_start2, pos_end2, geom, cdata);
+                else
+                  checkColl(pos_start1, pos_end1, geom, cdata);
+              }
+            }
+            else
+              checkColl(pos_start3, pos_end3, geom, cdata);
+          }
+        }
+        else
+          checkColl(pos_start2, pos_end2, geom, cdata);
       }
-      else // movable geom
+    }
+    else
+      checkColl(pos_start1, pos_end1, geom, cdata);
+  }
+}
+
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::checkColl(std::vector<CollisionGeom*>::const_iterator pos_start, std::vector<CollisionGeom*>::const_iterator pos_end,
+                                                    CollisionGeom* geom, CollisionData* cdata) const
+{
+  while(pos_start < pos_end)
+  {
+    if((*pos_start)->aabb.overlap(geom->aabb))
+    {
+      EnvironmentModelBVH<BV>::testGeomCollision(cdata, *pos_start, geom);
+      if (cdata->done && !cdata->exhaustive)
+        return;
+    }
+    pos_start++;
+  }
+}
+
+template<typename BV>
+void EnvironmentModelBVH<BV>::SAPManager::collide(CollisionData* cdata) const
+{
+  // simple sweep and prune
+
+  // choose the best axis
+  double delta_x = (geoms_x[geoms_x.size() - 1])->aabb.min_[0] - (geoms_x[0])->aabb.min_[0];
+  double delta_y = (geoms_x[geoms_y.size() - 1])->aabb.min_[1] - (geoms_y[0])->aabb.min_[1];
+  double delta_z = (geoms_z[geoms_z.size() - 1])->aabb.min_[2] - (geoms_z[0])->aabb.min_[2];
+
+  int axis = 0;
+  if(delta_y > delta_x && delta_y > delta_z)
+    axis = 1;
+  else if(delta_z > delta_y && delta_z > delta_x)
+    axis = 2;
+
+  int axis2 = (axis + 1 > 2) ? 0 : (axis + 1);
+  int axis3 = (axis2 + 1 > 2) ? 0 : (axis2 + 1);
+
+  std::vector<CollisionGeom*>::const_iterator pos, run_pos, pos_end;
+
+  switch(axis)
+  {
+    case 0:
+      pos = geoms_x.begin();
+      pos_end = geoms_x.end();
+      break;
+    case 1:
+      pos = geoms_y.begin();
+      pos_end = geoms_y.end();
+      break;
+    case 2:
+      pos = geoms_z.begin();
+      pos_end = geoms_z.end();
+      break;
+  }
+  run_pos = pos;
+
+  while((run_pos != pos_end) && (pos != pos_end))
+  {
+    CollisionGeom* geom = *(pos++);
+
+    while(1)
+    {
+      if((*run_pos)->aabb.min_[axis] < geom->aabb.min_[axis])
       {
-        shapes::Shape *newShape = shapes::cloneShape(ns.shape[idx]);
-        dGeomSetData(newGeom, reinterpret_cast<void*>(newShape));
-        env->objects_->addObject(it->first, newShape, ns.shape_pose[idx]);
+        run_pos++;
+        if(run_pos == pos_end) break;
+        continue;
       }
-      cn->collide2.registerGeom(newGeom);
+      else
+      {
+        run_pos++;
+        break;
+      }
+    }
+
+    if(run_pos != pos_end)
+    {
+      std::vector<CollisionGeom*>::const_iterator run_pos2 = run_pos;
+
+      while((*run_pos2)->aabb.min_[axis] <= geom->aabb.max_[axis])
+      {
+        CollisionGeom* geom2 = *run_pos2;
+        run_pos2++;
+
+        if((geom->aabb.max_[axis2] >= geom2->aabb.min_[axis2]) && (geom2->aabb.max_[axis2] >= geom->aabb.min_[axis2]))
+        {
+          if((geom->aabb.max_[axis3] >= geom2->aabb.min_[axis3]) && (geom2->aabb.max_[axis3] >= geom->aabb.min_[axis3]))
+          {
+            EnvironmentModelBVH<BV>::testGeomCollision(cdata, geom, geom2);
+            if (cdata->done && !cdata->exhaustive)
+              return;
+          }
+        }
+
+        if(run_pos2 == pos_end) break;
+      }
     }
   }
-    
-  return env;    
-  */
+}
 
+template<typename BV>
+bool EnvironmentModelBVH<BV>::SAPManager::empty() const
+{
+  return geoms_x.empty();
 }
 
 

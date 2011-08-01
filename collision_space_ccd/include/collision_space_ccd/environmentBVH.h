@@ -82,7 +82,7 @@ public:
   virtual void clearObjects(const std::string& ns);
 
   /** \brief Tells whether or not there is an object with the given name in the collision model */
-  virtual bool hasObject(const std::string& ns);
+  virtual bool hasObject(const std::string& ns) const;
 		
   /** \brief Add a static collision object to the map. The user releases ownership of the passed object. Memory allocated for the shape is freed by the collision environment. */
   virtual void addObject(const std::string& ns, shapes::StaticShape* shape);
@@ -213,44 +213,13 @@ protected:
     BodyType body_type_2;
   };
 
-
   class SAPManager
   {
-    struct EndPoint
-    {
-      CollisionGeom* g; // pointer to endpoint geometry;
-      double value; // endpoint value
-      int type; // '0' if interval min, '1' if interval max
-    };
-
-    struct SortByValue
-    {
-      bool operator()(const EndPoint& a, const EndPoint& b) const
-      {
-        if(a.value < b.value)
-          return true;
-        return false;
-      }
-    };
-
-    struct SAPInterval : public Interval
-    {
-      CollisionGeom* g;
-      SAPInterval(double low_, double high_, CollisionGeom* g_)
-      {
-        low = low_;
-        high = high_;
-        g = g_;
-      }
-    };
-
   public:
 
     SAPManager()
     {
       setup_ = false;
-      for(int i = 0; i < 3; ++i)
-        interval_trees[i] = NULL;
     }
 
     void unregisterGeom(CollisionGeom* geom);
@@ -259,30 +228,87 @@ protected:
 
     void setup();
 
+    void update();
+
     void clear();
 
     void getGeoms(std::vector<CollisionGeom*>& geoms) const;
 
-    void update();
-
     void collide(CollisionGeom* geom, CollisionData* cdata) const;
+
+    void checkColl(std::vector<CollisionGeom*>::const_iterator pos_start, std::vector<CollisionGeom*>::const_iterator pos_end,
+                   CollisionGeom* geom, CollisionData* cdata) const;
 
     void collide(CollisionData* cdata) const;
 
-    void checkColl(typename std::vector<EndPoint>::const_iterator start, typename std::vector<EndPoint>::const_iterator end, CollisionGeom* geom, CollisionData* cdata) const;
-
-    bool empty() const
-    {
-      return endpoints[0].empty();
-    }
+    bool empty() const;
 
   private:
+    struct SortByXLow
+    {
+      bool operator()(const CollisionGeom* a, const CollisionGeom* b) const
+      {
+        if(a->aabb.min_[0] < b->aabb.min_[0])
+          return true;
+        return false;
+      }
+    };
 
-    std::vector<EndPoint> endpoints[3];
+    struct SortByYLow
+     {
+       bool operator()(const CollisionGeom* a, const CollisionGeom* b) const
+       {
+         if(a->aabb.min_[1] < b->aabb.min_[1])
+           return true;
+         return false;
+       }
+     };
 
-    IntervalTree* interval_trees[3];
+     struct SortByZLow
+     {
+       bool operator()(const CollisionGeom* a, const CollisionGeom* b) const
+       {
+         if(a->aabb.min_[2] < b->aabb.min_[2])
+           return true;
+         return false;
+       }
+     };
 
-    bool setup_;
+     struct SortByXTest
+     {
+       bool operator()(const CollisionGeom* a, const CollisionGeom* b) const
+       {
+         if(a->aabb.max_[0] < b->aabb.min_[0])
+           return true;
+         return false;
+       }
+     };
+
+     struct SortByYTest
+     {
+       bool operator()(const CollisionGeom* a, const CollisionGeom* b) const
+       {
+         if(a->aabb.max_[1] < b->aabb.min_[1])
+           return true;
+         return false;
+       }
+     };
+
+     struct SortByZTest
+     {
+       bool operator()(const CollisionGeom* a, const CollisionGeom* b) const
+       {
+         if(a->aabb.max_[2] < b->aabb.min_[2])
+           return true;
+         return false;
+       }
+     };
+
+     std::vector<CollisionGeom*> geoms_x;
+     std::vector<CollisionGeom*> geoms_y;
+     std::vector<CollisionGeom*> geoms_z;
+
+     bool setup_;
   };
 	
   struct ModelInfo

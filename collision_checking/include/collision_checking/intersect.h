@@ -230,6 +230,48 @@ private:
   static const unsigned int MAX_TRIANGLE_CLIPS = 8;
 };
 
+class TriangleDistance
+{
+public:
+
+  /** \brief Returns closest points between an segment pair.
+   * The first segment is P + t * A
+   * The second segment is Q + t * B
+   * X, Y are the closest points on the two segments
+   * VEC is the vector between X and Y
+   */
+  static void segPoints(const Vec3f& P, const Vec3f& A, const Vec3f& Q, const Vec3f& B,
+                   Vec3f& VEC, Vec3f& X, Vec3f& Y);
+
+  /** \brief Compute the closest points on two triangles given their absolute coordinate, and returns the distance between them
+   *  S and T are two triangles
+   *  If the triangles are disjoint, P and Q give the closet points of S and T respectively. However,
+   *  if the triangles overlap, P and Q are basically a random pair of points from the triangles, not
+   *  coincident points on the intersection of the triangles, as might be expected.
+   */
+  static BVH_REAL triDistance(const Vec3f S[3], const Vec3f T[3], Vec3f& P, Vec3f& Q);
+
+  static BVH_REAL triDistance(const Vec3f& S1, const Vec3f& S2, const Vec3f& S3,
+                              const Vec3f& T1, const Vec3f& T2, const Vec3f& T3,
+                              Vec3f& P, Vec3f& Q);
+
+  /** \brief Compute the closest points on two triangles given the relative transform between them, and returns the distance between them
+   *  S and T are two triangles
+   *  If the triangles are disjoint, P and Q give the closet points of S and T respectively. However,
+   *  if the triangles overlap, P and Q are basically a random pair of points from the triangles, not
+   *  coincident points on the intersection of the triangles, as might be expected.
+   *  The returned P and Q are both in the coordinate of the first triangle's coordinate
+   */
+  static BVH_REAL triDistance(const Vec3f S[3], const Vec3f T[3],
+                              const Vec3f R[3], const Vec3f& Tl,
+                              Vec3f& P, Vec3f& Q);
+
+  static BVH_REAL triDistance(const Vec3f& S1, const Vec3f& S2, const Vec3f& S3,
+                              const Vec3f& T1, const Vec3f& T2, const Vec3f& T3,
+                              const Vec3f R[3], const Vec3f& Tl,
+                              Vec3f& P, Vec3f& Q);
+};
+
 
 }
 

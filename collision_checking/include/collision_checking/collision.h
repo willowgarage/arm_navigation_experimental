@@ -56,6 +56,7 @@ int collide(const BVHModel<BV>& model1, const BVHModel<BV>& model2, BVH_CollideR
     return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
   }
 
+  if(model2.build_state != BVH_BUILD_STATE_PROCESSED && model2.build_state != BVH_BUILD_STATE_UPDATED)
   {
     std::cerr << "BVH Error: Must finish BVH model construction before call collide()!" << std::endl;
     return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
