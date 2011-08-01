@@ -94,6 +94,7 @@ struct GradientInfo
   std::vector<btVector3> sphere_locations;
   std::vector<double> distances;
   std::vector<btVector3> gradients;
+  std::vector<double> sphere_radii;
 
   void clear() {
     closest_distance = DBL_MAX;

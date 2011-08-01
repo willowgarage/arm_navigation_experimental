@@ -36,16 +36,11 @@ add_definitions(-DEIGEN_NO_DEBUG)
 add_definitions(-DNDEBUG)
 
 rosbuild_add_library(chomp
-	src/chomp_collision_point.cpp
-	src/chomp_collision_space.cpp
 	src/chomp_cost.cpp
 	src/chomp_optimizer.cpp
 	src/chomp_parameters.cpp
 	src/chomp_planner_node.cpp
-	src/chomp_robot_model.cpp
 	src/chomp_trajectory.cpp
-	src/treefksolverjointposaxis.cpp
-	src/treefksolverjointposaxis_partial.cpp
 )	
 
 rosbuild_add_executable(chomp_planner_node
@@ -53,7 +48,4 @@ rosbuild_add_executable(chomp_planner_node
 )
 target_link_libraries(chomp_planner_node chomp)
 
-#rosbuild_add_executable(chomp_cost_server
-#	src/chomp_cost_server.cpp
-#)
-#target_link_libraries(chomp_cost_server chomp)
+

@@ -70,6 +70,8 @@ void ChompParameters::initFromNodeHandle()
   node_handle.param("pseudo_inverse_ridge_factor", pseudo_inverse_ridge_factor_, 1e-4);
   node_handle.param("animate_endeffector", animate_endeffector_, false);
   node_handle.param("animate_endeffector_segment", animate_endeffector_segment_, std::string("r_gripper_tool_frame"));
+  node_handle.param("joint_update_limit", joint_update_limit_, 0.1);
+  node_handle.param("collision_clearence", min_clearence_, 0.1);
 }
 
 

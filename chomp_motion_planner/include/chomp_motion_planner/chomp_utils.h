@@ -38,10 +38,8 @@
 #ifndef CHOMP_UTILS_H_
 #define CHOMP_UTILS_H_
 
-#include <kdl/jntarray.hpp>
-#include <chomp_motion_planner/chomp_robot_model.h>
 #include <iostream>
-#include <Eigen/Core>
+#include <eigen3/Eigen/Core>
 
 namespace chomp
 {
@@ -54,38 +52,6 @@ static const double DIFF_RULES[3][DIFF_RULE_LENGTH] = {
     {0, -1/12.0, 16/12.0, -30/12.0, 16/12.0, -1/12.0, 0},       // acceleration
     {0, 1/12.0, -17/12.0, 46/12.0, -46/12.0, 17/12.0, -1/12.0}  // jerk
 };
-
-inline void debugJointArray(KDL::JntArray& joint_array)
-{
-  for (unsigned int i=0; i<joint_array.rows(); i++)
-  {
-    std::cout << joint_array(i) << "\t";
-  }
-  std::cout << std::endl;
-}
-
-template<typename KDLType, typename EigenType>
-void kdlVecToEigenVec(std::vector<KDLType>& kdl_v, std::vector<Eigen::Map<EigenType> >& eigen_v, int rows, int cols)
-{
-  int size = kdl_v.size();
-  eigen_v.clear();
-  for (int i=0; i<size; i++)
-  {
-    eigen_v.push_back(Eigen::Map<EigenType>(kdl_v[i].data, rows, cols));
-  }
-}
-
-template<typename KDLType, typename EigenType>
-void kdlVecVecToEigenVecVec(std::vector<std::vector<KDLType> >& kdl_vv, std::vector<std::vector<Eigen::Map<EigenType> > > & eigen_vv, int rows, int cols)
-{
-  int size = kdl_vv.size();
-  eigen_vv.resize(size);
-  for (int i=0; i<size; i++)
-  {
-    kdlVecToEigenVec(kdl_vv[i], eigen_vv[i], rows, cols);
-  }
-}
-
 
 } //namespace chomp
 

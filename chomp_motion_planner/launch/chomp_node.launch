@@ -1,9 +1,9 @@
 
 <launch> 
- <include file="$(find pr2_machine)/$(env ROBOT).machine" />
+	  <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
 
-	<rosparam ns="/robot_description_planning" command="load" file="$(find arm_navigation_pr2)/planning/planning_groups.yaml" />
-	<node machine="two" pkg="chomp_motion_planner" name="chomp_motion_planner" type="chomp_planner_node" args="collision_map:=collision_map_occ" respawn="true" output="screen" clear_params="true">
+  <param name="robot_description_file_name" value="$(find planning_models)/test_urdf/robot.xml"/>
+	<node pkg="chomp_motion_planner" name="chomp_motion_planner" type="chomp_planner_node" args="collision_map:=collision_map_occ" respawn="true" output="screen" clear_params="true" launch-prefix="xterm -e gdb --args">
                 <rosparam command="load" file="$(find chomp_motion_planner)/config/chomp_pr2_right_arm.yaml" />
 	
 		<param name="animate_path" value="false"/>

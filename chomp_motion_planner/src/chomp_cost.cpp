@@ -36,9 +36,9 @@
 
 #include <chomp_motion_planner/chomp_cost.h>
 #include <chomp_motion_planner/chomp_utils.h>
-#include <Eigen/LU>
+#include <eigen3/Eigen/LU>
 
-USING_PART_OF_NAMESPACE_EIGEN
+using namespace Eigen;
 using namespace std;
 
 namespace chomp

@@ -38,13 +38,11 @@
 #define CHOMP_TRAJECTORY_H_
 
 #include <trajectory_msgs/JointTrajectory.h>
-
-#include <chomp_motion_planner/chomp_robot_model.h>
+#include <planning_models/kinematic_model.h>
 #include <chomp_motion_planner/chomp_utils.h>
 
 #include <vector>
-#include <kdl/jntarray.hpp>
-#include <Eigen/Core>
+#include <eigen3/Eigen/Core>
 
 namespace chomp
 {
@@ -58,21 +56,21 @@ public:
   /**
    * \brief Constructs a trajectory for a given robot model, trajectory duration, and discretization
    */
-  ChompTrajectory(const ChompRobotModel* robot_model, double duration, double discretization);
+  ChompTrajectory(const planning_models::KinematicModel* robot_model, double duration, double discretization, std::string groupName);
 
   /**
    * \brief Constructs a trajectory for a given robot model, number of trajectory points, and discretization
    */
-  ChompTrajectory(const ChompRobotModel* robot_model, int num_points, double discretization);
+  ChompTrajectory(const planning_models::KinematicModel* robot_model, int num_points, double discretization, std::string groupName);
 
   /**
    * \brief Creates a new containing only the joints of interest, and adds padding to the start
    * and end if needed, to have enough trajectory points for the differentiation rules
    */
-  ChompTrajectory(const ChompTrajectory& source_traj, const ChompRobotModel::ChompPlanningGroup* planning_group, int diff_rule_length);
+  ChompTrajectory(const ChompTrajectory& source_traj, const std::string& planning_group, int diff_rule_length);
 
-  ChompTrajectory(const ChompRobotModel* robot_model,
-                  const ChompRobotModel::ChompPlanningGroup* planning_group, 
+  ChompTrajectory(const planning_models::KinematicModel* robot_model,
+                  const std::string& planning_group,
                   const trajectory_msgs::JointTrajectory& traj);
 
   /**
@@ -86,7 +84,6 @@ public:
 
   Eigen::MatrixXd::RowXpr getTrajectoryPoint(int traj_point);
 
-  void getTrajectoryPointKDL(int traj_point, KDL::JntArray& kdl_jnt_array) const;
 
   Eigen::MatrixXd::ColXpr getJointTrajectory(int joint);
 
@@ -174,8 +171,7 @@ private:
 
   void init();                                          /**< \brief Allocates memory for the trajectory */
 
-  const ChompRobotModel* robot_model_;                  /**< Robot Model */
-  const ChompRobotModel::ChompPlanningGroup* planning_group_;    /**< Planning group that this trajectory corresponds to, if any */
+  std::string planning_group_name_;    /**< Planning group that this trajectory corresponds to, if any */
   int num_points_;                                      /**< Number of points in the trajectory */
   int num_joints_;                                      /**< Number of joints in each trajectory point */
   double discretization_;                               /**< Discretization of the trajectory */
@@ -259,12 +255,6 @@ inline Eigen::Block<Eigen::MatrixXd, Eigen::Dynamic, Eigen::Dynamic> ChompTrajec
   return trajectory_.block(start_index_, joint, getNumFreePoints(), 1);
 }
 
-inline void ChompTrajectory::getTrajectoryPointKDL(int traj_point, KDL::JntArray& kdl_jnt_array) const
-{
-  for (int i=0; i<num_joints_; i++)
-    kdl_jnt_array(i) = trajectory_(traj_point,i);
-}
-
 inline int ChompTrajectory::getFullTrajectoryIndex(int i) const
 {
   return full_trajectory_index_[i];
@@ -285,6 +275,7 @@ void ChompTrajectory::getJointVelocities(int traj_point, Eigen::MatrixBase<Deriv
 inline double ChompTrajectory::getDuration() const {
   return duration_;
 }
+
 
 }
 

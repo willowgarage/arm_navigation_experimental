@@ -37,7 +37,7 @@
 #ifndef CHOMP_COST_H_
 #define CHOMP_COST_H_
 
-#include <Eigen/Core>
+#include <eigen3/Eigen/Core>
 #include <chomp_motion_planner/chomp_trajectory.h>
 #include <vector>
 

@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: E. Gil Jones
+// Author: Matthew Klingensmith, E. Gil Jones
 
 #include <move_arm_warehouse/planning_scene_warehouse_viewer.h>
 #include <qt4/QtGui/qapplication.h>
