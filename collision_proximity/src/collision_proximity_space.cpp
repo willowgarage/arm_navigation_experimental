@@ -77,7 +77,7 @@ CollisionProximitySpace::CollisionProximitySpace(const std::string& robot_descri
   priv_handle_.param("resolution", resolution_, 0.02);
   priv_handle_.param("collision_tolerance", tolerance_, 0.00);
   priv_handle_.param("max_environment_distance", max_environment_distance_, 0.25);
-  priv_handle_.param("max_self_distance", max_self_distance_, 0.10);
+  priv_handle_.param("max_self_distance", max_self_distance_, 0.1);
   priv_handle_.param("undefined_distance", undefined_distance_, 1.0);
 
   vis_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("collision_proximity_body_spheres", 128);
@@ -363,7 +363,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
   btTransform inv = getInverseWorldTransform(state);
   for(unsigned int i = 0; i < current_link_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_link_indices_[i]];
-    current_link_body_decompositions_[i]->updateSpheresPose(inv*ls->getGlobalCollisionBodyTransform());
+    current_link_body_decompositions_[i]->updatePose(inv*ls->getGlobalCollisionBodyTransform());
   }
   for(unsigned int i = 0; i < current_attached_body_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_attached_body_indices_[i]];
@@ -1482,6 +1482,14 @@ void CollisionProximitySpace::visualizeBoundingCylinders(const std::vector<std::
     mark.scale.x = cyl.radius*2.0;
     mark.scale.y = cyl.radius*2.0;
     mark.scale.z = cyl.length;
+    mark.pose.position.x = cyl.pose.getOrigin().x();
+    mark.pose.position.y = cyl.pose.getOrigin().y();
+    mark.pose.position.z = cyl.pose.getOrigin().z();
+    mark.pose.orientation.x = cyl.pose.getRotation().x();
+    mark.pose.orientation.y = cyl.pose.getRotation().y();
+    mark.pose.orientation.z = cyl.pose.getRotation().z();
+    mark.pose.orientation.w = cyl.pose.getRotation().w();
+
     arr.markers.push_back(mark);
   }
   vis_marker_array_publisher_.publish(arr);

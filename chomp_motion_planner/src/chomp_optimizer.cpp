@@ -80,6 +80,7 @@ namespace chomp
     {
       GradientInfo& info = infos[i];
       num_collision_points_ += info.sphere_locations.size();
+
     }
 
     // set up the joint costs:
@@ -166,6 +167,32 @@ namespace chomp
     {
       joint_names_.push_back(modelGroup->getJointModels()[i]->getName());
     }
+
+    int start = free_vars_start_;
+    int end = free_vars_end_;
+    vector<GradientInfo> gradients;
+    collision_space_->getStateGradients(gradients);
+    for(int i = start; i <= end; ++i)
+    {
+      size_t j = 0;
+      for(size_t g = 0; g < gradients.size(); g++)
+      {
+        GradientInfo& info = gradients[g];
+
+        for(size_t k = 0; k < info.sphere_locations.size(); k++)
+        {
+          if(g < joint_names_.size())
+          {
+            collision_point_joint_names_[i][j] = joint_names_[g];
+          }
+          else
+          {
+            collision_point_joint_names_[i][j] = joint_names_[joint_names_.size() - 1];
+          }
+          j++;
+        }
+      }
+    }
   }
 
   ChompOptimizer::~ChompOptimizer()
@@ -184,9 +211,16 @@ namespace chomp
     // iterate
     for(iteration_ = 0; iteration_ < parameters_->getMaxIterations(); iteration_++)
     {
+      ros::WallTime iterationTimer = ros::WallTime::now();
       performForwardKinematics();
+      ROS_INFO("Kinematics Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+      iterationTimer = ros::WallTime::now();
       double cCost = getCollisionCost();
+      ROS_INFO("Collision Cost Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+      iterationTimer = ros::WallTime::now();
       double sCost = getSmoothnessCost();
+      ROS_INFO("Smoothness Cost Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+
       double cost = cCost + sCost;
       ROS_INFO("Iteration %d/%d, cost %f", iteration_, parameters_->getMaxIterations(), cCost);
 
@@ -206,10 +240,17 @@ namespace chomp
         }
       }
 
+      iterationTimer = ros::WallTime::now();
       calculateSmoothnessIncrements();
+      ROS_INFO("Smoothness Gradient Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+      iterationTimer = ros::WallTime::now();
       calculateCollisionIncrements();
+      ROS_INFO("Collision Gradient Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+      iterationTimer = ros::WallTime::now();
       calculateTotalIncrements();
+      ROS_INFO("Total Gradient Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
 
+      iterationTimer = ros::WallTime::now();
       if(!parameters_->getUseHamiltonianMonteCarlo())
       {
         // non-stochastic version:
@@ -223,9 +264,15 @@ namespace chomp
         updatePositionFromMomentum();
         stochasticity_factor_ *= parameters_->getHmcAnnealingFactor();
       }
+      ROS_INFO("Hamiltonian Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
 
+      iterationTimer = ros::WallTime::now();
       handleJointLimits();
+      ROS_INFO("Joint Limit Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+      iterationTimer = ros::WallTime::now();
       updateFullTrajectory();
+      ROS_INFO("Update Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
+
       if(iteration_ % 10 == 0)
         ROS_DEBUG("Trajectory cost: %f (s=%f, c=%f)", getTrajectoryCost(), getSmoothnessCost(), getCollisionCost());
       if(collision_free_iteration_ >= parameters_->getMaxIterationsAfterCollisionFree())
@@ -234,11 +281,14 @@ namespace chomp
         break;
       }
 
+      /*
       if(cCost < 0.001)
       {
         break;
       }
+      */
 
+      iterationTimer = ros::WallTime::now();
       if(!is_collision_free_ && parameters_->getAddRandomness())
       {
         performForwardKinematics();
@@ -261,6 +311,7 @@ namespace chomp
         }
 
       }
+      ROS_INFO("Add randomness Time: %f", (ros::WallTime::now() - iterationTimer).toSec());
 
       if(parameters_->getAnimateEndeffector())
       {
@@ -585,10 +636,9 @@ namespace chomp
     // for each point in the trajectory
     for(int i = start; i <= end; ++i)
     {
-
       // Set Robot state from trajectory point...
       setRobotStateFromPoint(group_trajectory_, i);
-
+      collision_space_->visualizeObjectSpheres(collision_space_->getCurrentLinkNames());
       state_is_in_collision_[i] = false;
 
       vector<GradientInfo> gradients;
@@ -603,15 +653,6 @@ namespace chomp
 
           for(size_t k = 0; k < info.sphere_locations.size(); k++)
           {
-
-            if(g < joint_names_.size())
-            {
-              collision_point_joint_names_[i][j] = joint_names_[g];
-            }
-            else
-            {
-              collision_point_joint_names_[i][j] = joint_names_[joint_names_.size() - 1];
-            }
             collision_point_pos_eigen_[i][j][0] = info.sphere_locations[k].x();
             collision_point_pos_eigen_[i][j][1] = info.sphere_locations[k].y();
             collision_point_pos_eigen_[i][j][2] = info.sphere_locations[k].z();
@@ -667,7 +708,7 @@ namespace chomp
     std::vector<double> jointStates;
     for(int j = 0; j < group_trajectory.getNumJoints(); j ++)
     {
-      jointStates.push_back(point(j));
+      jointStates.push_back(point(0,j));
     }
 
     KinematicState::JointStateGroup* group = (KinematicState::JointStateGroup*)(robot_state_->getJointStateGroup(planning_group_));
