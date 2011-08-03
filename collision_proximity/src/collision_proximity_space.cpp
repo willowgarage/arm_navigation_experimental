@@ -36,7 +36,7 @@
 
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
-
+#include <planning_environment/models/model_utils.h>
 #include <collision_proximity/collision_proximity_space.h>
 #include <tf/tf.h>
 
@@ -270,6 +270,8 @@ void CollisionProximitySpace::setupForGroupQueries(const std::string& group_name
   ros::WallTime n1 = ros::WallTime::now();
   //setting up current info
   current_group_name_ = group_name;
+  planning_environment::setRobotStateAndComputeTransforms(rob_state,
+                                                          *collision_models_interface_->getPlanningSceneState());
   getGroupLinkAndAttachedBodyNames(current_group_name_, 
                                    *collision_models_interface_->getPlanningSceneState(),
                                    current_link_names_, 
@@ -357,6 +359,7 @@ void CollisionProximitySpace::revertPlanningSceneCallback() {
 
 void CollisionProximitySpace::setCurrentGroupState(const planning_models::KinematicState& state)
 {
+  ros::WallTime n1 = ros::WallTime::now();
   if(current_group_name_.empty()) {
     return;
   }
@@ -376,6 +379,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
     }
   }
   updateSphereLocations(current_link_names_, current_attached_body_names_, current_gradients_);
+  ROS_DEBUG_STREAM("Group state update took " << (ros::WallTime::now()-n1).toSec());
 }
 
 void CollisionProximitySpace::setBodyPosesGivenKinematicState(const planning_models::KinematicState& state)
