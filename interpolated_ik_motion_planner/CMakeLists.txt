@@ -28,3 +28,11 @@ rosbuild_gensrv()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
+
+rosbuild_add_library(interpolated_ik_motion_planner
+  src/interpolated_ik_motion_planner.cpp
+)
+
+rosbuild_link_boost(interpolated_ik_motion_planner thread system signals)
+rosbuild_add_executable(interpolated_ik src/main.cpp)
+target_link_libraries(interpolated_ik interpolated_ik_motion_planner)

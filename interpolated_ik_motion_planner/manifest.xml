@@ -13,6 +13,9 @@
   <depend package="visualization_msgs"/>
   <depend package="sensor_msgs"/>
   <depend package="trajectory_msgs"/>
+  <depend package="arm_kinematics_constraint_aware"/>
+  <depend package="tf"/>
+  <depend package="planning_environment"/>
 
   <export>
     <cpp cflags="-I${prefix}/srv/cpp" />
