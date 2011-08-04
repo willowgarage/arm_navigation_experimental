@@ -31,6 +31,7 @@
 
 #include <move_arm_warehouse/planning_scene_warehouse_viewer.h>
 #include <qt4/QtGui/qapplication.h>
+#include <assert.h>
 
 using namespace collision_space;
 using namespace kinematics_msgs;
