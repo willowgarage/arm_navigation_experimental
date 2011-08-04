@@ -27,7 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: E. Gil Jones
+// Author: Matthew Klingensmith, E. Gil Jones
+
 #ifndef PLANNING_SCENE_WAREHOUSE_H
 #define PLANNING_SCENE_WAREHOUSE_H
 

@@ -36,7 +36,7 @@
 
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
-
+#include <planning_environment/models/model_utils.h>
 #include <collision_proximity/collision_proximity_space.h>
 #include <tf/tf.h>
 
@@ -77,7 +77,7 @@ CollisionProximitySpace::CollisionProximitySpace(const std::string& robot_descri
   priv_handle_.param("resolution", resolution_, 0.02);
   priv_handle_.param("collision_tolerance", tolerance_, 0.00);
   priv_handle_.param("max_environment_distance", max_environment_distance_, 0.25);
-  priv_handle_.param("max_self_distance", max_self_distance_, 0.10);
+  priv_handle_.param("max_self_distance", max_self_distance_, 0.1);
   priv_handle_.param("undefined_distance", undefined_distance_, 1.0);
 
   vis_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("collision_proximity_body_spheres", 128);
@@ -270,6 +270,8 @@ void CollisionProximitySpace::setupForGroupQueries(const std::string& group_name
   ros::WallTime n1 = ros::WallTime::now();
   //setting up current info
   current_group_name_ = group_name;
+  planning_environment::setRobotStateAndComputeTransforms(rob_state,
+                                                          *collision_models_interface_->getPlanningSceneState());
   getGroupLinkAndAttachedBodyNames(current_group_name_, 
                                    *collision_models_interface_->getPlanningSceneState(),
                                    current_link_names_, 
@@ -357,13 +359,14 @@ void CollisionProximitySpace::revertPlanningSceneCallback() {
 
 void CollisionProximitySpace::setCurrentGroupState(const planning_models::KinematicState& state)
 {
+  ros::WallTime n1 = ros::WallTime::now();
   if(current_group_name_.empty()) {
     return;
   }
   btTransform inv = getInverseWorldTransform(state);
   for(unsigned int i = 0; i < current_link_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_link_indices_[i]];
-    current_link_body_decompositions_[i]->updateSpheresPose(inv*ls->getGlobalCollisionBodyTransform());
+    current_link_body_decompositions_[i]->updatePose(inv*ls->getGlobalCollisionBodyTransform());
   }
   for(unsigned int i = 0; i < current_attached_body_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_attached_body_indices_[i]];
@@ -376,6 +379,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
     }
   }
   updateSphereLocations(current_link_names_, current_attached_body_names_, current_gradients_);
+  ROS_DEBUG_STREAM("Group state update took " << (ros::WallTime::now()-n1).toSec());
 }
 
 void CollisionProximitySpace::setBodyPosesGivenKinematicState(const planning_models::KinematicState& state)
@@ -430,6 +434,7 @@ void CollisionProximitySpace::syncObjectsWithCollisionSpace(const planning_model
     for(unsigned int j = 0; j < no.shape.size(); j++) {
       BodyDecomposition* bd = new BodyDecomposition(ns[i]+"_"+makeStringFromUnsignedInt(j), no.shape[j], resolution_);
       bd->updatePose(inv*no.shape_pose[j]);
+      btTransform trans = bd->getBody()->getPose();
       bdv->addToVector(bd); 
     }
     static_object_map_[ns[i]] = bdv;
@@ -483,10 +488,6 @@ void CollisionProximitySpace::prepareEnvironmentDistanceField(const planning_mod
       it++) {
     for(unsigned int i = 0; i < it->second->getSize(); i++) {
       std::vector<btVector3> obj_points = it->second->getBodyDecomposition(i)->getCollisionPoints();
-      for(unsigned int j = 0; j < obj_points.size(); j++) {
-        //body pose already accounts for inverse transform
-        obj_points[j] = it->second->getBodyDecomposition(i)->getBody()->getPose()*obj_points[j];
-      }
       all_points.insert(all_points.end(),obj_points.begin(), obj_points.end());
     }
   }
@@ -696,8 +697,10 @@ bool CollisionProximitySpace::updateSphereLocations(const std::vector<std::strin
   for(unsigned int i = 0; i < link_names.size(); i++) {
     const std::vector<CollisionSphere>& lcs1 = body_decomposition_map_.find(link_names[i])->second->getCollisionSpheres();
     gradients[i].sphere_locations.resize(lcs1.size());
+    gradients[i].sphere_radii.resize(lcs1.size());
     for(unsigned int j = 0; j < lcs1.size(); j++) {
       gradients[i].sphere_locations[j] = lcs1[j].center_;
+      gradients[i].sphere_radii[j] = lcs1[j].radius_;
     }
   }
   unsigned int att_index = link_names.size();
@@ -709,8 +712,10 @@ bool CollisionProximitySpace::updateSphereLocations(const std::vector<std::strin
     }
     const std::vector<CollisionSphere>& att_vec = attached_object_map_.find(attached_body_names[i])->second->getCollisionSpheres();
     gradients[att_index].sphere_locations.resize(att_vec.size());
+    gradients[att_index].sphere_radii.resize(att_vec.size());
     for(unsigned int j = 0; j < att_vec.size(); j++) {
       gradients[att_index].sphere_locations[j] = att_vec[j].center_;
+      gradients[att_index].sphere_radii[j] = att_vec[j].radius_;
     }
   }
   return true;
@@ -732,8 +737,10 @@ bool CollisionProximitySpace::setupGradientStructures(const std::vector<std::str
   for(unsigned int i = 0; i < link_names.size(); i++) {
     const std::vector<CollisionSphere>& lcs1 = body_decomposition_map_.find(link_names[i])->second->getCollisionSpheres();
     gradients[i].sphere_locations.resize(lcs1.size());
+    gradients[i].sphere_radii.resize(lcs1.size());
     for(unsigned int j = 0; j < lcs1.size(); j++) {
       gradients[i].sphere_locations[j] = lcs1[j].center_;
+      gradients[i].sphere_radii[j] = lcs1[j].radius_;
     }
     gradients[i].distances.resize(lcs1.size(), DBL_MAX);
     gradients[i].gradients.resize(lcs1.size());
@@ -746,8 +753,10 @@ bool CollisionProximitySpace::setupGradientStructures(const std::vector<std::str
     }
     const std::vector<CollisionSphere>& att_vec = attached_object_map_.find(attached_body_names[i])->second->getCollisionSpheres();
     gradients[att_index].sphere_locations.resize(att_vec.size());
+    gradients[att_index].sphere_radii.resize(att_vec.size());
     for(unsigned int j = 0; j < att_vec.size(); j++) {
       gradients[att_index].sphere_locations[j] = att_vec[j].center_;
+      gradients[att_index].sphere_radii[j] = att_vec[j].radius_;
     }
     gradients[att_index].distances.resize(att_vec.size(), DBL_MAX);
     gradients[att_index].gradients.resize(att_vec.size());
@@ -1477,6 +1486,14 @@ void CollisionProximitySpace::visualizeBoundingCylinders(const std::vector<std::
     mark.scale.x = cyl.radius*2.0;
     mark.scale.y = cyl.radius*2.0;
     mark.scale.z = cyl.length;
+    mark.pose.position.x = cyl.pose.getOrigin().x();
+    mark.pose.position.y = cyl.pose.getOrigin().y();
+    mark.pose.position.z = cyl.pose.getOrigin().z();
+    mark.pose.orientation.x = cyl.pose.getRotation().x();
+    mark.pose.orientation.y = cyl.pose.getRotation().y();
+    mark.pose.orientation.z = cyl.pose.getRotation().z();
+    mark.pose.orientation.w = cyl.pose.getRotation().w();
+
     arr.markers.push_back(mark);
   }
   vis_marker_array_publisher_.publish(arr);

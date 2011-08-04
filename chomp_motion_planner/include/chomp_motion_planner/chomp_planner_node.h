@@ -44,13 +44,13 @@
 
 #include <arm_navigation_msgs/FilterJointTrajectoryWithConstraints.h>
 
-#include <chomp_motion_planner/chomp_robot_model.h>
+
 #include <chomp_motion_planner/chomp_parameters.h>
-#include <chomp_motion_planner/chomp_collision_space.h>
-#include <planning_environment/monitors/collision_space_monitor.h>
+#include <collision_proximity/collision_proximity_space.h>
 #include <map>
 #include <string>
 #include <filters/filter_chain.h>
+#include <eigen3/Eigen/Core>
 
 namespace chomp
 {
@@ -64,7 +64,7 @@ public:
   /**
    * \brief Default constructor
    */
-  ChompPlannerNode(ros::NodeHandle node_handle);
+  ChompPlannerNode(ros::NodeHandle node_handle, collision_proximity::CollisionProximitySpace* space);
 
   /**
    * \brief Destructor
@@ -99,13 +99,11 @@ private:
   ros::ServiceServer filter_joint_trajectory_service_;      /**< The planning service */
 
   planning_environment::CollisionModels* collision_models_;
-  planning_environment::CollisionSpaceMonitor *monitor_;
-  tf::TransformListener tf_;
   std::string reference_frame_;
 
-  ChompRobotModel chomp_robot_model_;                   /**< Chomp Robot Model */
+  const planning_models::KinematicModel* robot_model_;                   /**< Chomp Robot Model */
   ChompParameters chomp_parameters_;                    /**< Chomp Parameters */
-  ChompCollisionSpace chomp_collision_space_;           /**< Chomp Collision space */
+  collision_proximity::CollisionProximitySpace* collision_proximity_space_;           /**< Chomp Collision space */
   double trajectory_duration_;                          /**< Default duration of the planned motion */
   double trajectory_discretization_;                    /**< Default discretization of the planned motion */
   ros::Publisher vis_marker_array_publisher_;           /**< Publisher for marker arrays */
@@ -119,8 +117,27 @@ private:
   void getLimits(const trajectory_msgs::JointTrajectory& trajectory, 
                  std::vector<arm_navigation_msgs::JointLimits>& limits_out);
 
+
   //filters::FilterChain<arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request> filter_constraints_chain_;
   ros::ServiceClient filter_trajectory_client_;
+
+  inline void jointStateToArray(const sensor_msgs::JointState &joint_state, std::string& planning_group_name, Eigen::MatrixXd::RowXpr joint_array)
+  {
+    std::map<std::string, planning_models::KinematicModel::JointModelGroup*> groupMap = robot_model_->getJointModelGroupMap();
+    const planning_models::KinematicModel::JointModelGroup* group = groupMap[planning_group_name];
+    std::vector<const planning_models::KinematicModel::JointModel*> models = group->getJointModels();
+
+    for(unsigned int i=0; i < joint_state.position.size(); i++)
+    {
+      for(size_t j = 0; j < models.size(); j++)
+      {
+        if(models[j]->getName() == joint_state.name[i])
+        {
+          joint_array(0, j) = joint_state.position[i];
+        }
+      }
+    }
+  }
 
 };
 

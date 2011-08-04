@@ -51,13 +51,13 @@ void ChompParameters::initFromNodeHandle()
 {
   ros::NodeHandle node_handle("~");
   node_handle.param("planning_time_limit", planning_time_limit_, 1.0);
-  node_handle.param("max_iterations", max_iterations_, 500);
-  node_handle.param("max_iterations_after_collision_free", max_iterations_after_collision_free_, 100);
+  node_handle.param("max_iterations", max_iterations_, 50);
+  node_handle.param("max_iterations_after_collision_free", max_iterations_after_collision_free_, 5);
   node_handle.param("smoothness_cost_weight", smoothness_cost_weight_, 0.1);
   node_handle.param("obstacle_cost_weight", obstacle_cost_weight_, 1.0);
   node_handle.param("learning_rate", learning_rate_, 0.01);
-  node_handle.param("animate_path", animate_path_, false);
-  node_handle.param("add_randomness", add_randomness_, true);
+  node_handle.param("animate_path", animate_path_, true);
+  node_handle.param("add_randomness", add_randomness_, false);
   node_handle.param("smoothness_cost_velocity", smoothness_cost_velocity_, 0.0);
   node_handle.param("smoothness_cost_acceleration", smoothness_cost_acceleration_, 1.0);
   node_handle.param("smoothness_cost_jerk", smoothness_cost_jerk_, 0.0);
@@ -70,6 +70,8 @@ void ChompParameters::initFromNodeHandle()
   node_handle.param("pseudo_inverse_ridge_factor", pseudo_inverse_ridge_factor_, 1e-4);
   node_handle.param("animate_endeffector", animate_endeffector_, false);
   node_handle.param("animate_endeffector_segment", animate_endeffector_segment_, std::string("r_gripper_tool_frame"));
+  node_handle.param("joint_update_limit", joint_update_limit_, 0.1);
+  node_handle.param("collision_clearence", min_clearence_, 0.1);
 }
 
 

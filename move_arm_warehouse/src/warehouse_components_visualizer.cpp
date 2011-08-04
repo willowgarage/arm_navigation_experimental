@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: E. Gil Jones
+// Author: E. Gil Jones, Matthew Klingensmith
 
 #include <termios.h>
 #include <signal.h>

@@ -36,44 +36,44 @@
 
 #include <chomp_motion_planner/chomp_trajectory.h>
 #include <iostream>
-
 using namespace std;
 
 namespace chomp
 {
 
-ChompTrajectory::ChompTrajectory(const ChompRobotModel* robot_model, double duration, double discretization):
-  robot_model_(robot_model),
-  planning_group_(NULL),
+ChompTrajectory::ChompTrajectory(const planning_models::KinematicModel* robot_model, double duration, double discretization, std::string groupName):
+  planning_group_name_(groupName),
   num_points_((duration/discretization)+1),
-  num_joints_(robot_model_->getNumKDLJoints()),
   discretization_(discretization),
   duration_(duration),
   start_index_(1),
   end_index_(num_points_-2)
 {
+  std::map<std::string, planning_models::KinematicModel::JointModelGroup*> groupMap = robot_model->getJointModelGroupMap();
+  const planning_models::KinematicModel::JointModelGroup* modelGroup = groupMap[planning_group_name_];
+  num_joints_ = modelGroup->getJointModels().size();
   init();
 }
 
-ChompTrajectory::ChompTrajectory(const ChompRobotModel* robot_model, int num_points, double discretization):
-  robot_model_(robot_model),
-  planning_group_(NULL),
+ChompTrajectory::ChompTrajectory(const planning_models::KinematicModel* robot_model, int num_points, double discretization, std::string groupName):
+  planning_group_name_(groupName),
   num_points_(num_points),
-  num_joints_(robot_model_->getNumKDLJoints()),
   discretization_(discretization),
   duration_((num_points-1)*discretization),
   start_index_(1),
   end_index_(num_points_-2)
 {
+  std::map<std::string, planning_models::KinematicModel::JointModelGroup*> groupMap = robot_model->getJointModelGroupMap();
+  const planning_models::KinematicModel::JointModelGroup* modelGroup = groupMap[planning_group_name_];
+  num_joints_ = modelGroup->getJointModels().size();
   init();
 }
 
-ChompTrajectory::ChompTrajectory(const ChompTrajectory& source_traj, const ChompRobotModel::ChompPlanningGroup* planning_group, int diff_rule_length):
-  robot_model_(source_traj.robot_model_),
-  planning_group_(planning_group),
+ChompTrajectory::ChompTrajectory(const ChompTrajectory& source_traj, const std::string& planning_group, int diff_rule_length):
+  planning_group_name_(planning_group),
   discretization_(source_traj.discretization_)
 {
-  num_joints_ = planning_group_->num_joints_;
+  num_joints_ = source_traj.getNumJoints();
 
   // figure out the num_points_:
   // we need diff_rule_length-1 extra points on either side:
@@ -101,19 +101,19 @@ ChompTrajectory::ChompTrajectory(const ChompTrajectory& source_traj, const Chomp
     full_trajectory_index_[i] = source_traj_point;
     for (int j=0; j<num_joints_; j++)
     {
-      int source_joint = planning_group_->chomp_joints_[j].kdl_joint_index_;
-      (*this)(i,j) = source_traj(source_traj_point, source_joint);
+      (*this)(i,j) = source_traj(source_traj_point, j);
     }
   }
 }
 
-ChompTrajectory::ChompTrajectory(const ChompRobotModel* robot_model,
-                                 const ChompRobotModel::ChompPlanningGroup* planning_group, 
+ChompTrajectory::ChompTrajectory(const planning_models::KinematicModel* robot_model,
+                                 const std::string& planning_group,
                                  const trajectory_msgs::JointTrajectory& traj) :
-  robot_model_(robot_model),
-  planning_group_(planning_group),
-  num_joints_(robot_model_->getNumKDLJoints())
+  planning_group_name_(planning_group)
 {
+  std::map<std::string, planning_models::KinematicModel::JointModelGroup*> groupMap = robot_model->getJointModelGroupMap();
+  const planning_models::KinematicModel::JointModelGroup* modelGroup = groupMap[planning_group_name_];
+  num_joints_ = modelGroup->getJointModels().size();
   double discretization = (traj.points[1].time_from_start-traj.points[0].time_from_start).toSec();
 
   double discretization2 = (traj.points[2].time_from_start-traj.points[1].time_from_start).toSec();
@@ -144,36 +144,25 @@ ChompTrajectory::~ChompTrajectory()
 }
 
 void ChompTrajectory::overwriteTrajectory(const trajectory_msgs::JointTrajectory& traj) {
-  std::vector<int> ind;
-  for(unsigned int j = 0; j < traj.joint_names.size(); j++) {
-    int kdl_number = robot_model_->urdfNameToKdlNumber(traj.joint_names[j]);
-    if(kdl_number == 0) {
-      ROS_WARN_STREAM("Can't find kdl index for joint " << traj.joint_names[j]);
-    }
-    ind.push_back(kdl_number);
-  }
-
   for(unsigned int i = 1; i <= traj.points.size(); i++) {
     for(unsigned int j = 0; j < traj.joint_names.size(); j++) {
-      trajectory_(i,ind[j]) = traj.points[i-1].positions[j];
+      trajectory_(i,j) = traj.points[i-1].positions[j];
     }
   }  
 }
 
 void ChompTrajectory::init()
 {
-  //trajectory_.resize(num_points_, Eigen::VectorXd(num_joints_));
+  trajectory_.resize(num_points_, num_joints_);
   trajectory_ = Eigen::MatrixXd(num_points_, num_joints_);
 }
 
 void ChompTrajectory::updateFromGroupTrajectory(const ChompTrajectory& group_trajectory)
 {
   int num_vars_free = end_index_ - start_index_ + 1;
-  for (int i=0; i<group_trajectory.planning_group_->num_joints_; i++)
+  for (int i=0; i < num_joints_; i++)
   {
-    int target_joint = group_trajectory.planning_group_->chomp_joints_[i].kdl_joint_index_;
-    trajectory_.block(start_index_, target_joint, num_vars_free, 1)
-      = group_trajectory.trajectory_.block(group_trajectory.start_index_, i, num_vars_free, 1);
+    trajectory_.block(start_index_, i, num_vars_free, 1) = group_trajectory.trajectory_.block(group_trajectory.start_index_, i, num_vars_free, 1);
   }
 }
 

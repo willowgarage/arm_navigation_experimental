@@ -37,8 +37,8 @@
 #ifndef MULTIVARIATE_GAUSSIAN_H_
 #define MULTIVARIATE_GAUSSIAN_H_
 
-#include <Eigen/Core>
-#include <Eigen/Cholesky>
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Cholesky>
 #include <boost/random/variate_generator.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/random/mersenne_twister.hpp>

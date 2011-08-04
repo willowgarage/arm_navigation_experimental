@@ -71,6 +71,8 @@ public:
   double getPseudoInverseRidgeFactor() const;
   bool getAnimateEndeffector() const;
   std::string getAnimateEndeffectorSegment() const;
+  double getJointUpdateLimit() const;
+  double getMinClearence() const;
 
 private:
   double planning_time_limit_;
@@ -93,10 +95,21 @@ private:
   double pseudo_inverse_ridge_factor_;
   bool animate_endeffector_;
   std::string animate_endeffector_segment_;
-
+  double joint_update_limit_;
+  double min_clearence_;
 };
 
 /////////////////////// inline functions follow ////////////////////////
+
+inline double ChompParameters::getMinClearence() const
+{
+  return min_clearence_;
+}
+
+inline double ChompParameters::getJointUpdateLimit() const
+{
+  return joint_update_limit_;
+}
 
 inline double ChompParameters::getPlanningTimeLimit() const
 {

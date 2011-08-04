@@ -11,8 +11,6 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
@@ -29,10 +27,3 @@ rosbuild_gensrv()
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_add_library(interpolated_ik_motion_planner
-  src/interpolated_ik_motion_planner.cpp
-)
-
-rosbuild_link_boost(interpolated_ik_motion_planner thread system signals)
-rosbuild_add_executable(interpolated_ik src/main.cpp)
-target_link_libraries(interpolated_ik interpolated_ik_motion_planner)
