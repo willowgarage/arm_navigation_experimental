@@ -37,6 +37,7 @@
 /* \author: Matthew Klingensmith */
 
 #include <move_arm_warehouse/move_arm_utils.h>
+#include <assert.h>
 
 using namespace std;
 using namespace arm_navigation_msgs;

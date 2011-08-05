@@ -98,8 +98,6 @@ struct CollisionProximitySpacePlannerInterface
       return;
     }
     cps_->setCurrentGroupState(*cps_->getCollisionModelsInterface()->getPlanningSceneState());
-    std::vector<std::string> link_names;
-    std::vector<std::string> attached_body_names;
     std::vector<collision_proximity::GradientInfo> gradients;
     cps_->getStateGradients(gradients);
 
@@ -109,7 +107,7 @@ struct CollisionProximitySpacePlannerInterface
                                       gradients,
                                       "",
                                       arr);
-    cps_->visualizeObjectSpheres(link_names);
+    cps_->visualizeObjectSpheres(current_link_names_);
     vis_marker_array_publisher_.publish(arr);
     cps_->getCollisionModelsInterface()->bodiesUnlock();
   }
