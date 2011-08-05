@@ -126,6 +126,44 @@ bool InterpolatedIKMotionPlanner::getPath(arm_navigation_msgs::GetMotionPlan::Re
 
 }
 
+bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState &robot_state,
+                                           std::vector<geometry_msgs::Pose> start)
+{
+  for (unsigned int i=0; i < num_groups_; i++)
+  {
+    for(unsigned int j=0; j < robot_state.multi_dof_joint_state.poses.size(); j++)
+    {
+      if(robot_state.multi_dof_joint_state.child_frame_ids[j] == group_names_[i])
+        start.push_back(robot_state.multi_dof_joint_state.poses[j]);
+    }
+    if(start.size() < (i+1))
+    {
+      ROS_ERROR("Could not find start state for group %s",group_names_[i].c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
+bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState &robot_state,
+                                           std::vector<geometry_msgs::Pose> start)
+{
+  for (unsigned int i=0; i < num_groups_; i++)
+  {
+    for(unsigned int j=0; j < robot_state.multi_dof_joint_state.poses.size(); j++)
+    {
+      if(robot_state.multi_dof_joint_state.child_frame_ids[j] == group_names_[i])
+        start.push_back(robot_state.multi_dof_joint_state.poses[j]);
+    }
+    if(start.size() < (i+1))
+    {
+      ROS_ERROR("Could not find start state for group %s",group_names_[i].c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
 bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose> &start,
                                           const std::vector<geometry_msgs::Pose> &end,
                                           const arm_navigation_msgs::PlanningScene& planning_scene,
