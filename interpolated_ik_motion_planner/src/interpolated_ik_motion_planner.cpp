@@ -39,7 +39,7 @@ namespace interpolated_ik_motion_planner
 InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner(const std::vector<std::string> &group_names, 
                                                          const std::vector<std::string> &kinematics_solver_names,
                                                          const std::vector<std::string> &end_effector_link_names,
-                                                         planning_environment::CollisionModelsInterface *collision_models_interface):collision_models_interface_(collision_models_interface),collision_models_interface_generated_(false),node_handle_("~")
+                                                         planning_environment::CollisionModelsInterface *collision_models_interface):collision_models_interface_(collision_models_interface),collision_models_interface_generated_(false),node_handle_("~"),group_names_(group_names)
 {
   ROS_DEBUG("Initializing interpolated ik motion planner");
   kinematics_solver_ = new arm_kinematics_constraint_aware::MultiArmKinematicsConstraintAware(group_names,kinematics_solver_names,end_effector_link_names);
@@ -117,13 +117,13 @@ bool InterpolatedIKMotionPlanner::getPath(arm_navigation_msgs::GetMotionPlan::Re
   arm_navigation_msgs::OrderedCollisionOperations collision_operations;
 
   if(!getStart(request.motion_plan_request.start_state,start))
-    return false;
-  if(!getGoal(request.goal_constraints,goal))
-    return false;
-
-  if(!getPath(start,end,planning_scence,collision_operations,request.motion_planning_request.allowed_planning_time,response.trajectory))
-    return false;
-
+    return true;
+  if(!getGoal(request.motion_plan_request.goal_constraints,goal))
+    return true;
+  ros::Duration allowed_planning_time = request.motion_plan_request.allowed_planning_time;
+  if(!getPath(start,goal,planning_scene,collision_operations,allowed_planning_time,response.trajectory.joint_trajectory))
+    return true;
+  return true;
 }
 
 bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState &robot_state,
@@ -145,22 +145,57 @@ bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState
   return true;
 }
 
-bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState &robot_state,
-                                           std::vector<geometry_msgs::Pose> start)
+bool InterpolatedIKMotionPlanner::getGoal(const arm_navigation_msgs::Constraints &goal_constraints,
+                                          std::vector<geometry_msgs::Pose> &goal)
 {
   for (unsigned int i=0; i < num_groups_; i++)
   {
-    for(unsigned int j=0; j < robot_state.multi_dof_joint_state.poses.size(); j++)
-    {
-      if(robot_state.multi_dof_joint_state.child_frame_ids[j] == group_names_[i])
-        start.push_back(robot_state.multi_dof_joint_state.poses[j]);
-    }
-    if(start.size() < (i+1))
-    {
-      ROS_ERROR("Could not find start state for group %s",group_names_[i].c_str());
+    arm_navigation_msgs::PositionConstraint position_constraint;
+    arm_navigation_msgs::OrientationConstraint orientation_constraint;
+    if(!getConstraintsForGroup(goal_constraints,
+                               group_names_[i],
+                               position_constraint,
+                               orientation_constraint))
       return false;
+    geometry_msgs::PoseStamped desired_pose = arm_navigation_msgs::poseConstraintsToPoseStamped(position_constraint,orientation_constraint);
+    goal.push_back(desired_pose.pose);
+  }
+  return true;
+}
+
+bool InterpolatedIKMotionPlanner::getConstraintsForGroup(const arm_navigation_msgs::Constraints &constraints,
+                                                         const std::string &group_name,
+                                                         arm_navigation_msgs::PositionConstraint &position_constraint,
+                                                         arm_navigation_msgs::OrientationConstraint &orientation_constraint,
+                                                         const bool &need_both_constraints)
+{
+  int position_index = -1;
+  int orientation_index = -1;
+  for(unsigned int i=0; i < constraints.position_constraints.size(); i++)
+  {
+    if(constraints.position_constraints[i].link_name == group_name)
+    {
+      position_index = i;
+      break;
     }
   }
+  for(unsigned int i=0; i < constraints.orientation_constraints.size(); i++)
+  {
+    if(constraints.orientation_constraints[i].link_name == group_name)
+    {
+      orientation_index = i;
+      break;
+    }
+  }
+  if((position_index < 0 || orientation_index < 0) && need_both_constraints)
+  {
+    ROS_ERROR("Need at least one position and orientation constraint to be specified in the message");
+    return false;
+  }
+  if(position_index >= 0)
+    position_constraint = constraints.position_constraints[position_index];
+  if(orientation_index >= 0)
+    orientation_constraint = constraints.orientation_constraints[orientation_index];
   return true;
 }
 

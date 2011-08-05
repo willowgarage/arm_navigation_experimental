@@ -37,6 +37,8 @@
 #include <tf/transform_datatypes.h>
 
 #include <trajectory_msgs/JointTrajectory.h>
+#include <arm_navigation_msgs/GetMotionPlan.h>
+#include <arm_navigation_msgs/convert_messages.h>
 
 #include <planning_environment/models/collision_models_interface.h>
 
@@ -72,6 +74,21 @@ private:
                const arm_navigation_msgs::OrderedCollisionOperations &collision_operations,
                const ros::Duration &max_time,
                trajectory_msgs::JointTrajectory &trajectory);
+  
+  bool getPath(arm_navigation_msgs::GetMotionPlan::Request &request,
+               arm_navigation_msgs::GetMotionPlan::Response &response);
+
+  bool getStart(const arm_navigation_msgs::RobotState &robot_state,
+                std::vector<geometry_msgs::Pose> start);
+
+  bool getGoal(const arm_navigation_msgs::Constraints &goal_constraints,
+               std::vector<geometry_msgs::Pose> &goal);
+
+bool getConstraintsForGroup(const arm_navigation_msgs::Constraints &goal_constraints,
+                            const std::string &group_name,
+                            arm_navigation_msgs::PositionConstraint &position_constraint,
+                            arm_navigation_msgs::OrientationConstraint &orientation_constraint,
+                            const bool &need_both_constraints=false);
 
   bool getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                              const ros::Duration &max_time,
@@ -112,7 +129,7 @@ private:
   int num_steps_,collision_check_resolution_,steps_before_abort_,collision_aware_,start_from_end_;
 
   double max_distance_;
-
+  std::vector<std::string> group_names_;
 };
 
 }
