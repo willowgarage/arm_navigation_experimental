@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Willow Garage, Inc.
+ * Copyright (c) 2011, Willow Garage, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  *     * Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Willow Garage, Inc. nor the names of its
+ *     * Neither the name of Willow Garage, Inc. nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
  *
@@ -39,12 +39,14 @@ namespace interpolated_ik_motion_planner
 InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner(const std::vector<std::string> &group_names, 
                                                          const std::vector<std::string> &kinematics_solver_names,
                                                          const std::vector<std::string> &end_effector_link_names,
-                                                         planning_environment::CollisionModelsInterface *collision_models_interface):collision_models_interface_(collision_models_interface),collision_models_interface_generated_(false)
+                                                         planning_environment::CollisionModelsInterface *collision_models_interface):collision_models_interface_(collision_models_interface),collision_models_interface_generated_(false),node_handle_("~")
 {
+  ROS_DEBUG("Initializing interpolated ik motion planner");
   kinematics_solver_ = new arm_kinematics_constraint_aware::MultiArmKinematicsConstraintAware(group_names,kinematics_solver_names,end_effector_link_names);
+  ROS_INFO("Initialized interpolated ik motion planner");
 }
 
-InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner()
+InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~")
 {
   planning_environment::CollisionModelsInterface* collision_models_interface = new planning_environment::CollisionModelsInterface("robot_description");
   std::vector<std::string> group_names, kinematics_solver_names, end_effector_link_names;
@@ -106,6 +108,23 @@ bool InterpolatedIKMotionPlanner::getConfigurationParams(std::vector<std::string
   max_distance_ = consistent_angle_;
   return true;
 };
+
+bool InterpolatedIKMotionPlanner::getPath(arm_navigation_msgs::GetMotionPlan::Request &request,
+                                          arm_navigation_msgs::GetMotionPlan::Response &response)
+{
+  std::vector<geometry_msgs::Pose> start, goal;
+  arm_navigation_msgs::PlanningScene planning_scene;
+  arm_navigation_msgs::OrderedCollisionOperations collision_operations;
+
+  if(!getStart(request.motion_plan_request.start_state,start))
+    return false;
+  if(!getGoal(request.goal_constraints,goal))
+    return false;
+
+  if(!getPath(start,end,planning_scence,collision_operations,request.motion_planning_request.allowed_planning_time,response.trajectory))
+    return false;
+
+}
 
 bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose> &start,
                                           const std::vector<geometry_msgs::Pose> &end,
@@ -172,8 +191,8 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
       if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,solution_states,error_codes,max_distance_))
       {
         addToJointTrajectory(trajectory,solution_states);
-        /*        if(checkMotion(seed_states,solution_states))
-        {
+        /*if(checkMotion(seed_states,solution_states))
+          {
            seed_states = solution_states;
            continue;
         }
@@ -271,7 +290,7 @@ bool InterpolatedIKMotionPlanner::getNumPoints(const tf::Point &start_tf,
   unsigned int num_steps_distance = distance/translation_resolution+1;
   unsigned int num_steps_angle = angle/rotation_resolution+1;
 
-       num_points = std::max<unsigned int>(num_steps_distance,num_steps_angle)+1;
-   return true;
+  num_points = std::max<unsigned int>(num_steps_distance,num_steps_angle)+1;
+  return true;
 }
 }

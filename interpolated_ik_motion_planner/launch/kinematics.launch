@@ -1,0 +1,10 @@
+<launch>
+
+   <include file="$(find pr2_machine)/$(env ROBOT).machine" />	
+   <include file="$(find pr2_arm_navigation_config)/launch/pr2_planning_environment.launch" />
+
+  <node launch-prefix="xterm -e gdb --args" machine="c2" pkg="interpolated_ik_motion_planner" type="interpolated_ik_planner" name="interpolated_ik_planner" output="screen">    
+    <rosparam command="load" file="$(find interpolated_ik_motion_planner)/launch/kinematics.yaml" />
+  </node>
+
+</launch>
