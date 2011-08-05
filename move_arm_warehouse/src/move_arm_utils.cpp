@@ -1162,6 +1162,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
 {
   GetMotionPlan::Request plan_req;
   plan_req.motion_plan_request = data.getMotionPlanRequest();
+  plan_req.motion_plan_request.allowed_planning_time = ros::Duration(10.0);
   GetMotionPlan::Response plan_res;
 
   if(!planning_service_client_.call(plan_req, plan_res))

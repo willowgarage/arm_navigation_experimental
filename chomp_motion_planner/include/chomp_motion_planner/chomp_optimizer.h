@@ -54,7 +54,7 @@ namespace chomp
 class ChompOptimizer
 {
 public:
-  ChompOptimizer(ChompTrajectory *trajectory, const planning_models::KinematicModel *robot_model,
+  ChompOptimizer(ChompTrajectory *trajectory, planning_models::KinematicModel *robot_model,
       const std::string& planning_group, const ChompParameters *parameters,
       const ros::Publisher& vis_marker_array_publisher,
       const ros::Publisher& vis_marker_publisher,
@@ -65,11 +65,7 @@ public:
 
   inline void destroy()
   {
-    if(robot_state_ != NULL)
-    {
-      delete robot_state_;
-      robot_state_ = NULL;
-    }
+    //Nothing for now.
   }
 private:
 
@@ -97,12 +93,14 @@ private:
     return potential;
   }
   template<typename Derived>
-  void getJacobian(Eigen::Vector3d& collision_point_pos, std::string& jointName, Eigen::MatrixBase<Derived>& jacobian) const;
+  void getJacobian(int trajectoryPoint,Eigen::Vector3d& collision_point_pos, std::string& jointName, Eigen::MatrixBase<Derived>& jacobian) const;
 
   void getRandomState(const planning_models::KinematicState* currentState, const std::string& groupName,
                       Eigen::VectorXd& state_vec);
 
   void setRobotStateFromPoint(ChompTrajectory& group_trajectory, int i);
+
+  bool checkCurrentIterValidity();
 
   int num_joints_;
   int num_vars_free_;
@@ -113,8 +111,8 @@ private:
   int iteration_;
   int collision_free_iteration_;
   ChompTrajectory *full_trajectory_;
-  const planning_models::KinematicModel *robot_model_;
-  const planning_models::KinematicState *robot_state_;
+  planning_models::KinematicModel *robot_model_;
+  planning_models::KinematicState *robot_state_;
   const std::string& planning_group_;
   const ChompParameters *parameters_;
   collision_proximity::CollisionProximitySpace *collision_space_;
@@ -128,6 +126,8 @@ private:
   std::vector<std::vector<double> > collision_point_potential_;
   std::vector<std::vector<double> > collision_point_vel_mag_;
   std::vector<std::vector<Eigen::Vector3d> > collision_point_potential_gradient_;
+  std::vector<std::vector<btVector3> > joint_axes_;
+  std::vector<std::vector<btVector3> > joint_positions_;
   Eigen::MatrixXd group_trajectory_backup_;
   Eigen::MatrixXd best_group_trajectory_;
   double best_group_trajectory_cost_;
@@ -161,7 +161,25 @@ private:
   ros::Publisher vis_marker_pub_;
 
   std::vector<std::string> joint_names_;
+  std::map<std::string, std::map<std::string, bool> > joint_parent_map_;
 
+  inline bool isParent(const std::string& childLink, const std::string& parentLink) const
+  {
+    if(childLink == parentLink)
+    {
+      return true;
+    }
+
+    if(joint_parent_map_.find(childLink) == joint_parent_map_.end())
+    {
+      ROS_ERROR("%s was not in joint parent map!", childLink.c_str());
+      return false;
+    }
+    const std::map<std::string, bool>& parents = joint_parent_map_.at(childLink);
+    return (parents.find(parentLink) != parents.end() && parents.at(parentLink));
+  }
+
+  void registerParents(const planning_models::KinematicModel::JointModel* model);
   void initialize();
   void calculateSmoothnessIncrements();
   void calculateCollisionIncrements();
@@ -182,6 +200,7 @@ private:
   void updateMomentum();
   void updatePositionFromMomentum();
   void calculatePseudoInverse();
+  void computeJointProperties(int trajectoryPoint);
 
 };
 

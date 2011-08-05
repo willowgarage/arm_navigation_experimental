@@ -73,7 +73,11 @@ public:
   std::string getAnimateEndeffectorSegment() const;
   double getJointUpdateLimit() const;
   double getMinClearence() const;
-
+  double getCollisionThreshold() const;
+  bool getFilterMode() const;
+  void setFilterMode(bool mode);
+  double getRandomJumpAmount() const;
+  void setRandomJumpAmount(double amount);
 private:
   double planning_time_limit_;
   int max_iterations_;
@@ -97,9 +101,37 @@ private:
   std::string animate_endeffector_segment_;
   double joint_update_limit_;
   double min_clearence_;
+  double collision_threshold_;
+  bool filter_mode_;
+  double random_jump_amount_;
 };
 
 /////////////////////// inline functions follow ////////////////////////
+
+inline double ChompParameters::getRandomJumpAmount() const
+{
+  return random_jump_amount_;
+}
+
+inline void ChompParameters::setRandomJumpAmount(double amount)
+{
+  random_jump_amount_ = amount;
+}
+
+inline double ChompParameters::getCollisionThreshold() const
+{
+  return collision_threshold_;
+}
+
+inline bool ChompParameters::getFilterMode() const
+{
+  return filter_mode_;
+}
+
+inline void ChompParameters::setFilterMode(bool mode)
+{
+  filter_mode_ = mode;
+}
 
 inline double ChompParameters::getMinClearence() const
 {

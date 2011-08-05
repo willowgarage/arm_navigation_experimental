@@ -50,7 +50,7 @@ ChompParameters::~ChompParameters()
 void ChompParameters::initFromNodeHandle()
 {
   ros::NodeHandle node_handle("~");
-  node_handle.param("planning_time_limit", planning_time_limit_, 1.0);
+  node_handle.param("planning_time_limit", planning_time_limit_, 6.0);
   node_handle.param("max_iterations", max_iterations_, 50);
   node_handle.param("max_iterations_after_collision_free", max_iterations_after_collision_free_, 5);
   node_handle.param("smoothness_cost_weight", smoothness_cost_weight_, 0.1);
@@ -71,7 +71,10 @@ void ChompParameters::initFromNodeHandle()
   node_handle.param("animate_endeffector", animate_endeffector_, false);
   node_handle.param("animate_endeffector_segment", animate_endeffector_segment_, std::string("r_gripper_tool_frame"));
   node_handle.param("joint_update_limit", joint_update_limit_, 0.1);
-  node_handle.param("collision_clearence", min_clearence_, 0.1);
+  node_handle.param("collision_clearence", min_clearence_, 0.2);
+  node_handle.param("collision_threshold", collision_threshold_, 0.07);
+  node_handle.param("random_jump_amount", random_jump_amount_, 1.0);
+  filter_mode_ = false;
 }
 
 

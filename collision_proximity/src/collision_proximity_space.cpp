@@ -363,7 +363,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
   btTransform inv = getInverseWorldTransform(state);
   for(unsigned int i = 0; i < current_link_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_link_indices_[i]];
-    current_link_body_decompositions_[i]->updatePose(inv*ls->getGlobalCollisionBodyTransform());
+    current_link_body_decompositions_[i]->updateSpheresPose(inv*ls->getGlobalCollisionBodyTransform());
   }
   for(unsigned int i = 0; i < current_attached_body_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_attached_body_indices_[i]];
@@ -734,6 +734,7 @@ bool CollisionProximitySpace::setupGradientStructures(const std::vector<std::str
     const std::vector<CollisionSphere>& lcs1 = body_decomposition_map_.find(link_names[i])->second->getCollisionSpheres();
     gradients[i].sphere_locations.resize(lcs1.size());
     gradients[i].sphere_radii.resize(lcs1.size());
+    gradients[i].joint_name = collision_models_interface_->getKinematicModel()->getLinkModel(link_names[i])->getParentJointModel()->getName();
     for(unsigned int j = 0; j < lcs1.size(); j++) {
       gradients[i].sphere_locations[j] = lcs1[j].center_;
       gradients[i].sphere_radii[j] = lcs1[j].radius_;
@@ -750,6 +751,7 @@ bool CollisionProximitySpace::setupGradientStructures(const std::vector<std::str
     const std::vector<CollisionSphere>& att_vec = attached_object_map_.find(attached_body_names[i])->second->getCollisionSpheres();
     gradients[att_index].sphere_locations.resize(att_vec.size());
     gradients[att_index].sphere_radii.resize(att_vec.size());
+    gradients[att_index].joint_name = collision_models_interface_->getKinematicModel()->getLinkModel(link_names[link_names.size() - 1])->getParentJointModel()->getName();
     for(unsigned int j = 0; j < att_vec.size(); j++) {
       gradients[att_index].sphere_locations[j] = att_vec[j].center_;
       gradients[att_index].sphere_radii[j] = att_vec[j].radius_;

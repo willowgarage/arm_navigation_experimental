@@ -73,7 +73,6 @@ private:
   Eigen::MatrixXd quad_cost_inv_;
 
   Eigen::MatrixXd getDiffMatrix(int size, const double* diff_rule) const;
-
 };
 
 template<typename Derived>
