@@ -45,6 +45,7 @@
 #include <spline_smoother/cubic_trajectory.h>
 #include <arm_navigation_msgs/FilterJointTrajectory.h>
 #include <planning_environment/models/model_utils.h>
+#include <spline_smoother/fritsch_butland_spline_smoother.h>
 
 #include <map>
 #include <vector>
@@ -230,7 +231,7 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
   ROS_INFO("Optimization took %f sec to create", (ros::WallTime::now() - create_time).toSec());
   optimizer.optimize();
   ROS_INFO("Optimization actually took %f sec to run", (ros::WallTime::now() - create_time).toSec());
-
+  create_time = ros::WallTime::now();
   // assume that the trajectory is now optimized, fill in the output structure:
 
   ROS_INFO("Output trajectory has %d joints", trajectory.getNumJoints());

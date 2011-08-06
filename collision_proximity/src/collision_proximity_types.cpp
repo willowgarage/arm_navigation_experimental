@@ -147,7 +147,7 @@ collision_proximity::BodyDecomposition::~BodyDecomposition()
 
 void collision_proximity::BodyDecomposition::updateSpheresPose(const btTransform& trans) 
 {
-  body_->setPose(trans);
+ //body_->setPose(trans);
   btTransform cylTransform = trans * relative_cylinder_pose_;
   for(unsigned int i = 0; i < collision_spheres_.size(); i++) {
     collision_spheres_[i].center_ = cylTransform*collision_spheres_[i].relative_vec_;
@@ -155,7 +155,7 @@ void collision_proximity::BodyDecomposition::updateSpheresPose(const btTransform
 }
 
 void collision_proximity::BodyDecomposition::updatePointsPose(const btTransform& trans) {
-  body_->setPose(trans);
+  //body_->setPose(trans);
   posed_collision_points_.clear();
   posed_collision_points_.resize(relative_collision_points_.size());
   for(unsigned int i = 0; i < relative_collision_points_.size(); i++) {
