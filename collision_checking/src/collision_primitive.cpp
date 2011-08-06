@@ -122,17 +122,16 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
 
     res->num_tri_tests++;
 
-    Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
-    Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
+    const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+    const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-    Point p1, p2, p3, q1, q2, q3;
-    p1 = vertices1[tri_id1[0]];
-    p2 = vertices1[tri_id1[1]];
-    p3 = vertices1[tri_id1[2]];
+    const Point& p1 = vertices1[tri_id1[0]];
+    const Point& p2 = vertices1[tri_id1[1]];
+    const Point& p3 = vertices1[tri_id1[2]];
 
-    q1 = vertices2[tri_id2[0]];
-    q2 = vertices2[tri_id2[1]];
-    q3 = vertices2[tri_id2[2]];
+    const Point& q1 = vertices2[tri_id2[0]];
+    const Point& q2 = vertices2[tri_id2[1]];
+    const Point& q3 = vertices2[tri_id2[2]];
 
     BVH_REAL penetration;
     Vec3f normal;
@@ -236,17 +235,16 @@ void collideRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
 
     res->num_tri_tests++;
 
-    Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-    Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+    const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+    const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-    Point p1, p2, p3, q1, q2, q3;
-    p1 = vertices1[tri_id1[0]];
-    p2 = vertices1[tri_id1[1]];
-    p3 = vertices1[tri_id1[2]];
+    const Point& p1 = vertices1[tri_id1[0]];
+    const Point& p2 = vertices1[tri_id1[1]];
+    const Point& p3 = vertices1[tri_id1[2]];
 
-    q1 = vertices2[tri_id2[0]];
-    q2 = vertices2[tri_id2[1]];
-    q3 = vertices2[tri_id2[2]];
+    const Point& q1 = vertices2[tri_id2[0]];
+    const Point& q2 = vertices2[tri_id2[1]];
+    const Point& q3 = vertices2[tri_id2[2]];
 
     BVH_REAL penetration;
     Vec3f normal;

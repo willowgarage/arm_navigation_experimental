@@ -99,7 +99,7 @@ void distanceQueueRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                           int b1, int b2,
                           Point* vertices1, Point* vertices2,
                           Triangle* tri_indices1, Triangle* tri_indices2,
-                          BVH_DistanceResult* res)
+                          BVH_DistanceResult* res, BVHFrontList* front_list)
 {
   BVTQ bvtq;
 
@@ -117,18 +117,19 @@ void distanceQueueRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
 
     if(l1 && l2)
     {
+      if(front_list) front_list->push_back(BVHFrontNode(b1, b2));
+
       res->num_tri_tests++;
-      Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-      Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+      const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+      const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-      Point p1, p2, p3, q1, q2, q3;
-      p1 = vertices1[tri_id1[0]];
-      p2 = vertices1[tri_id1[1]];
-      p3 = vertices1[tri_id1[2]];
+      const Point& p1 = vertices1[tri_id1[0]];
+      const Point& p2 = vertices1[tri_id1[1]];
+      const Point& p3 = vertices1[tri_id1[2]];
 
-      q1 = vertices2[tri_id2[0]];
-      q2 = vertices2[tri_id2[1]];
-      q3 = vertices2[tri_id2[2]];
+      const Point& q1 = vertices2[tri_id2[0]];
+      const Point& q2 = vertices2[tri_id2[1]];
+      const Point& q3 = vertices2[tri_id2[2]];
 
       // nearest point pair
       Vec3f P1, P2;
@@ -214,6 +215,8 @@ void distanceQueueRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
       if((min_test.d + res->abs_err >= res->distance) &&
           ((min_test.d * (1 + res->rel_err)) >= res->distance))
       {
+        if(front_list) front_list->push_back(BVHFrontNode(min_test.b1, min_test.b2));
+
         break;
       }
     }
@@ -226,7 +229,7 @@ void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                     int b1, int b2,
                     Point* vertices1, Point* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
-                    BVH_DistanceResult* res)
+                    BVH_DistanceResult* res, BVHFrontList* front_list)
 {
   BVNode<RSS>* node1 = tree1 + b1;
   BVNode<RSS>* node2 = tree2 + b2;
@@ -236,19 +239,20 @@ void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
 
   if(l1 && l2)
   {
+    if(front_list) front_list->push_back(BVHFrontNode(b1, b2));
+
     res->num_tri_tests++;
 
-    Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-    Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+    const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+    const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-    Point p1, p2, p3, q1, q2, q3;
-    p1 = vertices1[tri_id1[0]];
-    p2 = vertices1[tri_id1[1]];
-    p3 = vertices1[tri_id1[2]];
+    const Point& p1 = vertices1[tri_id1[0]];
+    const Point& p2 = vertices1[tri_id1[1]];
+    const Point& p3 = vertices1[tri_id1[2]];
 
-    q1 = vertices2[tri_id2[0]];
-    q2 = vertices2[tri_id2[1]];
-    q3 = vertices2[tri_id2[2]];
+    const Point& q1 = vertices2[tri_id2[0]];
+    const Point& q2 = vertices2[tri_id2[1]];
+    const Point& q3 = vertices2[tri_id2[2]];
 
     // nearest point pair
     Vec3f P1, P2;
@@ -307,11 +311,21 @@ void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
     {
       distanceRecurse(tree1, tree2, R, T, c1, c2, vertices1, vertices2, tri_indices1, tri_indices2, res);
     }
+    else
+    {
+      if(front_list) front_list->push_back(BVHFrontNode(c1, c2));
+    }
 
     if((d1 < (res->distance - res->abs_err)) || (d1 * (1 + res->rel_err) < res->distance))
     {
       distanceRecurse(tree1, tree2, R, T, a1, a2, vertices1, vertices2, tri_indices1, tri_indices2, res);
     }
+    else
+    {
+      if(front_list) front_list->push_back(BVHFrontNode(a1, a2));
+    }
+
+
   }
   else
   {
@@ -319,10 +333,18 @@ void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
     {
       distanceRecurse(tree1, tree2, R, T, a1, a2, vertices1, vertices2, tri_indices1, tri_indices2, res);
     }
+    else
+    {
+      if(front_list) front_list->push_back(BVHFrontNode(a1, a2));
+    }
 
     if((d2 < (res->distance - res->abs_err)) || (d2 * (1 + res->rel_err) < res->distance))
     {
       distanceRecurse(tree1, tree2, R, T, c1, c2, vertices1, vertices2, tri_indices1, tri_indices2, res);
+    }
+    else
+    {
+      if(front_list) front_list->push_back(BVHFrontNode(c1, c2));
     }
   }
 }

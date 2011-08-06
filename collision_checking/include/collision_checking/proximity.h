@@ -46,7 +46,7 @@ namespace collision_checking
 
 /** \brief Proximity query between two BVH models, only support mesh-mesh now */
 template<typename BV>
-int distance(const BVHModel<BV>& model1, const BVHModel<BV>& model2, BVH_DistanceResult* res)
+int distance(const BVHModel<BV>& model1, const BVHModel<BV>& model2, BVH_DistanceResult* res, BVHFrontList* front_list = NULL)
 {
   if(model1.build_state != BVH_BUILD_STATE_PROCESSED && model1.build_state != BVH_BUILD_STATE_UPDATED)
   {
@@ -79,7 +79,7 @@ int distance(const BVHModel<BV>& model1, const BVHModel<BV>& model2, BVH_Distanc
  * For RSS, we provide a specification that need not update the mesh vertices
  */
 int distance(const BVHModel<RSS>& model1, const Vec3f R1[3], const Vec3f& T1,
-                  const BVHModel<RSS>& model2, const Vec3f R2[3], const Vec3f& T2, BVH_DistanceResult* res);
+                  const BVHModel<RSS>& model2, const Vec3f R2[3], const Vec3f& T2, BVH_DistanceResult* res, BVHFrontList* front_list = NULL);
 
 }
 

@@ -170,16 +170,15 @@ void collideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
 
     res->num_tri_tests++;
 
-    Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-    Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+    const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+    const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-    Point p1, p2, p3, q1, q2, q3;
-    p1 = vertices1[tri_id1[0]];
-    p2 = vertices1[tri_id1[1]];
-    p3 = vertices1[tri_id1[2]];
-    q1 = vertices2[tri_id2[0]];
-    q2 = vertices2[tri_id2[1]];
-    q3 = vertices2[tri_id2[2]];
+    const Point& p1 = vertices1[tri_id1[0]];
+    const Point& p2 = vertices1[tri_id1[1]];
+    const Point& p3 = vertices1[tri_id1[2]];
+    const Point& q1 = vertices2[tri_id2[0]];
+    const Point& q2 = vertices2[tri_id2[1]];
+    const Point& q3 = vertices2[tri_id2[2]];
 
     BVH_REAL penetration;
     Vec3f normal;
@@ -320,25 +319,25 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
 
     if(tri_indices1 && tri_indices2) // both are triangle mesh
     {
-      Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-      Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+      const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+      const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
       Vec3f S0[3];
       Vec3f S1[3];
       Vec3f T0[3];
       Vec3f T1[3];
 
-      Point p;
+
       for(int i = 0; i < 3; ++i)
       {
-        p = prev_vertices1[tri_id1[i]];
-        S0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices1[tri_id1[i]];
-        S1[i] = Vec3f(p[0], p[1], p[2]);
-        p = prev_vertices2[tri_id2[i]];
-        T0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices2[tri_id2[i]];
-        T1[i] = Vec3f(p[0], p[1], p[2]);
+        const Point& p10 = prev_vertices1[tri_id1[i]];
+        S0[i] = Vec3f(p10[0], p10[1], p10[2]);
+        const Point& p1 = vertices1[tri_id1[i]];
+        S1[i] = Vec3f(p1[0], p1[1], p1[2]);
+        const Point& p20 = prev_vertices2[tri_id2[i]];
+        T0[i] = Vec3f(p20[0], p20[1], p20[2]);
+        const Point& p2 = vertices2[tri_id2[i]];
+        T1[i] = Vec3f(p2[0], p2[1], p2[2]);
       }
 
       BVH_REAL tmp;
@@ -396,24 +395,23 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
       BVH_REAL collide_time = 2;
       Vec3f collide_pos;
 
-      Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
+      const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
       int vertex_id2 = -node2->first_child - 1;
 
       Vec3f S0[3];
       Vec3f S1[3];
 
-      Point p;
       for(int i = 0; i < 3; ++i)
       {
-        p = prev_vertices1[tri_id1[i]];
-        S0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices1[tri_id1[i]];
-        S1[i] = Vec3f(p[0], p[1], p[2]);
+        const Point& p10 = prev_vertices1[tri_id1[i]];
+        S0[i] = Vec3f(p10[0], p10[1], p10[2]);
+        const Point& p1 = vertices1[tri_id1[i]];
+        S1[i] = Vec3f(p1[0], p1[1], p1[2]);
       }
-      p = prev_vertices2[vertex_id2];
-      Vec3f T0 = Vec3f(p[0], p[1], p[2]);
-      p = vertices2[vertex_id2];
-      Vec3f T1 = Vec3f(p[0], p[1], p[2]);
+      const Point& p20 = prev_vertices2[vertex_id2];
+      Vec3f T0 = Vec3f(p20[0], p20[1], p20[2]);
+      const Point& p2 = vertices2[vertex_id2];
+      Vec3f T1 = Vec3f(p2[0], p2[1], p2[2]);
 
       BVH_REAL tmp;
       Vec3f tmpv;
@@ -439,22 +437,21 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
       Vec3f collide_pos;
 
       int vertex_id1 = -node1->first_child - 1;
-      Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+      const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-      Point p;
-      p = prev_vertices1[vertex_id1];
-      Vec3f S0 = Vec3f(p[0], p[1], p[2]);
-      p = vertices1[vertex_id1];
-      Vec3f S1 = Vec3f(p[0], p[1], p[2]);
+      const Point& p10 = prev_vertices1[vertex_id1];
+      Vec3f S0 = Vec3f(p10[0], p10[1], p10[2]);
+      const Point& p1 = vertices1[vertex_id1];
+      Vec3f S1 = Vec3f(p1[0], p1[1], p1[2]);
 
       Vec3f T0[3];
       Vec3f T1[3];
       for(int i = 0; i < 3; ++i)
       {
-        p = prev_vertices2[tri_id2[i]];
-        T0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices2[tri_id2[i]];
-        T1[i] = Vec3f(p[0], p[1], p[2]);
+        const Point& p20 = prev_vertices2[tri_id2[i]];
+        T0[i] = Vec3f(p20[0], p20[1], p20[2]);
+        const Point& p2 = vertices2[tri_id2[i]];
+        T1[i] = Vec3f(p2[0], p2[1], p2[2]);
       }
 
       BVH_REAL tmp;

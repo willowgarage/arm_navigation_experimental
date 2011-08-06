@@ -187,7 +187,7 @@ private:
 
 public:
   /** Kernel check whether two OBB are disjoint */
-  static int obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f const& b);
+  static bool obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f const& b);
 
 };
 

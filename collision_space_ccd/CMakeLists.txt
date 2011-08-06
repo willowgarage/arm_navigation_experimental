@@ -36,6 +36,9 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 rosbuild_add_boost_directories()
 
+#add_definitions(-DCOLLISION_USE_SSE=1)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3 -mssse3")
+
 rosbuild_add_library(collision_space_ccd 
 src/environment.cpp 
 src/environment_objects.cpp 

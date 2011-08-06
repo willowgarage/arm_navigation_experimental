@@ -38,7 +38,7 @@
 
 namespace collision_checking
 {
-#if SSE
+#if COLLISION_USE_SSE
 const float Vec3f::EPSILON = 1e-11;
 #else
 const BVH_REAL Vec3f::EPSILON = 1e-11;

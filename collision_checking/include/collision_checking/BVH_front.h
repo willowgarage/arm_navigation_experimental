@@ -38,7 +38,6 @@
 #define COLLISION_CHECKING_BVH_FRONT_H
 
 
-#include "collision_primitive.h"
 #include <list>
 
 /** \brief Main namespace */
