@@ -57,7 +57,7 @@ PlanningSceneVisualizer::PlanningSceneVisualizer(QWidget* parent, planning_scene
 
 PlanningSceneVisualizer::~PlanningSceneVisualizer()
 {
-  //TODO: Implement
+
 }
 
 void PlanningSceneVisualizer::initQtWidgets()
@@ -619,6 +619,10 @@ void PlanningSceneVisualizer::motionPlanStartColorButtonClicked()
     MotionPlanRequestData& data = (*motion_plan_map_)[trajectoryID];
     QColor col(data.getStartColor().r*255, data.getStartColor().g*255, data.getStartColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
+    if(!colorSelected.isValid())
+    {
+      return;
+    }
     std::stringstream colorStream;
     colorStream<< "(" << colorSelected.red()<<" , ";
     colorStream << colorSelected.green()<< " , ";
@@ -647,6 +651,10 @@ void PlanningSceneVisualizer::motionPlanEndColorButtonClicked()
     MotionPlanRequestData& data = (*motion_plan_map_)[trajectoryID];
     QColor col(data.getGoalColor().r*255, data.getGoalColor().g*255, data.getGoalColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
+    if(!colorSelected.isValid())
+    {
+      return;
+    }
     std::stringstream colorStream;
     colorStream<< "(" << colorSelected.red()<<" , ";
     colorStream << colorSelected.green()<< " , ";
@@ -1058,6 +1066,10 @@ void PlanningSceneVisualizer::trajectoryColorButtonClicked()
     TrajectoryData& data = (*trajectory_map_)[trajectoryID];
     QColor col(data.getColor().r*255, data.getColor().g*255, data.getColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
+    if(!colorSelected.isValid())
+    {
+      return;
+    }
     std::stringstream colorStream;
     colorStream<< "(" << colorSelected.red()<<" , ";
     colorStream << colorSelected.green()<< " , ";
