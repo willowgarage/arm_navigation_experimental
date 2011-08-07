@@ -39,11 +39,11 @@ namespace interpolated_ik_motion_planner
 InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner(const std::vector<std::string> &group_names, 
                                                          const std::vector<std::string> &kinematics_solver_names,
                                                          const std::vector<std::string> &end_effector_link_names,
-                                                         planning_environment::CollisionModelsInterface *collision_models_interface):collision_models_interface_(collision_models_interface),collision_models_interface_generated_(false),node_handle_("~"),group_names_(group_names)
+                                                         planning_environment::CollisionModelsInterface *collision_models_interface):node_handle_("~")
 {
-  ROS_DEBUG("Initializing interpolated ik motion planner");
-  kinematics_solver_ = new arm_kinematics_constraint_aware::MultiArmKinematicsConstraintAware(group_names,kinematics_solver_names,end_effector_link_names);
-  ROS_INFO("Initialized interpolated ik motion planner");
+  if(!initialize(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface))
+    throw new MultiArmKinematicsException();
+  collision_models_interface_generated_ = false;
 }
 
 InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~")
@@ -51,13 +51,37 @@ InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~")
   planning_environment::CollisionModelsInterface* collision_models_interface = new planning_environment::CollisionModelsInterface("robot_description");
   std::vector<std::string> group_names, kinematics_solver_names, end_effector_link_names;
   getConfigurationParams(group_names,kinematics_solver_names,end_effector_link_names);
-  InterpolatedIKMotionPlanner(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface);
+  if(!initialize(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface))
+    throw new MultiArmKinematicsException();
   collision_models_interface_generated_ = true;
+}
+
+bool InterpolatedIKMotionPlanner::initialize(const std::vector<std::string> &group_names, 
+                                             const std::vector<std::string> &kinematics_solver_names,
+                                             const std::vector<std::string> &end_effector_link_names,
+                                             planning_environment::CollisionModelsInterface *collision_models_interface)
+{
+  collision_models_interface_ = collision_models_interface;
+  group_names_ = group_names;
+  end_effector_link_names_ = end_effector_link_names;
+  ROS_DEBUG("Initializing interpolated ik motion planner");
+  try
+  {  
+    kinematics_solver_ = new arm_kinematics_constraint_aware::MultiArmKinematicsConstraintAware(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface);
+  }
+  catch (MultiArmKinematicsException &e)
+  {
+    ROS_ERROR("Could not initialize kinematics solver");
+    return false;
+  }
+  plan_path_service_ = node_handle_.advertiseService("plan_kinematic_path", &InterpolatedIKMotionPlanner::computePlan, this);
+  ROS_INFO("Initialized interpolated ik motion planner");
+  return true;
 }
 
 bool InterpolatedIKMotionPlanner::getConfigurationParams(std::vector<std::string> &group_names,
                                                          std::vector<std::string> &kinematics_solver_names,
-                                                         std::vector<std::string> &end_effector_names)
+                                                         std::vector<std::string> &end_effector_link_names)
 {
   XmlRpc::XmlRpcValue group_list;
   if(!node_handle_.getParam("groups", group_list))
@@ -95,8 +119,9 @@ bool InterpolatedIKMotionPlanner::getConfigurationParams(std::vector<std::string
       // throw new OMPLROSException();
     }
     node_handle_.getParam(group_names.back()+"/tip_name",tip_name);
-    end_effector_names.push_back(tip_name);
+    end_effector_link_names.push_back(tip_name);
   }
+  num_groups_ = group_names.size();
   node_handle_.param("num_steps",num_steps_,6);
   node_handle_.param("consistent_angle",consistent_angle_,M_PI/9.0);
   node_handle_.param("collision_check_resolution",collision_check_resolution_,1);
@@ -109,12 +134,20 @@ bool InterpolatedIKMotionPlanner::getConfigurationParams(std::vector<std::string
   return true;
 };
 
-bool InterpolatedIKMotionPlanner::getPath(arm_navigation_msgs::GetMotionPlan::Request &request,
-                                          arm_navigation_msgs::GetMotionPlan::Response &response)
+bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan::Request &request,
+                                              arm_navigation_msgs::GetMotionPlan::Response &response)
 {
   std::vector<geometry_msgs::Pose> start, goal;
   arm_navigation_msgs::PlanningScene planning_scene;
   arm_navigation_msgs::OrderedCollisionOperations collision_operations;
+
+  if(!collision_models_interface_->isPlanningSceneSet()) {
+    ROS_WARN("Planning scene not set");
+    return false;
+    //    getAndSetPlanningScene(planning_scene,collision_operations);
+  } 
+
+  //  kinematics_solver_->setup(planning_scene,collision_operations);
 
   if(!getStart(request.motion_plan_request.start_state,start))
     return true;
@@ -127,18 +160,23 @@ bool InterpolatedIKMotionPlanner::getPath(arm_navigation_msgs::GetMotionPlan::Re
 }
 
 bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState &robot_state,
-                                           std::vector<geometry_msgs::Pose> start)
+                                           std::vector<geometry_msgs::Pose> &start)
 {
   for (unsigned int i=0; i < num_groups_; i++)
   {
     for(unsigned int j=0; j < robot_state.multi_dof_joint_state.poses.size(); j++)
     {
-      if(robot_state.multi_dof_joint_state.child_frame_ids[j] == group_names_[i])
+      ROS_INFO("i: %d, j:%d, %s %s",i,j,end_effector_link_names_[i].c_str(),robot_state.multi_dof_joint_state.child_frame_ids[j].c_str());
+      if(robot_state.multi_dof_joint_state.child_frame_ids[j] == end_effector_link_names_[i])
+      {
         start.push_back(robot_state.multi_dof_joint_state.poses[j]);
+        break;
+      }
     }
     if(start.size() < (i+1))
     {
       ROS_ERROR("Could not find start state for group %s",group_names_[i].c_str());
+      ROS_INFO("i: %d, start.size(): %d",i,start.size());
       return false;
     }
   }
@@ -154,6 +192,7 @@ bool InterpolatedIKMotionPlanner::getGoal(const arm_navigation_msgs::Constraints
     arm_navigation_msgs::OrientationConstraint orientation_constraint;
     if(!getConstraintsForGroup(goal_constraints,
                                group_names_[i],
+                               end_effector_link_names_[i],
                                position_constraint,
                                orientation_constraint))
       return false;
@@ -165,6 +204,7 @@ bool InterpolatedIKMotionPlanner::getGoal(const arm_navigation_msgs::Constraints
 
 bool InterpolatedIKMotionPlanner::getConstraintsForGroup(const arm_navigation_msgs::Constraints &constraints,
                                                          const std::string &group_name,
+                                                         const std::string &end_effector_link_name,
                                                          arm_navigation_msgs::PositionConstraint &position_constraint,
                                                          arm_navigation_msgs::OrientationConstraint &orientation_constraint,
                                                          const bool &need_both_constraints)
@@ -173,7 +213,7 @@ bool InterpolatedIKMotionPlanner::getConstraintsForGroup(const arm_navigation_ms
   int orientation_index = -1;
   for(unsigned int i=0; i < constraints.position_constraints.size(); i++)
   {
-    if(constraints.position_constraints[i].link_name == group_name)
+    if(constraints.position_constraints[i].link_name == end_effector_link_name)
     {
       position_index = i;
       break;
@@ -181,7 +221,7 @@ bool InterpolatedIKMotionPlanner::getConstraintsForGroup(const arm_navigation_ms
   }
   for(unsigned int i=0; i < constraints.orientation_constraints.size(); i++)
   {
-    if(constraints.orientation_constraints[i].link_name == group_name)
+    if(constraints.orientation_constraints[i].link_name == end_effector_link_name)
     {
       orientation_index = i;
       break;
@@ -220,20 +260,19 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
   for(unsigned int i=0; i < num_groups_; i++)
     interpolateCartesian(start[i],end[i],pos_spacing_,rot_spacing_,path[i],max_num_points);
 
-  kinematics_solver_->setup(planning_scene,collision_operations);
-
+  
   while(timeout.toSec() >= 0.0)
   {
     ros::Time start_time = ros::Time::now();
     if(getInterpolatedIKPath(path,timeout,solution))
     {
       timeout -= (ros::Time::now()-start_time);
-      kinematics_solver_->clear();
+      //      kinematics_solver_->clear();
       return true;
     }
     timeout -= (ros::Time::now()-start_time);
   }
-  kinematics_solver_->clear();
+  //  kinematics_solver_->clear();
   return false;
 }                                      
 

@@ -34,11 +34,9 @@
 int main(int argc, char **argv)
 { 
   ros::init(argc, argv, "interpolated_ik_motion_planner");
-  ros::AsyncSpinner spinner(2); 
+  ros::AsyncSpinner spinner(1); 
   spinner.start();
-
   interpolated_ik_motion_planner::InterpolatedIKMotionPlanner ik;
   ros::waitForShutdown();
-
   return 0;
 }

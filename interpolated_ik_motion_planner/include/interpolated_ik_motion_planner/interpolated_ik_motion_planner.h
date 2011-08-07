@@ -32,6 +32,7 @@
  */
 
 #include <arm_kinematics_constraint_aware/multi_arm_kinematics_constraint_aware.h>
+#include <arm_kinematics_constraint_aware/multi_arm_kinematics_exception.h>
 
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
@@ -57,12 +58,19 @@ public:
 
   ~InterpolatedIKMotionPlanner()
   {
-    delete collision_models_interface_;
+    if(collision_models_interface_generated_)
+      delete collision_models_interface_;
     delete kinematics_solver_;
   }
 
 private:
 
+  ros::ServiceServer plan_path_service_;
+
+  bool initialize(const std::vector<std::string> &group_names, 
+                  const std::vector<std::string> &kinematics_solver_names,
+                  const std::vector<std::string> &end_effector_link_names,
+                  planning_environment::CollisionModelsInterface *collision_models_interface);
 
   bool getConfigurationParams(std::vector<std::string> &group_names,
                               std::vector<std::string> &kinematics_solver_names,
@@ -75,20 +83,21 @@ private:
                const ros::Duration &max_time,
                trajectory_msgs::JointTrajectory &trajectory);
   
-  bool getPath(arm_navigation_msgs::GetMotionPlan::Request &request,
-               arm_navigation_msgs::GetMotionPlan::Response &response);
+  bool computePlan(arm_navigation_msgs::GetMotionPlan::Request &request,
+                   arm_navigation_msgs::GetMotionPlan::Response &response);
 
   bool getStart(const arm_navigation_msgs::RobotState &robot_state,
-                std::vector<geometry_msgs::Pose> start);
+                std::vector<geometry_msgs::Pose> &start);
 
   bool getGoal(const arm_navigation_msgs::Constraints &goal_constraints,
                std::vector<geometry_msgs::Pose> &goal);
 
-bool getConstraintsForGroup(const arm_navigation_msgs::Constraints &goal_constraints,
-                            const std::string &group_name,
-                            arm_navigation_msgs::PositionConstraint &position_constraint,
-                            arm_navigation_msgs::OrientationConstraint &orientation_constraint,
-                            const bool &need_both_constraints=false);
+  bool getConstraintsForGroup(const arm_navigation_msgs::Constraints &goal_constraints,
+                              const std::string &group_name,
+                              const std::string &end_effector_name,
+                              arm_navigation_msgs::PositionConstraint &position_constraint,
+                              arm_navigation_msgs::OrientationConstraint &orientation_constraint,
+                              const bool &need_both_constraints=false);
 
   bool getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                              const ros::Duration &max_time,
@@ -129,7 +138,7 @@ bool getConstraintsForGroup(const arm_navigation_msgs::Constraints &goal_constra
   int num_steps_,collision_check_resolution_,steps_before_abort_,collision_aware_,start_from_end_;
 
   double max_distance_;
-  std::vector<std::string> group_names_;
+  std::vector<std::string> group_names_, end_effector_link_names_;
 };
 
 }
