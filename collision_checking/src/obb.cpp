@@ -199,10 +199,9 @@ OBB OBB::operator + (const OBB& other) const
 }
 
 
-int OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f const& b)
+bool OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f const& b)
 {
   register BVH_REAL t, s;
-  register int r;
   Vec3f Bf[3];
   const BVH_REAL reps = 1e-6;
 
@@ -210,13 +209,138 @@ int OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f con
   Bf[1] = abs(B[1]);
   Bf[2] = abs(B[2]);
 
-  for(int i = 0; i < 3; ++i)
-  {
-    for(int j = 0; j < 3; ++j)
-    {
-      Bf[i][j] += reps;
-    }
-  }
+  Vec3f reps_vec(reps, reps, reps);
+
+  Bf[0] += reps_vec;
+  Bf[1] += reps_vec;
+  Bf[2] += reps_vec;
+
+  Vec3f Bf_col[3] = {Vec3f(Bf[0][0], Bf[1][0], Bf[2][0]),
+                     Vec3f(Bf[0][1], Bf[1][1], Bf[2][1]),
+                     Vec3f(Bf[0][2], Bf[1][2], Bf[2][2])};
+
+  Vec3f B_col[3] = {Vec3f(B[0][0], B[1][0], B[2][0]),
+                    Vec3f(B[0][1], B[1][1], B[2][1]),
+                    Vec3f(B[0][2], B[1][2], B[2][2])};
+
+
+  // if any of these tests are one-sided, then the polyhedra are disjoint
+
+  // A1 x A2 = A0
+  t = ((T[0] < 0) ? -T[0] : T[0]);
+
+  if(t > (a[0] + b.dot(Bf[0])))
+    return true;
+
+  // B1 x B2 = B0
+  s =  T.dot(B_col[0]);
+  t = ((s < 0) ? -s : s);
+
+  if(t > (b[0] + a.dot(Bf_col[0])))
+    return true;
+
+  // A2 x A0 = A1
+  t = ((T[1] < 0) ? -T[1] : T[1]);
+
+  if(t > (a[1] + b.dot(Bf[1])))
+    return true;
+
+  // A0 x A1 = A2
+  t =((T[2] < 0) ? -T[2] : T[2]);
+
+  if(t > (a[2] + b.dot(Bf[2])))
+    return true;
+
+  // B2 x B0 = B1
+  s = T.dot(B_col[1]);
+  t = ((s < 0) ? -s : s);
+
+  if(t > (b[1] + a.dot(Bf_col[1])))
+    return true;
+
+  // B0 x B1 = B2
+  s = T.dot(B_col[2]);
+  t = ((s < 0) ? -s : s);
+
+  if(t > (b[2] + a.dot(Bf_col[2])))
+    return true;
+
+  // A0 x B0
+  s = T[2] * B[1][0] - T[1] * B[2][0];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[1] * Bf[2][0] + a[2] * Bf[1][0] +
+          b[1] * Bf[0][2] + b[2] * Bf[0][1]))
+    return true;
+
+  // A0 x B1
+  s = T[2] * B[1][1] - T[1] * B[2][1];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[1] * Bf[2][1] + a[2] * Bf[1][1] +
+          b[0] * Bf[0][2] + b[2] * Bf[0][0]))
+    return true;
+
+  // A0 x B2
+  s = T[2] * B[1][2] - T[1] * B[2][2];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[1] * Bf[2][2] + a[2] * Bf[1][2] +
+          b[0] * Bf[0][1] + b[1] * Bf[0][0]))
+    return true;
+
+  // A1 x B0
+  s = T[0] * B[2][0] - T[2] * B[0][0];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[2][0] + a[2] * Bf[0][0] +
+          b[1] * Bf[1][2] + b[2] * Bf[1][1]))
+    return true;
+
+  // A1 x B1
+  s = T[0] * B[2][1] - T[2] * B[0][1];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[2][1] + a[2] * Bf[0][1] +
+          b[0] * Bf[1][2] + b[2] * Bf[1][0]))
+    return true;
+
+  // A1 x B2
+  s = T[0] * B[2][2] - T[2] * B[0][2];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[2][2] + a[2] * Bf[0][2] +
+          b[0] * Bf[1][1] + b[1] * Bf[1][0]))
+    return true;
+
+  // A2 x B0
+  s = T[1] * B[0][0] - T[0] * B[1][0];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[1][0] + a[1] * Bf[0][0] +
+          b[1] * Bf[2][2] + b[2] * Bf[2][1]))
+    return true;
+
+  // A2 x B1
+  s = T[1] * B[0][1] - T[0] * B[1][1];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[1][1] + a[1] * Bf[0][1] +
+          b[0] * Bf[2][2] + b[2] * Bf[2][0]))
+    return true;
+
+  // A2 x B2
+  s = T[1] * B[0][2] - T[0] * B[1][2];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[1][2] + a[1] * Bf[0][2] +
+          b[0] * Bf[2][1] + b[1] * Bf[2][0]))
+    return true;
+
+  return false;
+
+  /*
+  register int r;
 
   // if any of these tests are one-sided, then the polyhedra are disjoint
   r = 1;
@@ -348,6 +472,7 @@ int OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f con
   if (!r) return 15;
 
   return 0;  // should equal 0
+  */
 }
 
 

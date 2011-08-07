@@ -42,7 +42,7 @@ namespace collision_checking
 {
 
 int distance(const BVHModel<RSS>& model1, const Vec3f R1[3], const Vec3f& T1,
-                  const BVHModel<RSS>& model2, const Vec3f R2[3], const Vec3f& T2, BVH_DistanceResult* res)
+                  const BVHModel<RSS>& model2, const Vec3f R2[3], const Vec3f& T2, BVH_DistanceResult* res, BVHFrontList* front_list)
 {
   if(model1.build_state != BVH_BUILD_STATE_PROCESSED && model1.build_state != BVH_BUILD_STATE_UPDATED)
   {
@@ -127,11 +127,11 @@ int distance(const BVHModel<RSS>& model1, const Vec3f R1[3], const Vec3f& T1,
 
   if(res->qsize <= 2)
   {
-    distanceRecurse(model1.bvs, model2.bvs, R, T, 0, 0, model1.vertices, model2.vertices, model1.tri_indices, model2.tri_indices, res);
+    distanceRecurse(model1.bvs, model2.bvs, R, T, 0, 0, model1.vertices, model2.vertices, model1.tri_indices, model2.tri_indices, res, front_list);
   }
   else
   {
-    distanceQueueRecurse(model1.bvs, model2.bvs, R, T, 0, 0, model1.vertices, model2.vertices, model1.tri_indices, model2.tri_indices, res);
+    distanceQueueRecurse(model1.bvs, model2.bvs, R, T, 0, 0, model1.vertices, model2.vertices, model1.tri_indices, model2.tri_indices, res, front_list);
   }
 
   // change res->p2 to coordinate system of model2

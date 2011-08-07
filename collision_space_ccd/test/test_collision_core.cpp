@@ -167,7 +167,7 @@ int main(int argc, char** argv)
   }
 */
 
-
+/*
   for(unsigned int i = 0; i < transforms.size(); ++i)
   {
     std::cout << "distance test id " << i << std::endl;
@@ -194,7 +194,7 @@ int main(int argc, char** argv)
   }
 
   return 1;
-
+*/
 
   for(unsigned int i = 0 ; i < transforms.size(); ++i)
   {

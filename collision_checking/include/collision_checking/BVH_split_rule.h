@@ -154,7 +154,7 @@ private:
     {
       for(int i = 0; i < num_primitives; ++i)
       {
-        Triangle t = tri_indices[primitive_indices[i]];
+        const Triangle& t = tri_indices[primitive_indices[i]];
         sum += ((vertices[t[0]][split_axis] + vertices[t[1]][split_axis] + vertices[t[2]][split_axis]) / 3);
       }
     }
@@ -186,7 +186,7 @@ private:
     {
       for(int i = 0; i < num_primitives; ++i)
       {
-        Triangle t = tri_indices[primitive_indices[i]];
+        const Triangle& t = tri_indices[primitive_indices[i]];
         proj[i] = (vertices[t[0]][split_axis] + vertices[t[1]][split_axis] + vertices[t[2]][split_axis]) / 3;
       }
     }
