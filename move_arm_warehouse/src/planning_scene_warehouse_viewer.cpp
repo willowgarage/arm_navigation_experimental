@@ -591,6 +591,34 @@ void PlanningSceneVisualizer::createMotionPlanTable()
       connect(controlsVisible, SIGNAL(clicked(bool)), this, SLOT(motionPlanJointControlsActiveButtonClicked(bool)));
       motion_plan_tree_->setItemWidget(controlItem,1, controlsVisible);
 
+      QStringList renderTypeList;
+      renderTypeList.append("Render Mode");
+      QTreeWidgetItem* renderTypeItem = new QTreeWidgetItem(renderTypeList);
+      renderTypeItem->setToolTip(0, nameItem->text(0));
+
+      QComboBox* renderTypeBox = new QComboBox(motion_plan_tree_);
+      QStringList items;
+      items.append("Collision Mesh");
+      items.append("Visual Mesh");
+      items.append("Padding Mesh");
+      renderTypeBox->addItems(items);
+      connect(renderTypeBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(motionPlanRenderTypeChanged(const QString&)));
+      renderTypeBox->setToolTip(nameItem->text(0));
+      nameItem->insertChild(5, renderTypeItem);
+      motion_plan_tree_->setItemWidget(renderTypeItem, 1, renderTypeBox);
+
+      switch(requestData.getRenderType())
+      {
+        case CollisionMesh:
+          renderTypeBox->setCurrentIndex(0);
+          break;
+        case VisualMesh:
+          renderTypeBox->setCurrentIndex(1);
+          break;
+        case PaddingMesh:
+          renderTypeBox->setCurrentIndex(2);
+          break;
+      }
     }
   }
 }
@@ -1025,6 +1053,36 @@ void PlanningSceneVisualizer::createTrajectoryTable()
 
     nameItem->insertChild(4, colorItem);
     trajectory_tree_->setItemWidget(colorItem, 1, colorButton);
+
+    QStringList renderTypeList;
+    renderTypeList.append("Render Mode");
+    QTreeWidgetItem* renderTypeItem = new QTreeWidgetItem(renderTypeList);
+    renderTypeItem->setToolTip(0, nameItem->text(0));
+
+    QComboBox* renderTypeBox = new QComboBox(trajectory_tree_);
+    QStringList items;
+    items.append("Collision Mesh");
+    items.append("Visual Mesh");
+    items.append("Padding Mesh");
+    renderTypeBox->addItems(items);
+    renderTypeBox->setToolTip(nameItem->text(0));
+    connect(renderTypeBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(trajectoryRenderTypeChanged(const QString&)));
+
+    nameItem->insertChild(5, renderTypeItem);
+    trajectory_tree_->setItemWidget(renderTypeItem, 1, renderTypeBox);
+
+    switch(trajectory.getRenderType())
+    {
+      case CollisionMesh:
+        renderTypeBox->setCurrentIndex(0);
+        break;
+      case VisualMesh:
+        renderTypeBox->setCurrentIndex(1);
+        break;
+      case PaddingMesh:
+        renderTypeBox->setCurrentIndex(2);
+        break;
+    }
   }
 
 }
@@ -1263,14 +1321,47 @@ void PlanningSceneVisualizer::createNewObjectDialog()
   panel->setLayout(panelLayout);
   layout->addWidget(panel);
 
+  object_color_button_ = new QPushButton(new_object_dialog_);
+
+  std::stringstream colorStream;
+  colorStream<< "Color: (" << (int)(last_collision_object_color_.r*255) <<" , ";
+  colorStream << (int)(last_collision_object_color_.g*255) << " , ";
+  colorStream << (int)(last_collision_object_color_.b*255) << ")";
+
+  object_color_button_->setText(QString::fromStdString(colorStream.str()));
+  object_color_button_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  connect(object_color_button_, SIGNAL(clicked()), this, SLOT(objectColorButtonPressed()));
+
   make_object_button_ = new QPushButton(new_object_dialog_);
   make_object_button_->setText("Create...");
   make_object_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   connect(make_object_button_, SIGNAL(clicked()), this, SLOT(createObjectConfirmedPressed()));
 
+  layout->addWidget(object_color_button_);
   layout->addWidget(make_object_button_);
   new_object_dialog_->setLayout(layout);
 
+}
+
+void PlanningSceneVisualizer::objectColorButtonPressed()
+{
+
+  QColor selected = QColorDialog::getColor(QColor(last_collision_object_color_.r*255, last_collision_object_color_.g*255, last_collision_object_color_.b*255), new_object_dialog_);
+
+  if(selected.isValid())
+  {
+    last_collision_object_color_.r = selected.redF();
+    last_collision_object_color_.g = selected.greenF();
+    last_collision_object_color_.b = selected.blueF();
+    last_collision_object_color_.a = 1.0;
+
+    std::stringstream colorStream;
+    colorStream<< "Color: (" << (int)(last_collision_object_color_.r*255) <<" , ";
+    colorStream << (int)(last_collision_object_color_.g*255) << " , ";
+    colorStream << (int)(last_collision_object_color_.b*255) << ")";
+
+    object_color_button_->setText(QString::fromStdString(colorStream.str()));
+  }
 }
 
 void PlanningSceneVisualizer::createObjectConfirmedPressed()
@@ -1299,9 +1390,10 @@ void PlanningSceneVisualizer::createObjectConfirmedPressed()
     shape = PlanningSceneEditor::Sphere;
   }
 
+
   createCollisionObject(pose, shape, (float)collision_object_scale_x_box_->value() / 100.0f,
                         (float)collision_object_scale_y_box_->value() / 100.0f,
-                        (float)collision_object_scale_z_box_->value() / 100.0f);
+                        (float)collision_object_scale_z_box_->value() / 100.0f, last_collision_object_color_);
 }
 
 void PlanningSceneVisualizer::createRequestDialog()
@@ -1364,6 +1456,61 @@ void PlanningSceneVisualizer::createRequestPressed()
   createMotionPlanTable();
   new_request_dialog_->close();
 }
+
+void PlanningSceneVisualizer::trajectoryRenderTypeChanged(const QString& type)
+{
+  QObject* sender = QObject::sender();
+  QComboBox* box = dynamic_cast<QComboBox*>(sender);
+  std::string ID = box->toolTip().toStdString();
+
+  if(trajectory_map_->find(ID) == trajectory_map_->end())
+  {
+    return;
+  }
+
+  TrajectoryData& data = (*trajectory_map_)[ID];
+
+  if(type == "Visual Mesh")
+  {
+    data.setRenderType(VisualMesh);
+  }
+  else if(type == "Collision Mesh")
+  {
+    data.setRenderType(CollisionMesh);
+  }
+  else
+  {
+    data.setRenderType(PaddingMesh);
+  }
+}
+
+void PlanningSceneVisualizer::motionPlanRenderTypeChanged(const QString& type)
+{
+  QObject* sender = QObject::sender();
+  QComboBox* box = dynamic_cast<QComboBox*>(sender);
+  std::string ID = box->toolTip().toStdString();
+
+  if(motion_plan_map_->find(ID) == motion_plan_map_->end())
+  {
+    return;
+  }
+
+  MotionPlanRequestData& data = (*motion_plan_map_)[ID];
+
+  if(type == "Visual Mesh")
+  {
+    data.setRenderType(VisualMesh);
+  }
+  else if(type == "Collision Mesh")
+  {
+    data.setRenderType(CollisionMesh);
+  }
+  else
+  {
+    data.setRenderType(PaddingMesh);
+  }
+}
+
 
 void marker_function()
 {

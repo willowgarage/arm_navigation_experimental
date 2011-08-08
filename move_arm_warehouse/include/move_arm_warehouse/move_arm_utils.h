@@ -84,6 +84,18 @@ namespace planning_scene_utils
     StartPosition, GoalPosition
   };
 
+  ////
+  /// Enum RenderType
+  /// @brief Specifies how a set of links should be rendered.
+  /// CollisionMesh: Mesh resource in URDF file listed for testing collisions.
+  /// VisualMesh: Mesh resource in URDF file listed for visualization.
+  /// PaddingMesh: Wireframe mesh representing the link's configuration space padding.
+  /////
+  enum RenderType
+  {
+    CollisionMesh, VisualMesh, PaddingMesh
+  };
+
   // Must be defined so that subsequent classes can reference.
   class PlanningSceneEditor;
 
@@ -234,6 +246,7 @@ namespace planning_scene_utils
       btTransform last_good_start_pose_;
       btTransform last_good_goal_pose_;
       visualization_msgs::MarkerArray collision_markers_;
+      RenderType render_type_;
 
     public:
       MotionPlanRequestData()
@@ -250,6 +263,7 @@ namespace planning_scene_utils
       /// a value specified by the planning scene editor. This is done to allow the display markers time to disappear
       /// before their colors are changed.
       ros::Duration refresh_timer_;
+
 
       /// @brief Sets the start state joint values of the robot.
       /// @param joint_values a map of joint names to values.
@@ -276,6 +290,18 @@ namespace planning_scene_utils
       /// @param joint a valid joint name.
       /// @return true if the joint with the specified name is in the goal constraints, and false otherwise
       bool isJointNameInGoal(std::string joint);
+
+      /// @brief Gets what mesh to display in RVIZ.
+      inline RenderType getRenderType()
+      {
+        return render_type_;
+      }
+
+      /// @brief Sets what mesh to display in RVIZ.
+      inline void setRenderType(RenderType renderType)
+      {
+        render_type_ = renderType;
+      }
 
       /// @brief returns whether the interactive joint control markers are visible.
       inline bool areJointControlsVisible()
@@ -671,6 +697,7 @@ namespace planning_scene_utils
       bool should_refresh_colors_;
       bool has_refreshed_colors_;
       visualization_msgs::MarkerArray collision_markers_;
+      RenderType render_type_;
 
     public:
 
@@ -769,6 +796,18 @@ namespace planning_scene_utils
         should_refresh_colors_ = true;
         has_refreshed_colors_ = false;
         refresh_timer_ = ros::Duration(0.0);
+      }
+
+      /// @brief Gets what mesh to display in RVIZ.
+      inline RenderType getRenderType()
+      {
+        return render_type_;
+      }
+
+      /// @brief Sets what mesh to display in RVIZ.
+      inline void setRenderType(RenderType renderType)
+      {
+        render_type_ = renderType;
       }
 
       /// @brief Deletes the kinematic states associated with the trajectory.
@@ -1068,6 +1107,7 @@ namespace planning_scene_utils
           arm_navigation_msgs::CollisionObject collision_object_;
           visualization_msgs::InteractiveMarker selection_marker_;
           visualization_msgs::InteractiveMarker control_marker_;
+          std_msgs::ColorRGBA color_;
           std::string ID_;
       };
 
@@ -1160,6 +1200,8 @@ namespace planning_scene_utils
       std::map<string, arm_navigation_msgs::ArmNavigationErrorCodes> error_map_;
       std::vector<StateRegistry> states_;
 
+      std_msgs::ColorRGBA last_collision_object_color_;
+
       MonitorStatus monitor_status_;
 
       ros::Time last_marker_start_time_;
@@ -1168,7 +1210,7 @@ namespace planning_scene_utils
       /// @brief Registers a collision object as a selectable marker.
       /////
       void createSelectableMarkerFromCollisionObject(arm_navigation_msgs::CollisionObject& object, std::string name,
-                                                     std::string description);
+                                                     std::string description, std_msgs::ColorRGBA color);
 
     public:
       static geometry_msgs::Pose toGeometryPose(btTransform transform)
@@ -1419,10 +1461,11 @@ namespace planning_scene_utils
       /// @param scaleX the size of the object in the x direction in meters.
       /// @param scaleY the size of the object in the y direction in meters.
       /// @param scaleZ the size of the object in the z direction in meters.
+      /// @param color the color of the collision object.
       /// @return the unique ID of the collision object
       /////
       std::string createCollisionObject(geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY,
-                                 float scaleZ);
+                                 float scaleZ, std_msgs::ColorRGBA color);
 
       //////
       /// @brief creates a 6DOF control over the end effector of either the start or goal position of the given request.
