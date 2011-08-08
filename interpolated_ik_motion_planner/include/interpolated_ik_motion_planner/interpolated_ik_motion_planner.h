@@ -81,15 +81,19 @@ private:
                const arm_navigation_msgs::PlanningScene& planning_scene,
                const arm_navigation_msgs::OrderedCollisionOperations &collision_operations,
                const ros::Duration &max_time,
-               trajectory_msgs::JointTrajectory &trajectory);
-  
+               arm_navigation_msgs::GetMotionPlan::Response &response);
+
+  bool convertToBaseFrame(arm_navigation_msgs::GetMotionPlan::Request &request,arm_navigation_msgs::GetMotionPlan::Response &response);
+    
   bool computePlan(arm_navigation_msgs::GetMotionPlan::Request &request,
                    arm_navigation_msgs::GetMotionPlan::Response &response);
 
-  bool getStart(const arm_navigation_msgs::RobotState &robot_state,
+  bool getStart(const arm_navigation_msgs::GetMotionPlan::Request &request,
+                arm_navigation_msgs::GetMotionPlan::Response &response,
                 std::vector<geometry_msgs::Pose> &start);
 
-  bool getGoal(const arm_navigation_msgs::Constraints &goal_constraints,
+  bool getGoal(const arm_navigation_msgs::GetMotionPlan::Request &request,
+               arm_navigation_msgs::GetMotionPlan::Response &response,
                std::vector<geometry_msgs::Pose> &goal);
 
   bool getConstraintsForGroup(const arm_navigation_msgs::Constraints &goal_constraints,
@@ -101,7 +105,11 @@ private:
 
   bool getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                              const ros::Duration &max_time,
-                             trajectory_msgs::JointTrajectory &trajectory);
+                             arm_navigation_msgs::GetMotionPlan::Response &response);
+
+  arm_navigation_msgs::ArmNavigationErrorCodes kinematicsErrorCodeToArmNavigationErrorCode(const int& error_code);
+
+  arm_navigation_msgs::ArmNavigationErrorCodes getArmNavigationErrorCode(const std::vector<int> &error_code);
 
   bool interpolateCartesian(const geometry_msgs::Pose &start,
                             const geometry_msgs::Pose &end,

@@ -144,58 +144,88 @@ bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan
   if(!collision_models_interface_->isPlanningSceneSet()) {
     ROS_WARN("Planning scene not set");
     return false;
-    //    getAndSetPlanningScene(planning_scene,collision_operations);
   } 
 
-  //  kinematics_solver_->setup(planning_scene,collision_operations);
+  if(!convertToBaseFrame(request,response))
+    return true;
 
-  if(!getStart(request.motion_plan_request.start_state,start))
+  if(!getStart(request,response,start))
     return true;
-  if(!getGoal(request.motion_plan_request.goal_constraints,goal))
+  if(!getGoal(request,response,goal))
     return true;
+
   ros::Duration allowed_planning_time = request.motion_plan_request.allowed_planning_time;
-  if(!getPath(start,goal,planning_scene,collision_operations,allowed_planning_time,response.trajectory.joint_trajectory))
-    return true;
+  if(getPath(start,goal,planning_scene,collision_operations,allowed_planning_time,response))
+    response.error_code.val = response.error_code.SUCCESS;
+
+  return true;//services always return true (otherwise rospy chokes?)
+}
+
+bool InterpolatedIKMotionPlanner::convertToBaseFrame(arm_navigation_msgs::GetMotionPlan::Request &request,arm_navigation_msgs::GetMotionPlan::Response &response)
+{
+  if(!collision_models_interface_->convertConstraintsGivenNewWorldTransform(*collision_models_interface_->getPlanningSceneState(),request.motion_plan_request.goal_constraints,kinematics_solver_->getBaseFrame()))
+  {
+    response.error_code.val = response.error_code.FRAME_TRANSFORM_FAILURE;
+    return false;
+  }
   return true;
 }
 
-bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::RobotState &robot_state,
+bool InterpolatedIKMotionPlanner::getStart(const arm_navigation_msgs::GetMotionPlan::Request &request,
+                                           arm_navigation_msgs::GetMotionPlan::Response &response,
                                            std::vector<geometry_msgs::Pose> &start)
 {
   for (unsigned int i=0; i < num_groups_; i++)
   {
-    for(unsigned int j=0; j < robot_state.multi_dof_joint_state.poses.size(); j++)
+    for(unsigned int j=0; j < request.motion_plan_request.start_state.multi_dof_joint_state.poses.size(); j++)
     {
-      ROS_INFO("i: %d, j:%d, %s %s",i,j,end_effector_link_names_[i].c_str(),robot_state.multi_dof_joint_state.child_frame_ids[j].c_str());
-      if(robot_state.multi_dof_joint_state.child_frame_ids[j] == end_effector_link_names_[i])
+      if(request.motion_plan_request.start_state.multi_dof_joint_state.child_frame_ids[j] == end_effector_link_names_[i])
       {
-        start.push_back(robot_state.multi_dof_joint_state.poses[j]);
+        geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.header.frame_id = request.motion_plan_request.start_state.multi_dof_joint_state.frame_ids[j];
+        pose_stamped.header.stamp = request.motion_plan_request.start_state.multi_dof_joint_state.stamp;
+        pose_stamped.pose = request.motion_plan_request.start_state.multi_dof_joint_state.poses[j];
+
+        if(!collision_models_interface_->convertPoseGivenWorldTransform(*collision_models_interface_->getPlanningSceneState(),
+                                                                        kinematics_solver_->getBaseFrame(),
+                                                                        pose_stamped.header,
+                                                                        pose_stamped.pose,
+                                                                        pose_stamped))
+        {
+          response.error_code.val = response.error_code.FRAME_TRANSFORM_FAILURE;
+          return false;
+        }   
+        start.push_back(pose_stamped.pose);
         break;
       }
     }
     if(start.size() < (i+1))
     {
       ROS_ERROR("Could not find start state for group %s",group_names_[i].c_str());
-      ROS_INFO("i: %d, start.size(): %d",i,start.size());
+      response.error_code.val = response.error_code.INVALID_ROBOT_STATE;
       return false;
     }
   }
   return true;
 }
 
-bool InterpolatedIKMotionPlanner::getGoal(const arm_navigation_msgs::Constraints &goal_constraints,
+bool InterpolatedIKMotionPlanner::getGoal(const arm_navigation_msgs::GetMotionPlan::Request &request,
+                                           arm_navigation_msgs::GetMotionPlan::Response &response,
                                           std::vector<geometry_msgs::Pose> &goal)
 {
   for (unsigned int i=0; i < num_groups_; i++)
   {
     arm_navigation_msgs::PositionConstraint position_constraint;
     arm_navigation_msgs::OrientationConstraint orientation_constraint;
-    if(!getConstraintsForGroup(goal_constraints,
+    if(!getConstraintsForGroup(request.motion_plan_request.goal_constraints,
                                group_names_[i],
                                end_effector_link_names_[i],
                                position_constraint,
                                orientation_constraint))
+    {
+      response.error_code.val = response.error_code.INVALID_GOAL_POSITION_CONSTRAINTS;
       return false;
+    }
     geometry_msgs::PoseStamped desired_pose = arm_navigation_msgs::poseConstraintsToPoseStamped(position_constraint,orientation_constraint);
     goal.push_back(desired_pose.pose);
   }
@@ -244,7 +274,7 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
                                           const arm_navigation_msgs::PlanningScene& planning_scene,
                                           const arm_navigation_msgs::OrderedCollisionOperations &collision_operations,
                                           const ros::Duration &max_time,
-                                          trajectory_msgs::JointTrajectory &solution)
+                                          arm_navigation_msgs::GetMotionPlan::Response &response)
 {
   ros::Duration timeout(max_time);
   std::vector<std::vector<geometry_msgs::Pose> > path;
@@ -259,65 +289,135 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
 
   for(unsigned int i=0; i < num_groups_; i++)
     interpolateCartesian(start[i],end[i],pos_spacing_,rot_spacing_,path[i],max_num_points);
-
   
   while(timeout.toSec() >= 0.0)
   {
     ros::Time start_time = ros::Time::now();
-    if(getInterpolatedIKPath(path,timeout,solution))
+    if(getInterpolatedIKPath(path,timeout,response))
     {
       timeout -= (ros::Time::now()-start_time);
-      //      kinematics_solver_->clear();
       return true;
     }
     timeout -= (ros::Time::now()-start_time);
   }
-  //  kinematics_solver_->clear();
   return false;
 }                                      
 
 bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                                                         const ros::Duration &max_time,
-                                                        trajectory_msgs::JointTrajectory &trajectory)
+                                                        arm_navigation_msgs::GetMotionPlan::Response &response)
 {
   double timeout = max_time.toSec();
   std::vector<int> error_codes;
-  trajectory.points.clear();
+  response.trajectory.joint_trajectory.points.clear();
   while(timeout >= 0.0)
   {
     // Find initial collision free solutions for both arms
     std::vector<std::vector <double> > seed_states, solution_states;
     std::vector<geometry_msgs::Pose> poses;
     seed_states.resize(num_groups_);
+    solution_states.resize(num_groups_);
+    error_codes.resize(num_groups_);
+
     for(unsigned int i=0; i < num_groups_; i++)
       poses.push_back(path[i][0]);
 
-    if(!(kinematics_solver_->searchConstraintAwarePositionIK(poses,timeout,seed_states,error_codes)))
+    if(kinematics_solver_->searchConstraintAwarePositionIK(poses,timeout,seed_states,error_codes))
+      ROS_DEBUG("Got solution for initial pose");
+    else
+    {
+      response.error_code = getArmNavigationErrorCode(error_codes);
       return false;
-
+    }
     //Now use those collision free solutions to try and find solutions that are close
     for(unsigned int i=1; i < path.size(); i++)
     {
+      poses.clear();
       for(unsigned int j=0; j < num_groups_; j++)
         poses.push_back(path[j][i]);
       if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,solution_states,error_codes,max_distance_))
       {
-        addToJointTrajectory(trajectory,solution_states);
-        /*if(checkMotion(seed_states,solution_states))
-          {
-           seed_states = solution_states;
-           continue;
+        if(checkMotion(seed_states,solution_states,timeout,response))
+        {
+          addToJointTrajectory(response.trajectory.joint_trajectory,solution_states);
+          seed_states = solution_states;
         }
         else
           return false;
-        */
       }
       else
+      {
+        response.error_code = getArmNavigationErrorCode(error_codes);
         return false;
+      }
     }
+    ROS_INFO("Succeeded");
     return true;
   }
   return false;
+}
+
+bool InterpolatedIKMotionPlanner::checkMotion(const std::vector<std::vector<double> > &start, const std::vector<std::vector<double> >&end)
+{
+  return kinematics_solver_->checkMotion(start,end);
+}
+
+arm_navigation_msgs::ArmNavigationErrorCodes InterpolatedIKMotionPlanner::kinematicsErrorCodeToArmNavigationErrorCode(const int& error_code)
+{
+  arm_navigation_msgs::ArmNavigationErrorCodes ec;
+  switch(error_code)
+  {
+  case kinematics::SUCCESS:
+    ec.val = ec.SUCCESS;
+    break;
+  case kinematics::TIMED_OUT:
+    ec.val = ec.TIMED_OUT;
+    break;
+  case kinematics::NO_IK_SOLUTION:
+    ec.val = ec.NO_IK_SOLUTION;
+    break;
+  case kinematics::FRAME_TRANSFORM_FAILURE:
+    ec.val = ec.FRAME_TRANSFORM_FAILURE;
+    break;
+  case kinematics::IK_LINK_INVALID:
+    ec.val = ec.INVALID_LINK_NAME;
+    break;
+  case kinematics::IK_LINK_IN_COLLISION:
+    ec.val = ec.IK_LINK_IN_COLLISION;
+    break;
+  case kinematics::STATE_IN_COLLISION:
+    ec.val = ec.KINEMATICS_STATE_IN_COLLISION;
+    break;
+  case kinematics::INVALID_LINK_NAME:
+    ec.val = ec.INVALID_LINK_NAME;
+    break;
+    //  case kinematics::GOAL_CONSTRAINTS_VIOLATED:
+    //    ec.val = ec.GOAL_CONSTRAINTS_VIOLATED;
+    //    break;
+  case kinematics::INACTIVE:
+    ec.val = ec.NO_IK_SOLUTION;
+    break;
+  default:
+    ec.val = ec.PLANNING_FAILED;
+    break;
+  }
+  return ec;
+}
+
+arm_navigation_msgs::ArmNavigationErrorCodes InterpolatedIKMotionPlanner::getArmNavigationErrorCode(const std::vector<int> &error_codes)
+{
+  arm_navigation_msgs::ArmNavigationErrorCodes error_code;
+  error_code.val = error_code.SUCCESS;
+  for(unsigned int j=0; j < error_codes.size(); j++)
+  {
+    if(error_codes[j] != kinematics::SUCCESS)
+    {
+      ROS_DEBUG("Failed with error code on point %d: %d",j,error_codes[j]);
+      error_code = kinematicsErrorCodeToArmNavigationErrorCode(error_codes[j]);
+      break;
+    }
+  } 
+  return error_code;
 }
 
 bool InterpolatedIKMotionPlanner::addToJointTrajectory(trajectory_msgs::JointTrajectory &trajectory,
@@ -357,6 +457,8 @@ bool InterpolatedIKMotionPlanner::interpolateCartesian(const geometry_msgs::Pose
     num_points = num_points_path;
   else
     getNumPoints(start_tf,end_tf,start_rot_tf,end_rot_tf,translation_resolution,rotation_resolution,num_points);
+
+  ROS_INFO("Interpolating with num points: %d",num_points);
 
   for(unsigned int i=0; i < num_points; i++)
   {
@@ -403,6 +505,7 @@ bool InterpolatedIKMotionPlanner::getNumPoints(const tf::Point &start_tf,
   unsigned int num_steps_angle = angle/rotation_resolution+1;
 
   num_points = std::max<unsigned int>(num_steps_distance,num_steps_angle)+1;
+  num_points = std::max<unsigned int>(num_points,2);
   return true;
 }
 }
