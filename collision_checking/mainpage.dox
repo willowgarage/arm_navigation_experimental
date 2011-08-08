@@ -2,14 +2,9 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b collision_checking is ... 
+\b The collision_checking library is a full-fledged collision checking library that also provides advanced capabilities including proximity distance and continuous collision detection (CCD). The API for this library includes doxygen documentation that will show how to use the library. 
 
-<!-- 
-Provide an overview of your package.
--->
-
-
-\section codeapi Code API
+\section codeapi Code API for this package is available <a href="http://www.ros.org/doc/electric/api/collision_checking/html/namespacecollision__checking.html"> here</a>.
 
 <!--
 Provide links to specific auto-generated API documentation within your
