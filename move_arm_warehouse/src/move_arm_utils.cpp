@@ -920,26 +920,32 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
         {
           case VisualMesh:
             cm_->getRobotMarkersGivenState(*(it->second.getCurrentState()), arr, it->second.getColor(),
-                                         it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
+                                         it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), 
+                                           &lnames, 1.0, false);
+            // Bodies held by robot
+            cm_->getAttachedCollisionObjectMarkers(*(it->second.getCurrentState()), arr, it->first + "_trajectory",
+                                                   it->second.getColor(), ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
+
             break;
           case CollisionMesh:
             cm_->getRobotMarkersGivenState(*(it->second.getCurrentState()), arr, it->second.getColor(),
-                                         it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
+                                           it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), 
+                                           &lnames, 1.0, true);
+            cm_->getAttachedCollisionObjectMarkers(*(it->second.getCurrentState()), arr, it->first + "_trajectory",
+                                                   it->second.getColor(), ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
             break;
           case PaddingMesh:
-            cm_->getRobotTrimeshMarkersGivenState((const KinematicState&)*(it->second.getCurrentState()),
-                                                  arr,
-                                                  true,
-                                                  it->first + "_trajectory",
-                                                  it->second.getColor(),
-                                                  ros::Duration(MARKER_REFRESH_TIME),
-                                                  (const vector<string>*)&lnames);
+            cm_->getRobotPaddedMarkersGivenState((const KinematicState&)*(it->second.getCurrentState()),
+                                                 arr,
+                                                 it->second.getColor(),
+                                                 it->first + "_trajectory",
+                                                 ros::Duration(MARKER_REFRESH_TIME)*2.0,
+                                                 (const vector<string>*)&lnames);
+            cm_->getAttachedCollisionObjectMarkers(*(it->second.getCurrentState()), arr, it->first + "_trajectory",
+                                                   it->second.getColor(), ros::Duration(MARKER_REFRESH_TIME)*2.0, true, &lnames);
             break;
         }
 
-        // Bodies held by robot
-        cm_->getAttachedCollisionObjectMarkers(*(it->second.getCurrentState()), arr, it->first + "_trajectory",
-                                               it->second.getColor(), ros::Duration(MARKER_REFRESH_TIME));
       }
     }
 
@@ -1028,43 +1034,43 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
 
         // If we have a good ik solution, publish with the normal color
         // else use bright red.
+        std_msgs::ColorRGBA col;
         if(data.hasGoodIKSolution())
         {
-          switch(data.getRenderType())
-          {
-            case VisualMesh:
-              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, data.getStartColor(), it->first + "_start",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
-              break;
-            case CollisionMesh:
-              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, data.getStartColor(), it->first + "_start",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
-              break;
-            case PaddingMesh:
-              cm_->getRobotTrimeshMarkersGivenState((const KinematicState&)*(data.getStartState()), arr, true, it->first + "_start", it->second.getStartColor(),
-                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
-              break;
-          }
+          col = data.getStartColor();
+        } else {
+          col = fail_color;
         }
-        else
+        
+        switch(data.getRenderType())
         {
-          switch(data.getRenderType())
-          {
-            case VisualMesh:
-              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, fail_color, it->first + "_start",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
-              break;
-            case CollisionMesh:
-              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, fail_color, it->first + "_start",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
-              break;
-            case PaddingMesh:
-              cm_->getRobotTrimeshMarkersGivenState((const KinematicState&)*(data.getStartState()), arr, true, it->first + "_start", fail_color,
-                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
-              break;
-          }
+        case VisualMesh:
+          cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, col,
+                                         it->first + "_start", ros::Duration(MARKER_REFRESH_TIME), 
+                                         &lnames, 1.0, false);
+          // Bodies held by robot
+          cm_->getAttachedCollisionObjectMarkers(*(data.getStartState()), arr, it->first + "_start",
+                                                 col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
+          
+          break;
+        case CollisionMesh:
+          cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, col,
+                                         it->first + "_start", ros::Duration(MARKER_REFRESH_TIME), 
+                                         &lnames, 1.0, true);
+          cm_->getAttachedCollisionObjectMarkers(*(data.getStartState()), arr, it->first + "_start",
+                                                 col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
+          break;
+        case PaddingMesh:
+          cm_->getRobotPaddedMarkersGivenState(*(data.getStartState()),
+                                               arr,
+                                               col,
+                                               it->first + "_start",
+                                               ros::Duration(MARKER_REFRESH_TIME),
+                                               (const vector<string>*)&lnames);
+          cm_->getAttachedCollisionObjectMarkers(*(data.getStartState()), arr, it->first + "_start",
+                                                 col, ros::Duration(MARKER_REFRESH_TIME), true, &lnames);
+          break;
         }
-
       }
 
       /////
@@ -1082,41 +1088,42 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
           lnames[i] = updated_links[i]->getName();
         }
 
+        std_msgs::ColorRGBA col;
         if(data.hasGoodIKSolution())
         {
-          switch(data.getRenderType())
-          {
-            case VisualMesh:
-              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getGoalColor(), it->first + "_Goal",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
-              break;
-            case CollisionMesh:
-              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getGoalColor(), it->first + "_Goal",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
-              break;
-            case PaddingMesh:
-              cm_->getRobotTrimeshMarkersGivenState(*(data.getGoalState()), arr, true,it->first + "_Goal", it->second.getGoalColor(),
-                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
-              break;
-          }
+          col = data.getGoalColor();
+        } else {
+          col = fail_color;
         }
-        else
+        
+        switch(data.getRenderType())
         {
-          switch(data.getRenderType())
-          {
-            case VisualMesh:
-              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, fail_color, it->first + "_Goal",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
-              break;
-            case CollisionMesh:
-              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, fail_color, it->first + "_Goal",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
-              break;
-            case PaddingMesh:
-              cm_->getRobotTrimeshMarkersGivenState(*(data.getGoalState()), arr, true, it->first + "_Goal", fail_color,
-                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
-              break;
-          }
+        case VisualMesh:
+          cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, col,
+                                         it->first + "_start", ros::Duration(MARKER_REFRESH_TIME), 
+                                         &lnames, 1.0, false);
+          // Bodies held by robot
+          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_start",
+                                                 col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
+          
+          break;
+        case CollisionMesh:
+          cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, col,
+                                         it->first + "_start", ros::Duration(MARKER_REFRESH_TIME), 
+                                         &lnames, 1.0, true);
+          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_start",
+                                                 col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
+          break;
+        case PaddingMesh:
+          cm_->getRobotPaddedMarkersGivenState(*(data.getGoalState()),
+                                               arr,
+                                               col,
+                                               it->first + "_start",
+                                               ros::Duration(MARKER_REFRESH_TIME),
+                                               (const vector<string>*)&lnames);
+          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_start",
+                                                 col, ros::Duration(MARKER_REFRESH_TIME), true, &lnames);
+          break;
         }
       }
     }
@@ -1487,9 +1494,7 @@ std::string PlanningSceneEditor::createNewPlanningScene()
                                     data.getPlanningScene().robot_state);
   //end_effector_state_ = planning_state_;
 
-  vector<arm_navigation_msgs::CollisionObject> objects;
-  data.getPlanningScene().set_collision_objects_vec(objects);
-  data.getPlanningScene().set_collision_objects_size(0);
+  data.getPlanningScene().collision_objects.clear();
 
   sendPlanningScene(data);
 
@@ -1655,8 +1660,6 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   SetPlanningSceneDiff::Response planning_scene_res;
 
   planning_scene_req.planning_scene_diff = data.getPlanningScene();
-  planning_scene_req.planning_scene_diff.collision_objects.clear();
-  planning_scene_req.planning_scene_diff.set_collision_objects_size(0);
   convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                     planning_scene_req.planning_scene_diff.robot_state);
 
@@ -2205,7 +2208,6 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
     }
     else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Execute Last Trajectory"])
     {
-      MotionPlanRequestData& data = (*motion_plan_map_)[controller.motion_plan_ID_];
       std::string trajectory;
       if(selected_trajectory_ID_ != "" && trajectory_map_->find(selected_trajectory_ID_) != trajectory_map_->end())
       {

@@ -678,6 +678,14 @@ namespace planning_scene_utils
   ////
   class TrajectoryData
   {
+  public:
+
+    enum MarkerType {
+      VISUAL,
+      COLLISION,
+      PADDED
+    };
+
     protected:
       std::string ID_;
       std::string source_;
@@ -686,6 +694,7 @@ namespace planning_scene_utils
       std::string motion_plan_request_ID_;
       trajectory_msgs::JointTrajectory trajectory_;
       bool is_visible_;
+    MarkerType marker_type_;
       bool is_playing_;
       bool collisions_visible_;
       bool state_changed_;
@@ -912,6 +921,17 @@ namespace planning_scene_utils
       {
         is_visible_ = visible;
       }
+
+    inline MarkerType getMarkerType() const 
+    {
+      return marker_type_;
+    }
+
+      /// @brief Sets whether padded trimeshes are to be shown
+    inline void setMarkerType(MarkerType mt) 
+    {
+      marker_type_ = mt;
+    }
 
       /// @brief Shorthand for setVisible(true)
       inline void show()

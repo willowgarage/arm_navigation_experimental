@@ -30,6 +30,7 @@ rosbuild_add_library(move_arm_logging src/move_arm_warehouse_logger_reader.cpp)
 rosbuild_add_library(move_arm_utils src/move_arm_utils.cpp include/move_arm_warehouse/move_arm_utils.h)
 
 rosbuild_add_executable(move_arm_simple_action src/move_arm_simple_action.cpp)
+
 rosbuild_add_executable(warehouse_components_visualizer src/warehouse_components_visualizer.cpp)
 rosbuild_link_boost(move_arm_simple_action thread)
 target_link_libraries(move_arm_utils move_arm_logging)
