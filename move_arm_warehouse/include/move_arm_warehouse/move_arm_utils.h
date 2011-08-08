@@ -249,7 +249,7 @@ namespace planning_scene_utils
       /// @brief If the color of the motion plan request changes, this counter is incremented until it reaches
       /// a value specified by the planning scene editor. This is done to allow the display markers time to disappear
       /// before their colors are changed.
-      int refresh_counter_;
+      ros::Duration refresh_timer_;
 
       /// @brief Sets the start state joint values of the robot.
       /// @param joint_values a map of joint names to values.
@@ -475,7 +475,7 @@ namespace planning_scene_utils
       {
         should_refresh_colors_ = true;
         has_refreshed_colors_ = false;
-        refresh_counter_ = 0;
+        refresh_timer_ = ros::Duration(0.0);
       }
 
       /// @brief Returns true if the starting kinematic state of the robot is being published as a set
@@ -675,7 +675,7 @@ namespace planning_scene_utils
     public:
 
       /// @brief This counter is exhausted when the trajectory's color has changed.
-      int refresh_counter_;
+      ros::Duration refresh_timer_;
 
       /// @brief Corresponds to the planning, filtering, or execution outcome of the trajectory.
       arm_navigation_msgs::ArmNavigationErrorCodes trajectory_error_code_;
@@ -768,7 +768,7 @@ namespace planning_scene_utils
       {
         should_refresh_colors_ = true;
         has_refreshed_colors_ = false;
-        refresh_counter_ = 0;
+        refresh_timer_ = ros::Duration(0.0);
       }
 
       /// @brief Deletes the kinematic states associated with the trajectory.
@@ -1162,6 +1162,8 @@ namespace planning_scene_utils
 
       MonitorStatus monitor_status_;
 
+      ros::Time last_marker_start_time_;
+      ros::Duration marker_dt_;
       /////
       /// @brief Registers a collision object as a selectable marker.
       /////

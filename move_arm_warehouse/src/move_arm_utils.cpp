@@ -58,6 +58,7 @@ using namespace control_msgs;
 using namespace interactive_markers;
 
 #define MARKER_REFRESH_TIME 0.05
+#define SAFE_DELETE(x) if(x != NULL) { delete x; x = NULL; }
 
 std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
 {
@@ -113,7 +114,7 @@ TrajectoryData::TrajectoryData()
   showCollisions();
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
-  refresh_counter_ = 0;
+  refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
 }
 
@@ -129,7 +130,7 @@ TrajectoryData::TrajectoryData(string ID, string source, string groupName, Joint
   showCollisions();
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
-  refresh_counter_ = 0;
+  refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
 }
 
@@ -236,7 +237,7 @@ MotionPlanRequestData::MotionPlanRequestData(KinematicState* robot_state)
   goal_state_ = new KinematicState(*robot_state);
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
-  refresh_counter_ = 0;
+  refresh_timer_ = ros::Duration(0.0);
 }
 
 MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPlanRequest request,
@@ -260,7 +261,7 @@ MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPla
 
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
-  refresh_counter_ = 0;
+  refresh_timer_ = ros::Duration(0.0);
   are_joint_controls_visible_ = false;
 }
 
@@ -690,8 +691,14 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
 
 PlanningSceneEditor::~PlanningSceneEditor()
 {
-  setRobotState(NULL, true);
-  // TODO: delete everything else
+  SAFE_DELETE(robot_state_);
+  SAFE_DELETE(interactive_marker_server_);
+  SAFE_DELETE(state_monitor_);
+  SAFE_DELETE(selectable_objects_);
+  SAFE_DELETE(planning_scene_map_);
+  SAFE_DELETE(trajectory_map_);
+  SAFE_DELETE(motion_plan_map_);
+  SAFE_DELETE(ik_controllers_);
 }
 
 void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadRequests, bool loadTrajectories)
@@ -864,15 +871,14 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
 
     // When the color of a trajectory has changed, we have to wait for
     // a few milliseconds before the change is registered in rviz.
-    // TODO: Actually use a timeout
     if(it->second.shouldRefreshColors())
     {
-      it->second.refresh_counter_++;
+      it->second.refresh_timer_ += marker_dt_;
 
-      if(it->second.refresh_counter_ > 1)
+      if(it->second.refresh_timer_.toSec() > MARKER_REFRESH_TIME + 0.01)
       {
         it->second.setHasRefreshedColors(true);
-        it->second.refresh_counter_ = 0;
+        it->second.refresh_timer_ = ros::Duration(0.0);
       }
     }
     else
@@ -948,15 +954,14 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
 
     // When a motion plan request has its colors changed,
     // we must wait a few milliseconds before rviz registers the change.
-    // TODO: Use an actual timer here.
     if(data.shouldRefreshColors())
     {
-      data.refresh_counter_++;
+      data.refresh_timer_ += marker_dt_;
 
-      if(data.refresh_counter_ > 2)
+      if(data.refresh_timer_.toSec() > MARKER_REFRESH_TIME + 0.01)
       {
         data.setHasRefreshedColors(true);
-        data.refresh_counter_ = 0;
+        data.refresh_timer_ = ros::Duration(0.0);
       }
     }
     else
@@ -1336,6 +1341,8 @@ void PlanningSceneEditor::updateJointStates()
 
 void PlanningSceneEditor::sendMarkers()
 {
+  marker_dt_ = (ros::Time::now() - last_marker_start_time_);
+  last_marker_start_time_ = ros::Time::now();
   lockScene();
   sendTransformsAndClock();
   visualization_msgs::MarkerArray arr;

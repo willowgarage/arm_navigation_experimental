@@ -76,7 +76,6 @@ namespace chomp
     free_vars_start_ = group_trajectory_.getStartIndex();
     free_vars_end_ = group_trajectory_.getEndIndex();
 
-    //ROS_INFO_STREAM("Setting free vars start to " << free_vars_start_ << " end " << free_vars_end_);
     vector<GradientInfo> infos;
     collision_space_->getStateGradients(infos);
 
@@ -936,10 +935,10 @@ namespace chomp
     }
   }
 
-  void ChompOptimizer::getRandomState(const KinematicState* currentState, const string& groupName,
-                                      VectorXd& state_vec)
+  void ChompOptimizer::getRandomState(const KinematicState* currentState, const string& groupName, VectorXd& state_vec)
   {
-    const vector<KinematicState::JointState*>& jointStates = currentState->getJointStateGroup(groupName)->getJointStateVector();
+    const vector<KinematicState::JointState*>& jointStates =
+        currentState->getJointStateGroup(groupName)->getJointStateVector();
     for(size_t i = 0; i < jointStates.size(); i++)
     {
       KinematicState::JointState* jointState = jointStates[i];
@@ -948,13 +947,15 @@ namespace chomp
       for(map<string, pair<double, double> >::iterator it = bounds.begin(); it != bounds.end(); it++)
       {
         double range = it->second.second - it->second.first;
+        double randVal = jointState->getJointStateValues()[j] + (getRandomDouble()
+            * (parameters_->getRandomJumpAmount()) - getRandomDouble() * (parameters_->getRandomJumpAmount()));
+
         if(range == numeric_limits<double>::infinity())
         {
-          state_vec(i) = 0.0;
+          state_vec(i) = randVal;
           j++;
           continue;
         }
-        double randVal = jointState->getJointStateValues()[j] + (getRandomDouble() * (parameters_->getRandomJumpAmount()) - getRandomDouble() * (parameters_->getRandomJumpAmount()));
         if(randVal > it->second.second)
         {
           randVal = it->second.second;
