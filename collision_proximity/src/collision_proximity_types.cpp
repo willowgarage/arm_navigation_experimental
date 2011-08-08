@@ -36,7 +36,7 @@
 
 #include <collision_proximity/collision_proximity_types.h>
 
-std::vector<collision_proximity::CollisionSphere> collision_proximity::determineCollisionSpheres(const bodies::Body* body)
+std::vector<collision_proximity::CollisionSphere> collision_proximity::determineCollisionSpheres(const bodies::Body* body, btTransform& relativeTransform)
 {
   std::vector<collision_proximity::CollisionSphere> css;
   
@@ -51,6 +51,7 @@ std::vector<collision_proximity::CollisionSphere> collision_proximity::determine
     collision_proximity::CollisionSphere cs(vec,cyl.radius);
     css.push_back(cs);
   }
+  relativeTransform = body->getPose().inverse() * cyl.pose;
   return css; 
 }
 
@@ -133,7 +134,7 @@ collision_proximity::BodyDecomposition::BodyDecomposition(const std::string& obj
   ident.setIdentity();
   body_->setPose(ident);
   body_->setPadding(.01);
-  collision_spheres_ = determineCollisionSpheres(body_);
+  collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
   relative_collision_points_ = determineCollisionPoints(body_, resolution);
   posed_collision_points_ = relative_collision_points_;
   ROS_DEBUG_STREAM("Object " << object_name << " has " << relative_collision_points_.size() << " collision points");
@@ -146,20 +147,19 @@ collision_proximity::BodyDecomposition::~BodyDecomposition()
 
 void collision_proximity::BodyDecomposition::updateSpheresPose(const btTransform& trans) 
 {
-  body_->setPose(trans);
-  bodies::BoundingCylinder cyl;
-  body_->computeBoundingCylinder(cyl);
+ //body_->setPose(trans);
+  btTransform cylTransform = trans * relative_cylinder_pose_;
   for(unsigned int i = 0; i < collision_spheres_.size(); i++) {
-    collision_spheres_[i].center_ = cyl.pose*collision_spheres_[i].relative_vec_;
+    collision_spheres_[i].center_ = cylTransform*collision_spheres_[i].relative_vec_;
   }
 }
 
 void collision_proximity::BodyDecomposition::updatePointsPose(const btTransform& trans) {
-  body_->setPose(trans);
+  //body_->setPose(trans);
   posed_collision_points_.clear();
   posed_collision_points_.resize(relative_collision_points_.size());
   for(unsigned int i = 0; i < relative_collision_points_.size(); i++) {
-    posed_collision_points_[i] = body_->getPose()*relative_collision_points_[i];
+    posed_collision_points_[i] = trans*relative_collision_points_[i];
   }
 }
 

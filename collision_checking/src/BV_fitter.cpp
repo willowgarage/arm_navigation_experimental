@@ -41,7 +41,7 @@ namespace collision_checking
 {
 
 /** \brief Compute the covariance matrix for a set or subset of points. */
-void getCovariance(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f M[3])
+void getCovariance(Vec3f* ps, Vec3f* ps2, unsigned int* indices, int n, Vec3f M[3])
 {
   bool indirect_index = true;
   if(!indices) indirect_index = false;
@@ -51,8 +51,8 @@ void getCovariance(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f M[
 
   for(int i = 0; i < n; ++i)
   {
-    Point p = indirect_index ? ps[indices[i]] : ps[i];
-    S1 += Vec3f(p[0], p[1], p[2]);
+    const Vec3f& p = indirect_index ? ps[indices[i]] : ps[i];
+    S1 += p;
     S2[0][0] += (p[0] * p[0]);
     S2[1][1] += (p[1] * p[1]);
     S2[2][2] += (p[2] * p[2]);
@@ -62,8 +62,8 @@ void getCovariance(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f M[
 
     if(ps2) // another frame
     {
-      p = indirect_index ? ps2[indices[i]] : ps2[i];
-      S1 += Vec3f(p[0], p[1], p[2]);
+      const Vec3f& p = indirect_index ? ps2[indices[i]] : ps2[i];
+      S1 += p;
       S2[0][0] += (p[0] * p[0]);
       S2[1][1] += (p[1] * p[1]);
       S2[2][2] += (p[2] * p[2]);
@@ -87,7 +87,7 @@ void getCovariance(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f M[
 }
 
 /** \brief Compute the covariance matrix for a set or subset of triangles. */
-void getCovariance(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f M[3])
+void getCovariance(Vec3f* ps, Vec3f* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f M[3])
 {
   bool indirect_index = true;
   if(!indices) indirect_index = false;
@@ -97,11 +97,11 @@ void getCovariance(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, i
 
   for(int i = 0; i < n; ++i)
   {
-    Triangle t = indirect_index ? ts[indices[i]] : ts[i];
+    const Triangle& t = indirect_index ? ts[indices[i]] : ts[i];
 
-    Point p1 = ps[t[0]];
-    Point p2 = ps[t[1]];
-    Point p3 = ps[t[2]];
+    const Vec3f& p1 = ps[t[0]];
+    const Vec3f& p2 = ps[t[1]];
+    const Vec3f& p3 = ps[t[2]];
 
     S1[0] += (p1[0] + p2[0] + p3[0]);
     S1[1] += (p1[1] + p2[1] + p3[1]);
@@ -128,9 +128,9 @@ void getCovariance(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, i
 
     if(ps2)
     {
-      p1 = ps2[t[0]];
-      p2 = ps2[t[1]];
-      p3 = ps2[t[2]];
+      const Vec3f& p1 = ps2[t[0]];
+      const Vec3f& p2 = ps2[t[1]];
+      const Vec3f& p3 = ps2[t[2]];
 
       S1[0] += (p1[0] + p2[0] + p3[0]);
       S1[1] += (p1[1] + p2[1] + p3[1]);
@@ -200,9 +200,9 @@ void Meigen(Vec3f a[3], BVH_REAL dout[3], Vec3f vout[3])
         sm += fabs(a[ip][iq]);
     if(sm == 0.0)
     {
-      vout[0] = Vec3f(v[0][0], v[0][1], v[0][2]);
-      vout[1] = Vec3f(v[1][0], v[1][1], v[1][2]);
-      vout[2] = Vec3f(v[2][0], v[2][1], v[2][2]);
+      vout[0] = v[0];
+      vout[1] = v[1];
+      vout[2] = v[2];
       dout[0] = d[0]; dout[1] = d[1]; dout[2] = d[2];
       return;
     }
@@ -263,7 +263,7 @@ void Meigen(Vec3f a[3], BVH_REAL dout[3], Vec3f vout[3])
 /** \brief Compute the RSS bounding volume parameters: radius, rectangle size and the origin.
  * The bounding volume axes are known.
  */
-void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f axis[3], Vec3f& origin, BVH_REAL l[2], BVH_REAL& r)
+void getRadiusAndOriginAndRectangleSize(Vec3f* ps, Vec3f* ps2, unsigned int* indices, int n, Vec3f axis[3], Vec3f& origin, BVH_REAL l[2], BVH_REAL& r)
 {
   bool indirect_index = true;
   if(!indices) indirect_index = false;
@@ -278,7 +278,7 @@ void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, unsigned int* ind
   {
     int index = indirect_index ? indices[i] : i;
 
-    Point p = ps[index];
+    const Vec3f& p = ps[index];
     Vec3f v(p[0], p[1], p[2]);
     P[P_id][0] = axis[0].dot(v);
     P[P_id][1] = axis[1].dot(v);
@@ -287,8 +287,7 @@ void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, unsigned int* ind
 
     if(ps2)
     {
-      p = ps2[index];
-      v = Vec3f(p[0], p[1], p[2]);
+      const Vec3f& v = ps2[index];
       P[P_id][0] = axis[0].dot(v);
       P[P_id][1] = axis[1].dot(v);
       P[P_id][2] = axis[2].dot(v);
@@ -506,7 +505,7 @@ void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, unsigned int* ind
 /** \brief Compute the RSS bounding volume parameters: radius, rectangle size and the origin.
  * The bounding volume axes are known.
  */
-void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f axis[3], Vec3f& origin, BVH_REAL l[2], BVH_REAL& r)
+void getRadiusAndOriginAndRectangleSize(Vec3f* ps, Vec3f* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f axis[3], Vec3f& origin, BVH_REAL l[2], BVH_REAL& r)
 {
   bool indirect_index = true;
   if(!indices) indirect_index = false;
@@ -520,12 +519,12 @@ void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, Triangle* ts, uns
   for(int i = 0; i < n; ++i)
   {
     int index = indirect_index ? indices[i] : i;
-    Triangle t = ts[index];
+    const Triangle& t = ts[index];
 
     for(int j = 0; j < 3; ++j)
     {
       int point_id = t[j];
-      Point p = ps[point_id];
+      const Vec3f& p = ps[point_id];
       Vec3f v(p[0], p[1], p[2]);
       P[P_id][0] = axis[0].dot(v);
       P[P_id][1] = axis[1].dot(v);
@@ -538,7 +537,7 @@ void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, Triangle* ts, uns
       for(int j = 0; j < 3; ++j)
       {
         int point_id = t[j];
-        Point p = ps2[point_id];
+        const Vec3f& p = ps2[point_id];
         Vec3f v(p[0], p[1], p[2]);
         P[P_id][0] = axis[0].dot(v);
         P[P_id][1] = axis[0].dot(v);
@@ -756,7 +755,7 @@ void getRadiusAndOriginAndRectangleSize(Point* ps, Point* ps2, Triangle* ts, uns
 /** \brief Compute the bounding volume extent and center for a set or subset of points.
  * The bounding volume axes are known.
  */
-void getExtentAndCenter(Point* ps, Point* ps2, unsigned int* indices, int n, Vec3f axis[3], Vec3f& center, Vec3f& extent)
+void getExtentAndCenter(Vec3f* ps, Vec3f* ps2, unsigned int* indices, int n, Vec3f axis[3], Vec3f& center, Vec3f& extent)
 {
   bool indirect_index = true;
   if(!indices) indirect_index = false;
@@ -770,7 +769,7 @@ void getExtentAndCenter(Point* ps, Point* ps2, unsigned int* indices, int n, Vec
   {
     int index = indirect_index ? indices[i] : i;
 
-    Point p = ps[index];
+    const Vec3f& p = ps[index];
     Vec3f v(p[0], p[1], p[2]);
     BVH_REAL proj[3];
     proj[0] = axis[0].dot(v);
@@ -785,8 +784,7 @@ void getExtentAndCenter(Point* ps, Point* ps2, unsigned int* indices, int n, Vec
 
     if(ps2)
     {
-      p = ps2[index];
-      v = Vec3f(p[0], p[1], p[2]);
+      const Vec3f& v = ps2[index];
       proj[0] = axis[0].dot(v);
       proj[1] = axis[1].dot(v);
       proj[2] = axis[2].dot(v);
@@ -815,7 +813,7 @@ void getExtentAndCenter(Point* ps, Point* ps2, unsigned int* indices, int n, Vec
 /** \brief Compute the bounding volume extent and center for a set or subset of points.
  * The bounding volume axes are known.
  */
-void getExtentAndCenter(Point* ps, Point* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f axis[3], Vec3f& center, Vec3f& extent)
+void getExtentAndCenter(Vec3f* ps, Vec3f* ps2, Triangle* ts, unsigned int* indices, int n, Vec3f axis[3], Vec3f& center, Vec3f& extent)
 {
   bool indirect_index = true;
   if(!indices) indirect_index = false;
@@ -828,12 +826,12 @@ void getExtentAndCenter(Point* ps, Point* ps2, Triangle* ts, unsigned int* indic
   for(int i = 0; i < n; ++i)
   {
     unsigned int index = indirect_index? indices[i] : i;
-    Triangle t = ts[index];
+    const Triangle& t = ts[index];
 
     for(int j = 0; j < 3; ++j)
     {
       int point_id = t[j];
-      Point p = ps[point_id];
+      const Vec3f& p = ps[point_id];
       Vec3f v(p[0], p[1], p[2]);
       BVH_REAL proj[3];
       proj[0] = axis[0].dot(v);
@@ -852,7 +850,7 @@ void getExtentAndCenter(Point* ps, Point* ps2, Triangle* ts, unsigned int* indic
       for(int j = 0; j < 3; ++j)
       {
         int point_id = t[j];
-        Point p = ps2[point_id];
+        const Vec3f& p = ps2[point_id];
         Vec3f v(p[0], p[1], p[2]);
         BVH_REAL proj[3];
         proj[0] = axis[0].dot(v);
@@ -885,7 +883,7 @@ void getExtentAndCenter(Point* ps, Point* ps2, Triangle* ts, unsigned int* indic
 
 
 
-OBB BVFitter<OBB>::fit(Point* ps, int n)
+OBB BVFitter<OBB>::fit(Vec3f* ps, int n)
 {
   switch(n)
   {
@@ -965,11 +963,10 @@ OBB BVFitter<OBB>::fit(unsigned int* primitive_indices, int num_primitives)
 
 
 
-OBB BVFitter<OBB>::fit1(Point* ps)
+OBB BVFitter<OBB>::fit1(Vec3f* ps)
 {
   OBB bv;
-  Point p = ps[0];
-  bv.To = Vec3f(p[0],p[1], p[2]);
+  bv.To = ps[0];
   bv.axis[0] = Vec3f(1, 0, 0);
   bv.axis[1] = Vec3f(0, 1, 0);
   bv.axis[2] = Vec3f(0, 0, 1);
@@ -977,7 +974,7 @@ OBB BVFitter<OBB>::fit1(Point* ps)
   return bv;
 }
 
-OBB BVFitter<OBB>::fit2(Point* ps)
+OBB BVFitter<OBB>::fit2(Vec3f* ps)
 {
   OBB bv;
   Vec3f p1(ps[0][0], ps[0][1], ps[0][2]);
@@ -1023,7 +1020,7 @@ OBB BVFitter<OBB>::fit2(Point* ps)
   return bv;
 }
 
-OBB BVFitter<OBB>::fit3(Point* ps)
+OBB BVFitter<OBB>::fit3(Vec3f* ps)
 {
   OBB bv;
   Vec3f p1(ps[0][0], ps[0][1], ps[0][2]);
@@ -1056,7 +1053,7 @@ OBB BVFitter<OBB>::fit3(Point* ps)
   return bv;
 }
 
-OBB BVFitter<OBB>::fit6(Point* ps)
+OBB BVFitter<OBB>::fit6(Vec3f* ps)
 {
   OBB bv1, bv2;
   bv1 = fit3(ps);
@@ -1065,7 +1062,7 @@ OBB BVFitter<OBB>::fit6(Point* ps)
 }
 
 
-OBB BVFitter<OBB>::fitn(Point* ps, int n)
+OBB BVFitter<OBB>::fitn(Vec3f* ps, int n)
 {
   OBB bv;
 
@@ -1106,7 +1103,7 @@ OBB BVFitter<OBB>::fitn(Point* ps, int n)
   return bv;
 }
 
-RSS BVFitter<RSS>::fit(Point* ps, int n)
+RSS BVFitter<RSS>::fit(Vec3f* ps, int n)
 {
   switch(n)
   {
@@ -1187,11 +1184,10 @@ RSS BVFitter<RSS>::fit(unsigned int* primitive_indices, int num_primitives)
   return bv;
 }
 
-RSS BVFitter<RSS>::fit1(Point* ps)
+RSS BVFitter<RSS>::fit1(Vec3f* ps)
 {
   RSS bv;
-  Point p = ps[0];
-  bv.Tr = Vec3f(p[0], p[1], p[2]);
+  bv.Tr = ps[0];
   bv.axis[0] = Vec3f(1, 0, 0);
   bv.axis[1] = Vec3f(0, 1, 0);
   bv.axis[2] = Vec3f(0, 0, 1);
@@ -1202,7 +1198,7 @@ RSS BVFitter<RSS>::fit1(Point* ps)
   return bv;
 }
 
-RSS BVFitter<RSS>::fit2(Point* ps)
+RSS BVFitter<RSS>::fit2(Vec3f* ps)
 {
   RSS bv;
 
@@ -1249,7 +1245,7 @@ RSS BVFitter<RSS>::fit2(Point* ps)
   return bv;
 }
 
-RSS BVFitter<RSS>::fit3(Point* ps)
+RSS BVFitter<RSS>::fit3(Vec3f* ps)
 {
   RSS bv;
 
@@ -1283,7 +1279,7 @@ RSS BVFitter<RSS>::fit3(Point* ps)
   return bv;
 }
 
-RSS BVFitter<RSS>::fitn(Point* ps, int n)
+RSS BVFitter<RSS>::fitn(Vec3f* ps, int n)
 {
   RSS bv;
 

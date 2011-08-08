@@ -307,7 +307,7 @@ BVH_REAL RSS::distance(const RSS& other) const
   return (dist < (BVH_REAL)0.0) ? (BVH_REAL)0.0 : dist;
 }
 
-BVH_REAL distance(const Vec3f R0[3], const Vec3f& T0, const RSS& b1, const RSS& b2)
+BVH_REAL distance(const Vec3f R0[3], const Vec3f& T0, const RSS& b1, const RSS& b2, Vec3f* P, Vec3f* Q)
 {
   // R0 R2
   Vec3f Rtemp_col[3];
@@ -325,14 +325,13 @@ BVH_REAL distance(const Vec3f R0[3], const Vec3f& T0, const RSS& b1, const RSS& 
 
   Vec3f T = Vec3f(Ttemp.dot(b1.axis[0]), Ttemp.dot(b1.axis[1]), Ttemp.dot(b1.axis[2]));
 
-  BVH_REAL dist = RSS::rectDistance(R, T, b1.l, b2.l);
+  BVH_REAL dist = RSS::rectDistance(R, T, b1.l, b2.l, P, Q);
   dist -= (b1.r + b2.r);
   return (dist < (BVH_REAL)0.0) ? (BVH_REAL)0.0 : dist;
 }
 
 
-
-BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL a[2], const BVH_REAL b[2])
+BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL a[2], const BVH_REAL b[2], Vec3f* P, Vec3f* Q)
 {
   BVH_REAL A0_dot_B0, A0_dot_B1, A1_dot_B0, A1_dot_B1;
 
@@ -423,6 +422,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * b[0] + Rab[0][1] * u - a[0] ;
       S[1] = Tab[1] + Rab[1][0] * b[0] + Rab[1][1] * u - t;
       S[2] = Tab[2] + Rab[2][0] * b[0] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(a[0], t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -445,6 +451,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * u - a[0];
       S[1] = Tab[1] + Rab[1][1] * u - t;
       S[2] = Tab[2] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(a[0], t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -466,6 +479,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * b[0] + Rab[0][1] * u;
       S[1] = Tab[1] + Rab[1][0] * b[0] + Rab[1][1] * u - t;
       S[2] = Tab[2] + Rab[2][0] * b[0] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(0, t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -487,6 +507,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * u;
       S[1] = Tab[1] + Rab[1][1] * u - t;
       S[2] = Tab[2] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(0, t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -548,6 +575,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * b[1] + Rab[0][0] * u - a[0] ;
       S[1] = Tab[1] + Rab[1][1] * b[1] + Rab[1][0] * u - t;
       S[2] = Tab[2] + Rab[2][1] * b[1] + Rab[2][0] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(a[0], t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -569,6 +603,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * u - a[0];
       S[1] = Tab[1] + Rab[1][0] * u - t;
       S[2] = Tab[2] + Rab[2][0] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(a[0], t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -591,6 +632,14 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * b[1] + Rab[0][0] * u;
       S[1] = Tab[1] + Rab[1][1] * b[1] + Rab[1][0] * u - t;
       S[2] = Tab[2] + Rab[2][1] * b[1] + Rab[2][0] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(0, t, 0);
+        *Q = S + (*P);
+      }
+
+
       return S.length();
     }
   }
@@ -612,6 +661,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * u;
       S[1] = Tab[1] + Rab[1][0] * u - t;
       S[2] = Tab[2] + Rab[2][0] * u;
+
+      if(P&& Q)
+      {
+        *P = Vec3f(0, t, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -673,6 +729,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * b[0] + Rab[0][1] * u - t;
       S[1] = Tab[1] + Rab[1][0] * b[0] + Rab[1][1] * u - a[1];
       S[2] = Tab[2] + Rab[2][0] * b[0] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, a[1], 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -694,6 +757,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * u - t;
       S[1] = Tab[1] + Rab[1][1] * u - a[1];
       S[2] = Tab[2] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, a[1], 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -715,6 +785,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * b[0] + Rab[0][1] * u - t;
       S[1] = Tab[1] + Rab[1][0] * b[0] + Rab[1][1] * u;
       S[2] = Tab[2] + Rab[2][0] * b[0] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, 0, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -736,6 +813,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * u - t;
       S[1] = Tab[1] + Rab[1][1] * u;
       S[2] = Tab[2] + Rab[2][1] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, 0, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -790,6 +874,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][1] * b[1] + Rab[0][0] * u - t;
       S[1] = Tab[1] + Rab[1][1] * b[1] + Rab[1][0] * u - a[1];
       S[2] = Tab[2] + Rab[2][1] * b[1] + Rab[2][0] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, a[1], 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -811,6 +902,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * u - t;
       S[1] = Tab[1] + Rab[1][0] * u - a[1];
       S[2] = Tab[2] + Rab[2][0] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, a[1], 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -833,6 +931,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
        S[0] = Tab[0] + Rab[0][1] * b[1] + Rab[0][0] * u - t;
        S[1] = Tab[1] + Rab[1][1] * b[1] + Rab[1][0] * u;
        S[2] = Tab[2] + Rab[2][1] * b[1] + Rab[2][0] * u;
+
+       if(P && Q)
+       {
+         *P = Vec3f(t, 0, 0);
+         *Q = S + (*P);
+       }
+
        return S.length();
     }
   }
@@ -854,6 +959,13 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
       S[0] = Tab[0] + Rab[0][0] * u - t;
       S[1] = Tab[1] + Rab[1][0] * u;
       S[2] = Tab[2] + Rab[2][0] * u;
+
+      if(P && Q)
+      {
+        *P = Vec3f(t, 0, 0);
+        *Q = S + (*P);
+      }
+
       return S.length();
     }
   }
@@ -886,6 +998,46 @@ BVH_REAL RSS::rectDistance(const Vec3f Rab[3], Vec3f const& Tab, const BVH_REAL 
     sep2 = Tba[2];
     if (Rab[0][2] > 0.0) sep2 -= a[0] * Rab[0][2];
     if (Rab[1][2] > 0.0) sep2 -= a[1] * Rab[1][2];
+  }
+
+  if(sep1 >= sep2 && sep1 >= 0)
+  {
+    if(Tab[2] > 0)
+      S = Vec3f(0, 0, sep1);
+    else
+      S = Vec3f(0, 0, -sep1);
+
+    if(P && Q)
+    {
+      *Q = S;
+      *P = Vec3f(0, 0, 0);
+    }
+  }
+
+  if(sep2 >= sep1 && sep2 >= 0)
+  {
+    Vec3f Q_(Tab[0], Tab[1], Tab[2]);
+    Vec3f P_;
+    if(Tba[2] < 0)
+    {
+      P_[0] = Rab[0][2] * sep2 + Tab[0];
+      P_[1] = Rab[1][2] * sep2 + Tab[1];
+      P_[2] = Rab[2][2] * sep2 + Tab[2];
+    }
+    else
+    {
+      P_[0] = -Rab[0][2] * sep2 + Tab[0];
+      P_[1] = -Rab[1][2] * sep2 + Tab[1];
+      P_[2] = -Rab[2][2] * sep2 + Tab[2];
+    }
+
+    S = Q_ - P_;
+
+    if(P && Q)
+    {
+      *P = P_;
+      *Q = Q_;
+    }
   }
 
   BVH_REAL sep = (sep1 > sep2 ? sep1 : sep2);

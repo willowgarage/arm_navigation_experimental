@@ -101,7 +101,7 @@ private:
   planning_environment::CollisionModels* collision_models_;
   std::string reference_frame_;
 
-  const planning_models::KinematicModel* robot_model_;                   /**< Chomp Robot Model */
+  planning_models::KinematicModel* robot_model_;                   /**< Chomp Robot Model */
   ChompParameters chomp_parameters_;                    /**< Chomp Parameters */
   collision_proximity::CollisionProximitySpace* collision_proximity_space_;           /**< Chomp Collision space */
   double trajectory_duration_;                          /**< Default duration of the planned motion */

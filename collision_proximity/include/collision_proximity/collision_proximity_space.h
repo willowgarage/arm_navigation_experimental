@@ -124,6 +124,7 @@ public:
   //
   //visualization functions
   //
+  btTransform getInverseWorldTransform(const planning_models::KinematicState& state) const;
 
   void getProximityGradientMarkers(const std::vector<std::string>& link_names, 
                                    const std::vector<std::string>& attached_body_names,
@@ -213,8 +214,6 @@ private:
 
   //double getCollisionSphereProximity(const std::vector<CollisionSphere>& sphere_list, 
   //                                  unsigned int& closest, btVector3& grad) const;
-
-  btTransform getInverseWorldTransform(const planning_models::KinematicState& state) const;
 
   void syncObjectsWithCollisionSpace(const planning_models::KinematicState& state);
 

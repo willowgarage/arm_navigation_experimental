@@ -215,11 +215,11 @@ CollisionGeom* EnvironmentModelBVH<BV>::createBVHGeom(const shapes::Shape *shape
         for(unsigned int i = 0; i < mesh->triangleCount; ++i)
           tri_indices[i] = Triangle(mesh->triangles[3 * i], mesh->triangles[3 * i + 1], mesh->triangles[3 * i + 2]);
 
-        std::vector<Point> points(mesh->vertexCount);
+        std::vector<Vec3f> points(mesh->vertexCount);
         double sx = 0.0, sy = 0.0, sz = 0.0;
         for(unsigned int i = 0; i < mesh->vertexCount; ++i)
         {
-          points[i] = Point(mesh->vertices[3 * i], mesh->vertices[3 * i + 1], mesh->vertices[3 * i + 2]);
+          points[i] = Vec3f(mesh->vertices[3 * i], mesh->vertices[3 * i + 1], mesh->vertices[3 * i + 2]);
           sx += points[i][0];
           sy += points[i][1];
           sz += points[i][2];
@@ -246,7 +246,7 @@ CollisionGeom* EnvironmentModelBVH<BV>::createBVHGeom(const shapes::Shape *shape
 
           // the new distance of the vertex from the center
           //double fact = scale + padding/norm;
-          points[i] = Point(sx + ndx, sy + ndy, sz + ndz);
+          points[i] = Vec3f(sx + ndx, sy + ndy, sz + ndz);
         }
 
         g = makeMesh<BV>(points, tri_indices);

@@ -151,7 +151,7 @@ private:
 /** \brief Recursive collision kernel between between two BV trees */
 template<typename BV>
 void collideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
                     BVH_CollideResult* res, BVHFrontList* front_list = NULL)
 {
@@ -170,16 +170,15 @@ void collideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
 
     res->num_tri_tests++;
 
-    Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-    Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+    const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+    const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-    Point p1, p2, p3, q1, q2, q3;
-    p1 = vertices1[tri_id1[0]];
-    p2 = vertices1[tri_id1[1]];
-    p3 = vertices1[tri_id1[2]];
-    q1 = vertices2[tri_id2[0]];
-    q2 = vertices2[tri_id2[1]];
-    q3 = vertices2[tri_id2[2]];
+    const Vec3f& p1 = vertices1[tri_id1[0]];
+    const Vec3f& p2 = vertices1[tri_id1[1]];
+    const Vec3f& p3 = vertices1[tri_id1[2]];
+    const Vec3f& q1 = vertices2[tri_id2[0]];
+    const Vec3f& q2 = vertices2[tri_id2[1]];
+    const Vec3f& q3 = vertices2[tri_id2[2]];
 
     BVH_REAL penetration;
     Vec3f normal;
@@ -189,24 +188,14 @@ void collideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
 
     if(res->num_max_contacts == 0) // only interested in collision or not
     {
-      if(Intersect::intersect_Triangle(Vec3f(p1[0], p1[1], p1[2]),
-                                       Vec3f(p2[0], p2[1], p2[2]),
-                                       Vec3f(p3[0], p3[1], p3[2]),
-                                       Vec3f(q1[0], q1[1], q1[2]),
-                                       Vec3f(q2[0], q2[1], q2[2]),
-                                       Vec3f(q3[0], q3[1], q3[2])))
+      if(Intersect::intersect_Triangle(p1, p2, p3, q1, q2, q3))
       {
           res->add(-node1->first_child - 1, -node2->first_child - 1);
       }
     }
     else // need compute the contact information
     {
-      if(Intersect::intersect_Triangle(Vec3f(p1[0], p1[1], p1[2]),
-                                       Vec3f(p2[0], p2[1], p2[2]),
-                                       Vec3f(p3[0], p3[1], p3[2]),
-                                       Vec3f(q1[0], q1[1], q1[2]),
-                                       Vec3f(q2[0], q2[1], q2[2]),
-                                       Vec3f(q3[0], q3[1], q3[2]),
+      if(Intersect::intersect_Triangle(p1, p2, p3, q1, q2, q3,
                                        contacts,
                                        (unsigned int*)&n_contacts,
                                        &penetration,
@@ -262,7 +251,7 @@ void collideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
 void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
                     const Vec3f R[3], const Vec3f& T,
                     int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
                     BVH_CollideResult* res, BVHFrontList* front_list = NULL);
 
@@ -270,14 +259,14 @@ void collideRecurse(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
 void collideRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                     const Vec3f R[3], const Vec3f& T,
                     int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
                     BVH_CollideResult* res, BVHFrontList* front_list = NULL);
 
 /** \brief Recursive self collision kernel on one BV tree */
 template<typename BV>
 void selfCollideRecurse(BVNode<BV>* tree, int b,
-                        Point* vertices, Triangle* tri_indices,
+                        Vec3f* vertices, Triangle* tri_indices,
                         BVH_CollideResult* res, BVHFrontList* front_list = NULL)
 {
   BVNode<BV>* node = tree + b;
@@ -296,8 +285,8 @@ void selfCollideRecurse(BVNode<BV>* tree, int b,
 /** \brief Recursive continuous collision kernel between between two BV trees */
 template<typename BV>
 void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
-                              Point* vertices1, Point* vertices2,
-                              Point* prev_vertices1, Point* prev_vertices2,
+                              Vec3f* vertices1, Vec3f* vertices2,
+                              Vec3f* prev_vertices1, Vec3f* prev_vertices2,
                               Triangle* tri_indices1, Triangle* tri_indices2,
                               BVH_CollideResult* res, BVHFrontList* front_list = NULL)
 {
@@ -320,25 +309,21 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
 
     if(tri_indices1 && tri_indices2) // both are triangle mesh
     {
-      Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
-      Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+      const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
+      const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
       Vec3f S0[3];
       Vec3f S1[3];
       Vec3f T0[3];
       Vec3f T1[3];
 
-      Point p;
+
       for(int i = 0; i < 3; ++i)
       {
-        p = prev_vertices1[tri_id1[i]];
-        S0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices1[tri_id1[i]];
-        S1[i] = Vec3f(p[0], p[1], p[2]);
-        p = prev_vertices2[tri_id2[i]];
-        T0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices2[tri_id2[i]];
-        T1[i] = Vec3f(p[0], p[1], p[2]);
+        S0[i] = prev_vertices1[tri_id1[i]];
+        S1[i] = vertices1[tri_id1[i]];
+        T0[i] = prev_vertices2[tri_id2[i]];
+        T1[i] = vertices2[tri_id2[i]];
       }
 
       BVH_REAL tmp;
@@ -396,24 +381,19 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
       BVH_REAL collide_time = 2;
       Vec3f collide_pos;
 
-      Triangle tri_id1 = tri_indices1[-node1->first_child - 1];
+      const Triangle& tri_id1 = tri_indices1[-node1->first_child - 1];
       int vertex_id2 = -node2->first_child - 1;
 
       Vec3f S0[3];
       Vec3f S1[3];
 
-      Point p;
       for(int i = 0; i < 3; ++i)
       {
-        p = prev_vertices1[tri_id1[i]];
-        S0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices1[tri_id1[i]];
-        S1[i] = Vec3f(p[0], p[1], p[2]);
+        S0[i] = prev_vertices1[tri_id1[i]];
+        S1[i] = vertices1[tri_id1[i]];
       }
-      p = prev_vertices2[vertex_id2];
-      Vec3f T0 = Vec3f(p[0], p[1], p[2]);
-      p = vertices2[vertex_id2];
-      Vec3f T1 = Vec3f(p[0], p[1], p[2]);
+      Vec3f& T0 = prev_vertices2[vertex_id2];
+      Vec3f& T1 = vertices2[vertex_id2];
 
       BVH_REAL tmp;
       Vec3f tmpv;
@@ -439,22 +419,17 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
       Vec3f collide_pos;
 
       int vertex_id1 = -node1->first_child - 1;
-      Triangle tri_id2 = tri_indices2[-node2->first_child - 1];
+      const Triangle& tri_id2 = tri_indices2[-node2->first_child - 1];
 
-      Point p;
-      p = prev_vertices1[vertex_id1];
-      Vec3f S0 = Vec3f(p[0], p[1], p[2]);
-      p = vertices1[vertex_id1];
-      Vec3f S1 = Vec3f(p[0], p[1], p[2]);
+      Vec3f& S0 = prev_vertices1[vertex_id1];
+      Vec3f& S1 = vertices1[vertex_id1];
 
       Vec3f T0[3];
       Vec3f T1[3];
       for(int i = 0; i < 3; ++i)
       {
-        p = prev_vertices2[tri_id2[i]];
-        T0[i] = Vec3f(p[0], p[1], p[2]);
-        p = vertices2[tri_id2[i]];
-        T1[i] = Vec3f(p[0], p[1], p[2]);
+        T0[i] = prev_vertices2[tri_id2[i]];
+        T1[i] = vertices2[tri_id2[i]];
       }
 
       BVH_REAL tmp;
@@ -521,7 +496,7 @@ void continuousCollideRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int 
 /** \brief Recursive continuous self collision kernel between between two BV trees */
 template<typename BV>
 void continuousSelfCollideRecurse(BVNode<BV>* tree, int b,
-                        Point* vertices, Point* prev_vertices,
+                        Vec3f* vertices, Vec3f* prev_vertices,
                         Triangle* tri_indices,
                         BVH_CollideResult* res, BVHFrontList* front_list = NULL)
 {
@@ -542,7 +517,7 @@ void continuousSelfCollideRecurse(BVNode<BV>* tree, int b,
 /** \brief BVH front list propagation for collision */
 template<typename BV>
 void propagateBVHFrontList(BVNode<BV>* tree1, BVNode<BV>* tree2,
-                        Point* vertices1, Point* vertices2,
+                        Vec3f* vertices1, Vec3f* vertices2,
                         Triangle* tri_indices1, Triangle* tri_indices2,
                         BVH_CollideResult* res,
                         BVHFrontList* front_list)
@@ -616,7 +591,7 @@ void propagateBVHFrontList(BVNode<BV>* tree1, BVNode<BV>* tree2,
 /** \brief BVH front list propagation for collision of OBB trees */
 void propagateBVHFrontList(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
                            Vec3f R[3], const Vec3f& T,
-                           Point* vertices1, Point* vertices2,
+                           Vec3f* vertices1, Vec3f* vertices2,
                            Triangle* tri_indices1, Triangle* tri_indices2,
                            BVH_CollideResult* res,
                            BVHFrontList* front_list);
@@ -624,7 +599,7 @@ void propagateBVHFrontList(BVNode<OBB>* tree1, BVNode<OBB>* tree2,
 /** \brief RSS front list propagation for collision of RSS trees */
 void propagateBVHFrontList(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                            Vec3f R[3], const Vec3f& T,
-                           Point* vertices1, Point* vertices2,
+                           Vec3f* vertices1, Vec3f* vertices2,
                            Triangle* tri_indices1, Triangle* tri_indices2,
                            BVH_CollideResult* res,
                            BVHFrontList* front_list);
@@ -632,8 +607,8 @@ void propagateBVHFrontList(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
 /** \brief BVH front list propagation for continuous collision */
 template<typename BV>
 void continuousPropagateBVHFrontList(BVNode<BV>* tree1, BVNode<BV>* tree2,
-                        Point* vertices1, Point* vertices2,
-                        Point* prev_vertices1, Point* prev_vertices2,
+                        Vec3f* vertices1, Vec3f* vertices2,
+                        Vec3f* prev_vertices1, Vec3f* prev_vertices2,
                         Triangle* tri_indices1, Triangle* tri_indices2,
                         BVH_CollideResult* res,
                         BVHFrontList* front_list)

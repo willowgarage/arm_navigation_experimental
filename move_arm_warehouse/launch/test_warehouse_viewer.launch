@@ -53,7 +53,7 @@
 
 	  <node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
 
-	<node name="test" pkg="move_arm_warehouse" type="test_utils" launch-prefix="xterm -e gdb --args"/>
+  <test test-name="test_move_arm_warehouse" pkg="move_arm_warehouse" type="test_utils" time-limit="480.0"/>
 
 	<!-- Called when left arm executes trajectory using controllers -->
 	<param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />

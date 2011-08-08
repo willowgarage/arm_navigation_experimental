@@ -54,11 +54,10 @@ void BVSplitRule<OBB>::computeRule_mean(const OBB& bv, unsigned int* primitive_i
   {
     for(int i = 0; i < num_primitives; ++i)
     {
-      Triangle t = tri_indices[primitive_indices[i]];
-      Point p1, p2, p3;
-      p1 = vertices[t[0]];
-      p2 = vertices[t[1]];
-      p3 = vertices[t[2]];
+      const Triangle& t = tri_indices[primitive_indices[i]];
+      const Vec3f& p1 = vertices[t[0]];
+      const Vec3f& p2 = vertices[t[1]];
+      const Vec3f& p3 = vertices[t[2]];
       Vec3f centroid((p1[0] + p2[0] + p3[0]) / 3,
                      (p1[1] + p2[1] + p3[1]) / 3,
                      (p1[2] + p2[2] + p3[2]) / 3);
@@ -70,7 +69,7 @@ void BVSplitRule<OBB>::computeRule_mean(const OBB& bv, unsigned int* primitive_i
   {
     for(int i = 0; i < num_primitives; ++i)
     {
-      Point p = vertices[primitive_indices[i]];
+      const Vec3f& p = vertices[primitive_indices[i]];
       Vec3f v(p[0], p[1], p[2]);
       sum += v.dot(split_vector);
     }
@@ -89,11 +88,10 @@ void BVSplitRule<OBB>::computeRule_median(const OBB& bv, unsigned int* primitive
   {
     for(int i = 0; i < num_primitives; ++i)
     {
-      Triangle t = tri_indices[primitive_indices[i]];
-      Point p1, p2, p3;
-      p1 = vertices[t[0]];
-      p2 = vertices[t[1]];
-      p3 = vertices[t[2]];
+      const Triangle& t = tri_indices[primitive_indices[i]];
+      const Vec3f& p1 = vertices[t[0]];
+      const Vec3f& p2 = vertices[t[1]];
+      const Vec3f& p3 = vertices[t[2]];
       Vec3f centroid((p1[0] + p2[0] + p3[0]) / 3,
                      (p1[1] + p2[1] + p3[1]) / 3,
                      (p1[2] + p2[2] + p3[2]) / 3);
@@ -105,7 +103,7 @@ void BVSplitRule<OBB>::computeRule_median(const OBB& bv, unsigned int* primitive
   {
     for(int i = 0; i < num_primitives; ++i)
     {
-      Point p = vertices[primitive_indices[i]];
+      const Vec3f& p = vertices[primitive_indices[i]];
       Vec3f v(p[0], p[1], p[2]);
       proj[i] = v.dot(split_vector);
     }

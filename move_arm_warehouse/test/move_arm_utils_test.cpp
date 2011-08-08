@@ -244,9 +244,13 @@ TEST(TestSuite, collisionObjectTest)
     scaleX = randFloat(0.01f, 0.2f);
     scaleY = randFloat(0.01f, 0.2f);
     scaleZ = randFloat(0.01f, 0.2f);
-
+    std_msgs::ColorRGBA color;
+    color.r = 0.5;
+    color.g = 0.5;
+    color.b = 0.5;
+    color.a = 1.0;
     ROS_INFO("Creating object with size %f %f %f and position %f %f %f",scaleX, scaleY, scaleZ, pose.position.x, pose.position.y, pose.position.z);
-    std::string obj = editor->createCollisionObject(pose, shape, scaleX, scaleY, scaleZ);
+    std::string obj = editor->createCollisionObject(pose, shape, scaleX, scaleY, scaleZ,color);
     objs.push_back(obj);
   }
 

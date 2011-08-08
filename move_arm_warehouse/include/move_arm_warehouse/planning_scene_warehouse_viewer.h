@@ -350,6 +350,9 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
     void executeButtonPressed();
     void refreshSceneButtonPressed();
     void viewOutcomesPressed();
+    void trajectoryRenderTypeChanged(const QString& type);
+    void motionPlanRenderTypeChanged(const QString& type);
+    void objectColorButtonPressed();
 
   protected:
     QLabel* selected_trajectory_label_;
@@ -384,6 +387,7 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
 
     QPushButton* load_planning_scene_button_;
     QPushButton* refresh_planning_scene_button_;
+    QPushButton* object_color_button_;
     QComboBox* collision_display_box_;
 
     QSpinBox* trajectory_point_edit_;

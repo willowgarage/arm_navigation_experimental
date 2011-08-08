@@ -53,15 +53,15 @@ void OBB::SimpleQuaternion::fromRotation(const Vec3f axis[3])
   // Algorithm in Ken Shoemake's article in 1987 SIGGRAPH course notes
   // article "Quaternion Calculus and Fast Animation".
 
-  const int next[3] = { 1, 2, 0 };
+  const int next[3] = {1, 2, 0};
 
   BVH_REAL trace = axis[0][0] + axis[1][1] + axis[2][2];
   BVH_REAL root;
 
-  if(trace > 0)
+  if(trace > 0.0)
   {
     // |w| > 1/2, may as well choose w > 1/2
-    root = sqrt(trace + 1);  // 2w
+    root = sqrt(trace + 1.0);  // 2w
     data[0] = 0.5 * root;
     root = 0.5 / root;  // 1/(4w)
     data[1] = (axis[1][2] - axis[2][1])*root;
@@ -83,7 +83,7 @@ void OBB::SimpleQuaternion::fromRotation(const Vec3f axis[3])
     int j = next[i];
     int k = next[j];
 
-    root = sqrt(axis[i][i] - axis[j][j] - axis[k][k] + 1);
+    root = sqrt(axis[i][i] - axis[j][j] - axis[k][k] + 1.0);
     BVH_REAL* quat[3] = { &data[1], &data[2], &data[3] };
     *quat[i] = 0.5 * root;
     root = 0.5 / root;
@@ -95,9 +95,9 @@ void OBB::SimpleQuaternion::fromRotation(const Vec3f axis[3])
 
 void OBB::SimpleQuaternion::toRotation(Vec3f axis[3]) const
 {
-  BVH_REAL twoX  = 2*data[1];
-  BVH_REAL twoY  = 2*data[2];
-  BVH_REAL twoZ  = 2*data[3];
+  BVH_REAL twoX  = 2.0*data[1];
+  BVH_REAL twoY  = 2.0*data[2];
+  BVH_REAL twoZ  = 2.0*data[3];
   BVH_REAL twoWX = twoX*data[0];
   BVH_REAL twoWY = twoY*data[0];
   BVH_REAL twoWZ = twoZ*data[0];
@@ -108,17 +108,17 @@ void OBB::SimpleQuaternion::toRotation(Vec3f axis[3]) const
   BVH_REAL twoYZ = twoZ*data[2];
   BVH_REAL twoZZ = twoZ*data[3];
 
-  axis[0] = Vec3f(1 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
-  axis[1] = Vec3f(twoXY - twoWZ, 1 - (twoXX + twoZZ), twoYZ + twoWX);
-  axis[2] = Vec3f(twoXZ + twoWY, twoYZ - twoWX, 1 - (twoXX + twoYY));
+  axis[0] = Vec3f(1.0 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
+  axis[1] = Vec3f(twoXY - twoWZ, 1.0 - (twoXX + twoZZ), twoYZ + twoWX);
+  axis[2] = Vec3f(twoXZ + twoWY, twoYZ - twoWX, 1.0 - (twoXX + twoYY));
 }
 
-BVH_REAL OBB::SimpleQuaternion::dot(SimpleQuaternion const& other) const
+BVH_REAL OBB::SimpleQuaternion::dot(const SimpleQuaternion& other) const
 {
   return data[0] * other.data[0] + data[1] * other.data[1] + data[2] * other.data[2] + data[3] * other.data[3];
 }
 
-OBB::SimpleQuaternion OBB::SimpleQuaternion::operator + (SimpleQuaternion const& other) const
+OBB::SimpleQuaternion OBB::SimpleQuaternion::operator + (const SimpleQuaternion& other) const
 {
   return SimpleQuaternion(data[0] + other.data[0], data[1] + other.data[1],
                           data[2] + other.data[2], data[3] + other.data[3]);
@@ -199,10 +199,9 @@ OBB OBB::operator + (const OBB& other) const
 }
 
 
-int OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f const& b)
+bool OBB::obbDisjoint(const Vec3f B[3], const Vec3f& T, const Vec3f& a, const Vec3f& b)
 {
   register BVH_REAL t, s;
-  register int r;
   Vec3f Bf[3];
   const BVH_REAL reps = 1e-6;
 
@@ -210,13 +209,138 @@ int OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f con
   Bf[1] = abs(B[1]);
   Bf[2] = abs(B[2]);
 
-  for(int i = 0; i < 3; ++i)
-  {
-    for(int j = 0; j < 3; ++j)
-    {
-      Bf[i][j] += reps;
-    }
-  }
+  Vec3f reps_vec(reps, reps, reps);
+
+  Bf[0] += reps_vec;
+  Bf[1] += reps_vec;
+  Bf[2] += reps_vec;
+
+  Vec3f Bf_col[3] = {Vec3f(Bf[0][0], Bf[1][0], Bf[2][0]),
+                     Vec3f(Bf[0][1], Bf[1][1], Bf[2][1]),
+                     Vec3f(Bf[0][2], Bf[1][2], Bf[2][2])};
+
+  Vec3f B_col[3] = {Vec3f(B[0][0], B[1][0], B[2][0]),
+                    Vec3f(B[0][1], B[1][1], B[2][1]),
+                    Vec3f(B[0][2], B[1][2], B[2][2])};
+
+
+  // if any of these tests are one-sided, then the polyhedra are disjoint
+
+  // A1 x A2 = A0
+  t = ((T[0] < 0) ? -T[0] : T[0]);
+
+  if(t > (a[0] + b.dot(Bf[0])))
+    return true;
+
+  // B1 x B2 = B0
+  s =  T.dot(B_col[0]);
+  t = ((s < 0) ? -s : s);
+
+  if(t > (b[0] + a.dot(Bf_col[0])))
+    return true;
+
+  // A2 x A0 = A1
+  t = ((T[1] < 0) ? -T[1] : T[1]);
+
+  if(t > (a[1] + b.dot(Bf[1])))
+    return true;
+
+  // A0 x A1 = A2
+  t =((T[2] < 0) ? -T[2] : T[2]);
+
+  if(t > (a[2] + b.dot(Bf[2])))
+    return true;
+
+  // B2 x B0 = B1
+  s = T.dot(B_col[1]);
+  t = ((s < 0) ? -s : s);
+
+  if(t > (b[1] + a.dot(Bf_col[1])))
+    return true;
+
+  // B0 x B1 = B2
+  s = T.dot(B_col[2]);
+  t = ((s < 0) ? -s : s);
+
+  if(t > (b[2] + a.dot(Bf_col[2])))
+    return true;
+
+  // A0 x B0
+  s = T[2] * B[1][0] - T[1] * B[2][0];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[1] * Bf[2][0] + a[2] * Bf[1][0] +
+          b[1] * Bf[0][2] + b[2] * Bf[0][1]))
+    return true;
+
+  // A0 x B1
+  s = T[2] * B[1][1] - T[1] * B[2][1];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[1] * Bf[2][1] + a[2] * Bf[1][1] +
+          b[0] * Bf[0][2] + b[2] * Bf[0][0]))
+    return true;
+
+  // A0 x B2
+  s = T[2] * B[1][2] - T[1] * B[2][2];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[1] * Bf[2][2] + a[2] * Bf[1][2] +
+          b[0] * Bf[0][1] + b[1] * Bf[0][0]))
+    return true;
+
+  // A1 x B0
+  s = T[0] * B[2][0] - T[2] * B[0][0];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[2][0] + a[2] * Bf[0][0] +
+          b[1] * Bf[1][2] + b[2] * Bf[1][1]))
+    return true;
+
+  // A1 x B1
+  s = T[0] * B[2][1] - T[2] * B[0][1];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[2][1] + a[2] * Bf[0][1] +
+          b[0] * Bf[1][2] + b[2] * Bf[1][0]))
+    return true;
+
+  // A1 x B2
+  s = T[0] * B[2][2] - T[2] * B[0][2];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[2][2] + a[2] * Bf[0][2] +
+          b[0] * Bf[1][1] + b[1] * Bf[1][0]))
+    return true;
+
+  // A2 x B0
+  s = T[1] * B[0][0] - T[0] * B[1][0];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[1][0] + a[1] * Bf[0][0] +
+          b[1] * Bf[2][2] + b[2] * Bf[2][1]))
+    return true;
+
+  // A2 x B1
+  s = T[1] * B[0][1] - T[0] * B[1][1];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[1][1] + a[1] * Bf[0][1] +
+          b[0] * Bf[2][2] + b[2] * Bf[2][0]))
+    return true;
+
+  // A2 x B2
+  s = T[1] * B[0][2] - T[0] * B[1][2];
+  t = ((s < 0) ? -s : s);
+
+  if(t > (a[0] * Bf[1][2] + a[1] * Bf[0][2] +
+          b[0] * Bf[2][1] + b[1] * Bf[2][0]))
+    return true;
+
+  return false;
+
+  /*
+  register int r;
 
   // if any of these tests are one-sided, then the polyhedra are disjoint
   r = 1;
@@ -348,6 +472,7 @@ int OBB::obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f con
   if (!r) return 15;
 
   return 0;  // should equal 0
+  */
 }
 
 

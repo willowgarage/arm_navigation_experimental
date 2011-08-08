@@ -44,6 +44,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <spline_smoother/cubic_trajectory.h>
 #include <arm_navigation_msgs/FilterJointTrajectory.h>
+#include <planning_environment/models/model_utils.h>
+#include <spline_smoother/fritsch_butland_spline_smoother.h>
 
 #include <map>
 #include <vector>
@@ -67,7 +69,7 @@ bool ChompPlannerNode::init()
   // load in some default parameters
   node_handle_.param("trajectory_duration", trajectory_duration_, 3.0);
   node_handle_.param("trajectory_discretization", trajectory_discretization_, 0.03);
-  node_handle_.param("use_additional_trajectory_filter", use_trajectory_filter_, true);
+  node_handle_.param("use_additional_trajectory_filter", use_trajectory_filter_, false);
   node_handle_.param("minimum_spline_points", minimum_spline_points_, 40);
   node_handle_.param("maximum_spline_points", maximum_spline_points_, 100);
   if(node_handle_.hasParam("joint_velocity_limits")) {
@@ -102,7 +104,7 @@ bool ChompPlannerNode::init()
   reference_frame_ = collision_proximity_space_->getCollisionModelsInterface()->getWorldFrameId();
 
 
-  robot_model_= collision_proximity_space_->getCollisionModelsInterface()->getKinematicModel();
+  robot_model_= (planning_models::KinematicModel*)collision_proximity_space_->getCollisionModelsInterface()->getKinematicModel();
 
   // load chomp parameters:
   chomp_parameters_.initFromNodeHandle();
@@ -179,7 +181,7 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
                                                    req.motion_plan_request.start_state,
                                                    linkNames,
                                                    attachedBodies);
-
+  collision_proximity_space_->visualizeObjectSpheres(collision_proximity_space_->getCurrentLinkNames());
   ChompTrajectory trajectory(robot_model_, trajectory_duration_, trajectory_discretization_, group_name);
 
   ROS_INFO("Initial trajectory has %d points", trajectory.getNumPoints());
@@ -197,6 +199,7 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
 
   map<string, KinematicModel::JointModelGroup*> groupMap = robot_model_->getJointModelGroupMap();
   KinematicModel::JointModelGroup* modelGroup = groupMap[group_name];
+
 
   // fix the goal to move the shortest angular distance for wrap-around joints:
   for (size_t i = 0; i < modelGroup->getJointModels().size(); i++)
@@ -228,7 +231,7 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
   ROS_INFO("Optimization took %f sec to create", (ros::WallTime::now() - create_time).toSec());
   optimizer.optimize();
   ROS_INFO("Optimization actually took %f sec to run", (ros::WallTime::now() - create_time).toSec());
-
+  create_time = ros::WallTime::now();
   // assume that the trajectory is now optimized, fill in the output structure:
 
   ROS_INFO("Output trajectory has %d joints", trajectory.getNumJoints());
@@ -281,8 +284,9 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
   return true;
 }
 
-bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request &req, arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response &res)
+bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request &request, arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response &res)
 {
+  arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request req = request;
   ros::WallTime start_time = ros::WallTime::now();
   ROS_INFO_STREAM("Received filtering request with trajectory size " << req.trajectory.points.size());
 
@@ -318,9 +322,13 @@ bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTra
     num_points = minimum_spline_points_;
   }
 
+
   //create a spline from the trajectory
   spline_smoother::CubicTrajectory trajectory_solver;
   spline_smoother::SplineTrajectory spline;
+
+  planning_environment::setRobotStateAndComputeTransforms(req.start_state,
+                                                          *collision_proximity_space_->getCollisionModelsInterface()->getPlanningSceneState());
   
   trajectory_solver.parameterize(req.trajectory,req.limits,spline);  
   
@@ -362,7 +370,7 @@ bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTra
   //configure the distance field - this should just use current state
   arm_navigation_msgs::RobotState robot_state = req.start_state;
 
-  jointStateToArray(robot_state.joint_state, group_name, trajectory.getTrajectoryPoint(0));
+  jointStateToArray(arm_navigation_msgs::createJointState(req.trajectory.joint_names, jtraj.points[0].positions), group_name, trajectory.getTrajectoryPoint(0));
 
   //set the goal state equal to start state, and override the joints specified in the goal
   //joint constraints
@@ -399,7 +407,7 @@ bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTra
   
   // set the max planning time:
   chomp_parameters_.setPlanningTimeLimit(req.allowed_time.toSec());
-  
+  chomp_parameters_.setFilterMode(true);
   // optimize!
   ChompOptimizer optimizer(&trajectory, robot_model_, group_name, &chomp_parameters_,
       vis_marker_array_publisher_, vis_marker_publisher_, collision_proximity_space_);
@@ -422,11 +430,11 @@ bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTra
 
   // fill in the entire trajectory
 
-  for (size_t i = 0; i < modelGroup->getJointModels().size(); i++)
+  for (size_t i = 0; i < trajectory.getNumPoints(); i++)
   {
     res.trajectory.points[i].positions.resize(trajectory.getNumJoints());
     res.trajectory.points[i].velocities.resize(trajectory.getNumJoints());
-    for (size_t j=0; j < res.trajectory.points.size(); j++)
+    for (size_t j=0; j < res.trajectory.points[i].positions.size(); j++)
     {
       res.trajectory.points[i].positions[j] = trajectory(i, j);
     }

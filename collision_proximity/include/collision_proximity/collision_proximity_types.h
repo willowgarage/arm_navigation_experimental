@@ -95,6 +95,7 @@ struct GradientInfo
   std::vector<double> distances;
   std::vector<btVector3> gradients;
   std::vector<double> sphere_radii;
+  std::string joint_name;
 
   void clear() {
     closest_distance = DBL_MAX;
@@ -106,7 +107,7 @@ struct GradientInfo
 };
 
 //determines set of collision spheres given a posed body
-std::vector<CollisionSphere> determineCollisionSpheres(const bodies::Body* body);
+std::vector<CollisionSphere> determineCollisionSpheres(const bodies::Body* body, btTransform& relativeTransform);
 
 //determines a set of points at the indicated resolution that are inside the supplied body 
 std::vector<btVector3> determineCollisionPoints(const bodies::Body* body, double resolution);
@@ -136,13 +137,15 @@ public:
   BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution);
 
   ~BodyDecomposition();
-    
+
+  btTransform relative_cylinder_pose_;
+
   //assumed to be in reference frame, updates the pose of the body,
   //the collision spheres, and the posed collision points
-  void updatePose(const btTransform& transform);
+  void updatePose(const btTransform& linkTransform);
 
-  void updateSpheresPose(const btTransform& transform);
-  void updatePointsPose(const btTransform& transform);
+  void updateSpheresPose(const btTransform& linkTransform);
+  void updatePointsPose(const btTransform& linkTransform);
 
   const std::vector<CollisionSphere>& getCollisionSpheres() const 
   {

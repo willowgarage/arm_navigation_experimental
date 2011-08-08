@@ -1,10 +1,8 @@
 <package>
   <description brief="collision_checking">
-
-     collision_checking
-
+    The collision_checking library is a full-fledged collision checking library that also provides advanced capabilities including proximity distance and continuous collision detection (CCD). 
   </description>
-  <author>Jia Pan, Dinesh Manocha</author>
+  <author>Jia Pan, Dinesh Manocha (UNC, Chapel Hill) </author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/collision_checking</url>

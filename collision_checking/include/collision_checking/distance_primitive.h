@@ -39,7 +39,7 @@
 
 #include "collision_checking/BVH_defs.h"
 #include "collision_checking/BVH_model.h"
-
+#include "collision_checking/BVH_front.h"
 
 /** \brief Main namespace */
 namespace collision_checking
@@ -94,9 +94,9 @@ struct BVH_DistanceResult
 /** \brief Recursive proximity kernel between two BV trees */
 template<typename BV>
 void distanceRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
-                    BVH_DistanceResult* res)
+                    BVH_DistanceResult* res, BVHFrontList* front_list = NULL)
 {
   std::cerr << "Bounding volume structure default can not support distance operation!" << std::endl;
 }
@@ -105,18 +105,18 @@ void distanceRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
 void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                     const Vec3f R[3], const Vec3f& T,
                     int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
-                    BVH_DistanceResult* res);
+                    BVH_DistanceResult* res, BVHFrontList* front_list = NULL);
 
 
 /** \brief Recursive proximity kernel between two RSS trees, using BVT queue acceleration */
 void distanceQueueRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                           const Vec3f R[3], const Vec3f& T,
                           int b1, int b2,
-                          Point* vertices1, Point* vertices2,
+                          Vec3f* vertices1, Vec3f* vertices2,
                           Triangle* tri_indices1, Triangle* tri_indices2,
-                          BVH_DistanceResult* res);
+                          BVH_DistanceResult* res, BVHFrontList* front_list = NULL);
 
 }
 

@@ -43,28 +43,6 @@
 namespace collision_checking
 {
 
-/** \brief Simple Point class */
-struct Point
-{
-  BVH_REAL pos[3];
-
-  Point() {}
-
-  Point(BVH_REAL x, BVH_REAL y, BVH_REAL z)
-  {
-    set(x, y, z);
-  }
-
-  inline void set(BVH_REAL x, BVH_REAL y, BVH_REAL z)
-  {
-    pos[0] = x; pos[1] = y; pos[2] = z;
-  }
-
-  inline BVH_REAL operator[](int i) const { return pos[i]; }
-
-  inline BVH_REAL& operator[](int i) { return pos[i]; }
-};
-
 /** \brief Simple triangle with 3 indices for points */
 struct Triangle3e
 {
