@@ -116,6 +116,7 @@ TrajectoryData::TrajectoryData()
   has_refreshed_colors_ = true;
   refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
+  setRenderType(CollisionMesh);
 }
 
 TrajectoryData::TrajectoryData(string ID, string source, string groupName, JointTrajectory trajectory)
@@ -132,6 +133,7 @@ TrajectoryData::TrajectoryData(string ID, string source, string groupName, Joint
   has_refreshed_colors_ = true;
   refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
+  setRenderType(CollisionMesh);
 }
 
 void TrajectoryData::moveThroughTrajectory(int step)
@@ -238,6 +240,7 @@ MotionPlanRequestData::MotionPlanRequestData(KinematicState* robot_state)
   should_refresh_colors_ = false;
   has_refreshed_colors_ = true;
   refresh_timer_ = ros::Duration(0.0);
+  setRenderType(CollisionMesh);
 }
 
 MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPlanRequest request,
@@ -263,6 +266,8 @@ MotionPlanRequestData::MotionPlanRequestData(string ID, string source, MotionPla
   has_refreshed_colors_ = true;
   refresh_timer_ = ros::Duration(0.0);
   are_joint_controls_visible_ = false;
+
+  setRenderType(CollisionMesh);
 }
 
 // Kinematic states must be converted to joint constraint message
@@ -472,6 +477,11 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   params_ = params;
   monitor_status_ = Idle;
 
+  last_collision_object_color_.r = 0.7;
+  last_collision_object_color_.g = 0.7;
+  last_collision_object_color_.b = 0.7;
+  last_collision_object_color_.a = 1.0;
+
   planning_scene_map_ = new map<string, PlanningSceneData> ();
   trajectory_map_ = new map<string, TrajectoryData> ();
   motion_plan_map_ = new map<string, MotionPlanRequestData> ();
@@ -645,6 +655,11 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Filter Last Trajectory", ik_control_feedback_ptr_);
 
+  if(params_.use_robot_data_)
+  {
+    registerMenuEntry("IK Control", "Execute Last Trajectory", ik_control_feedback_ptr_);
+  }
+
   /////
   /// Connection with sim data
   /////
@@ -771,7 +786,12 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
       std::stringstream ss;
       ss << "collision_object_";
       ss << i;
-      createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], ss.str(), "");
+      std_msgs::ColorRGBA color;
+      color.r = 0.5;
+      color.g = 0.5;
+      color.b = 0.5;
+      color.a = 1.0;
+      createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], ss.str(), "", color);
     }
 
     /////
@@ -875,7 +895,7 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
     {
       it->second.refresh_timer_ += marker_dt_;
 
-      if(it->second.refresh_timer_.toSec() > MARKER_REFRESH_TIME + 0.01)
+      if(it->second.refresh_timer_.toSec() > MARKER_REFRESH_TIME + 0.05)
       {
         it->second.setHasRefreshedColors(true);
         it->second.refresh_timer_ = ros::Duration(0.0);
@@ -896,8 +916,26 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
         }
 
         // Links in group
-        cm_->getRobotMarkersGivenState(*(it->second.getCurrentState()), arr, it->second.getColor(),
-                                       it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), &lnames);
+        switch(it->second.getRenderType())
+        {
+          case VisualMesh:
+            cm_->getRobotMarkersGivenState(*(it->second.getCurrentState()), arr, it->second.getColor(),
+                                         it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
+            break;
+          case CollisionMesh:
+            cm_->getRobotMarkersGivenState(*(it->second.getCurrentState()), arr, it->second.getColor(),
+                                         it->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
+            break;
+          case PaddingMesh:
+            cm_->getRobotTrimeshMarkersGivenState((const KinematicState&)*(it->second.getCurrentState()),
+                                                  arr,
+                                                  true,
+                                                  it->first + "_trajectory",
+                                                  it->second.getColor(),
+                                                  ros::Duration(MARKER_REFRESH_TIME),
+                                                  (const vector<string>*)&lnames);
+            break;
+        }
 
         // Bodies held by robot
         cm_->getAttachedCollisionObjectMarkers(*(it->second.getCurrentState()), arr, it->first + "_trajectory",
@@ -958,7 +996,7 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
     {
       data.refresh_timer_ += marker_dt_;
 
-      if(data.refresh_timer_.toSec() > MARKER_REFRESH_TIME + 0.01)
+      if(data.refresh_timer_.toSec() > MARKER_REFRESH_TIME + 0.05)
       {
         data.setHasRefreshedColors(true);
         data.refresh_timer_ = ros::Duration(0.0);
@@ -987,17 +1025,44 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
           lnames[i] = updated_links[i]->getName();
         }
 
+
         // If we have a good ik solution, publish with the normal color
         // else use bright red.
         if(data.hasGoodIKSolution())
         {
-          cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, data.getStartColor(), it->first + "_start",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames);
+          switch(data.getRenderType())
+          {
+            case VisualMesh:
+              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, data.getStartColor(), it->first + "_start",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
+              break;
+            case CollisionMesh:
+              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, data.getStartColor(), it->first + "_start",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
+              break;
+            case PaddingMesh:
+              cm_->getRobotTrimeshMarkersGivenState((const KinematicState&)*(data.getStartState()), arr, true, it->first + "_start", it->second.getStartColor(),
+                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
+              break;
+          }
         }
         else
         {
-          cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, fail_color, it->first + "_start",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames);
+          switch(data.getRenderType())
+          {
+            case VisualMesh:
+              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, fail_color, it->first + "_start",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
+              break;
+            case CollisionMesh:
+              cm_->getRobotMarkersGivenState(*(data.getStartState()), arr, fail_color, it->first + "_start",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
+              break;
+            case PaddingMesh:
+              cm_->getRobotTrimeshMarkersGivenState((const KinematicState&)*(data.getStartState()), arr, true, it->first + "_start", fail_color,
+                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
+              break;
+          }
         }
 
       }
@@ -1019,13 +1084,39 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
 
         if(data.hasGoodIKSolution())
         {
-          cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getGoalColor(), it->first + "_end",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames);
+          switch(data.getRenderType())
+          {
+            case VisualMesh:
+              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getGoalColor(), it->first + "_Goal",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
+              break;
+            case CollisionMesh:
+              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, data.getGoalColor(), it->first + "_Goal",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
+              break;
+            case PaddingMesh:
+              cm_->getRobotTrimeshMarkersGivenState(*(data.getGoalState()), arr, true,it->first + "_Goal", it->second.getGoalColor(),
+                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
+              break;
+          }
         }
         else
         {
-          cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, fail_color, it->first + "_end",
-                                         ros::Duration(MARKER_REFRESH_TIME), &lnames);
+          switch(data.getRenderType())
+          {
+            case VisualMesh:
+              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, fail_color, it->first + "_Goal",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, true);
+              break;
+            case CollisionMesh:
+              cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, fail_color, it->first + "_Goal",
+                                         ros::Duration(MARKER_REFRESH_TIME), &lnames, false);
+              break;
+            case PaddingMesh:
+              cm_->getRobotTrimeshMarkersGivenState(*(data.getGoalState()), arr, true, it->first + "_Goal", fail_color,
+                                                    ros::Duration(MARKER_REFRESH_TIME), &lnames);
+              break;
+          }
         }
       }
     }
@@ -1857,7 +1948,7 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
 }
 
 void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObject& object, string name,
-                                                                    string description)
+                                                                    string description, std_msgs::ColorRGBA color)
 {
   SelectableObject selectable;
   selectable.ID_ = name;
@@ -1870,6 +1961,8 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   selectable.selection_marker_.header.frame_id = "/" + cm_->getWorldFrameId();
   selectable.selection_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
 
+  selectable.color_ = color;
+
   InteractiveMarkerControl button;
   button.name = name;
   button.interaction_mode = InteractiveMarkerControl::BUTTON;
@@ -1880,10 +1973,7 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   {
     arm_navigation_msgs::Shape& shape = object.shapes[i];
     Marker mark;
-    mark.color.a = 1.0;
-    mark.color.r = 0.6;
-    mark.color.g = 0.6;
-    mark.color.b = 0.6;
+    mark.color = color;
     //mark.pose = object.poses[i];
 
 
@@ -2110,6 +2200,16 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
         filterTrajectory(data, (*trajectory_map_)[selected_trajectory_ID_], trajectory);
         selected_trajectory_ID_ = trajectory;
         playTrajectory(data, (*trajectory_map_)[selected_trajectory_ID_]);
+        updateState();
+      }
+    }
+    else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Execute Last Trajectory"])
+    {
+      MotionPlanRequestData& data = (*motion_plan_map_)[controller.motion_plan_ID_];
+      std::string trajectory;
+      if(selected_trajectory_ID_ != "" && trajectory_map_->find(selected_trajectory_ID_) != trajectory_map_->end())
+      {
+        executeTrajectory(selected_trajectory_ID_);
         updateState();
       }
     }
@@ -2344,7 +2444,7 @@ void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarke
 }
 
 std::string PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, PlanningSceneEditor::GeneratedShape shape,
-                                                float scaleX, float scaleY, float scaleZ)
+                                                float scaleX, float scaleY, float scaleZ, std_msgs::ColorRGBA color)
 {
   lockScene();
   arm_navigation_msgs::CollisionObject collision_object;
@@ -2386,7 +2486,7 @@ std::string PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose,
 
   btTransform cur = toBulletTransform(pose);
 
-  createSelectableMarkerFromCollisionObject(collision_object, collision_object.id, "");
+  createSelectableMarkerFromCollisionObject(collision_object, collision_object.id, "", color);
 
   ROS_INFO("Created collision object.");
   ROS_INFO("Sending planning scene %s", current_planning_scene_ID_.c_str());
@@ -3080,6 +3180,7 @@ void PlanningSceneEditor::deleteTrajectory(std::string ID)
 
   }
   unlockScene();
+  interactive_marker_server_->applyChanges();
 }
 
 void PlanningSceneEditor::deleteMotionPlanRequest(std::string ID)
@@ -3131,6 +3232,7 @@ void PlanningSceneEditor::deleteMotionPlanRequest(std::string ID)
     updateState();
   }
   unlockScene();
+  interactive_marker_server_->applyChanges();
 }
 
 void PlanningSceneEditor::executeTrajectory(std::string trajectory_ID)
