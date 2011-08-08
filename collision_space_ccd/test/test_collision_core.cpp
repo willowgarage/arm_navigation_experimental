@@ -1,6 +1,7 @@
 #include "collision_checking/collision.h"
 #include "collision_checking/proximity.h"
 #include "collision_checking/continuous_collision.h"
+#include "collision_checking/conservative_advancement.h"
 #include "collision_checking/collision_geom.h"
 #include <limits>
 
@@ -14,13 +15,13 @@
 
 using namespace collision_checking;
 
-void loadOBJFile(const char* filename, std::vector<Point>& points, std::vector<Triangle>& triangles);
+void loadOBJFile(const char* filename, std::vector<Vec3f>& points, std::vector<Triangle>& triangles);
 
 void generateRandomTransform(BVH_REAL extents[6], std::vector<btTransform>& transforms, std::vector<btTransform>& transforms2, BVH_REAL delta_trans[3], BVH_REAL delta_rot, int n);
 
 void generateRandomTransform_ccd(BVH_REAL extents[6], std::vector<btTransform>& transforms, std::vector<btTransform>& transforms2, BVH_REAL delta_trans[3], BVH_REAL delta_rot, int n,
-                                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2);
+                                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2);
 
 BVH_REAL rand_interval(BVH_REAL rmin, BVH_REAL rmax);
 
@@ -32,62 +33,67 @@ void sortCollisionPair_PQP(CollisionPair* pairs, int n);
 
 
 bool collide_PQP(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
 
 bool collide_PQP2(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
+                  const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                  const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
 #endif
 
 template<typename BV>
 bool collide_Test(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
-                 SplitMethodType split_method,
-                 bool verbose = true);
+                  const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                  const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
+                  SplitMethodType split_method,
+                  bool verbose = true);
 
 bool collide_Test2(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
-                 SplitMethodType split_method,
-                 bool verbose = true);
+                   const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                   const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
+                   SplitMethodType split_method,
+                   bool verbose = true);
 
 template<typename BV>
 bool collide_front_Test(const btTransform& T, const btTransform& T2,
-                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                         SplitMethodType split_method,
                         bool refit_bottomup = true, bool verbose = true);
 
 template<typename BV>
 bool continuous_collide_Test(const btTransform& T, const btTransform& T2,
-                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
-                        SplitMethodType split_method,
-                        bool refit_bottomup = true, bool verbose = true);
+                             const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                             const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
+                             SplitMethodType split_method,
+                             bool refit_bottomup = true, bool verbose = true);
 
+bool continuous_collide_CA_Test(const btTransform& T, const btTransform& T2,
+                                const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                                const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
+                                SplitMethodType split_method,
+                                bool refit_bottomup = true, bool verbose = true);
 
 bool distance_Test(const btTransform& T,
-                   const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                   const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                   const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                   const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                    SplitMethodType split_method,
                    bool verbose = true);
 
 bool distanceQueue_Test(const btTransform& T,
-                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                         SplitMethodType split_method,
                         bool verbose = true);
 
 bool distance_PQP(const btTransform& T,
-                  const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                  const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
+                  const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                  const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
 
 
 bool distance_PQP2(const btTransform& T,
-                   const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                   const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
+                   const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                   const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose = true);
 
 static const int num_max_contacts = 10000;
 
@@ -95,7 +101,7 @@ int main(int argc, char** argv)
 {
   /*
   CollisionMesh<OBB>* cl = makeCylinder<OBB>(3, 10);
-  std::vector<Point> ps;
+  std::vector<Vec3f> ps;
   std::vector<Triangle> ts;
   for(unsigned int i = 0; i < cl->model.num_vertices; ++i)
     ps.push_back(cl->model.vertices[i]);
@@ -104,7 +110,7 @@ int main(int argc, char** argv)
   saveOBjFile("test.obj", ps, ts);
   */
 
-  std::vector<Point> p1, p2;
+  std::vector<Vec3f> p1, p2;
   std::vector<Triangle> t1, t2;
   loadOBJFile("env.obj", p1, t1);
   loadOBJFile("rob.obj", p2, t2);
@@ -167,7 +173,20 @@ int main(int argc, char** argv)
   }
 */
 
-/*
+  for(unsigned int i = 0; i < transforms.size(); ++i)
+  {
+    std::cout << "CA test id " << i << std::endl;
+
+    continuous_collide_CA_Test(transforms[i], transforms2[i], p1, t1, p2, t2, SPLIT_METHOD_MEAN);
+
+    continuous_collide_CA_Test(transforms[i], transforms2[i], p1, t1, p2, t2, SPLIT_METHOD_BV_CENTER);
+
+    continuous_collide_CA_Test(transforms[i], transforms2[i], p1, t1, p2, t2, SPLIT_METHOD_MEDIAN);
+  }
+
+  return 1;
+
+
   for(unsigned int i = 0; i < transforms.size(); ++i)
   {
     std::cout << "distance test id " << i << std::endl;
@@ -194,7 +213,7 @@ int main(int argc, char** argv)
   }
 
   return 1;
-*/
+
 
   for(unsigned int i = 0 ; i < transforms.size(); ++i)
   {
@@ -251,7 +270,6 @@ int main(int argc, char** argv)
     std::cout << std::endl;
   }
 
-  return 1;
 
   for(unsigned int i = 0 ; i < transforms2.size(); ++i)
   {
@@ -297,7 +315,7 @@ int main(int argc, char** argv)
   return 0;
 }
 
-void loadOBJFile(const char* filename, std::vector<Point>& points, std::vector<Triangle>& triangles)
+void loadOBJFile(const char* filename, std::vector<Vec3f>& points, std::vector<Triangle>& triangles)
 {
 
   FILE* file = fopen(filename, "rb");
@@ -338,7 +356,7 @@ void loadOBJFile(const char* filename, std::vector<Point>& points, std::vector<T
           BVH_REAL x = (BVH_REAL)atof(strtok(NULL, "\t "));
           BVH_REAL y = (BVH_REAL)atof(strtok(NULL, "\t "));
           BVH_REAL z = (BVH_REAL)atof(strtok(NULL, "\t "));
-          Point p(x, y, z);
+          Vec3f p(x, y, z);
           points.push_back(p);
         }
       }
@@ -436,8 +454,8 @@ void generateRandomTransform(BVH_REAL extents[6], std::vector<btTransform>& tran
 
 
 void generateRandomTransform_ccd(BVH_REAL extents[6], std::vector<btTransform>& transforms, std::vector<btTransform>& transforms2, BVH_REAL delta_trans[3], BVH_REAL delta_rot, int n,
-                                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2)
+                                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2)
 {
   transforms.resize(n);
   transforms2.resize(n);
@@ -486,8 +504,8 @@ void generateRandomTransform_ccd(BVH_REAL extents[6], std::vector<btTransform>& 
 
 #if USE_PQP
 bool collide_PQP(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
 {
   PQP_Model m1, m2;
 
@@ -495,9 +513,9 @@ bool collide_PQP(const btTransform& T,
   for(unsigned int i = 0; i < triangles1.size(); ++i)
   {
     Triangle t = triangles1[i];
-    Point p1 = vertices1[t[0]];
-    Point p2 = vertices1[t[1]];
-    Point p3 = vertices1[t[2]];
+    Vec3f p1 = vertices1[t[0]];
+    Vec3f p2 = vertices1[t[1]];
+    Vec3f p3 = vertices1[t[2]];
 
     btVector3 v1(p1[0], p1[1], p1[2]);
     btVector3 v2(p2[0], p2[1], p2[2]);
@@ -525,9 +543,9 @@ bool collide_PQP(const btTransform& T,
   for(unsigned int i = 0; i < triangles2.size(); ++i)
   {
     Triangle t = triangles2[i];
-    Point p1 = vertices2[t[0]];
-    Point p2 = vertices2[t[1]];
-    Point p3 = vertices2[t[2]];
+    Vec3f p1 = vertices2[t[0]];
+    Vec3f p2 = vertices2[t[1]];
+    Vec3f p3 = vertices2[t[2]];
 
     PQP_REAL q1[3];
     PQP_REAL q2[3];
@@ -575,8 +593,8 @@ bool collide_PQP(const btTransform& T,
 
 
 bool collide_PQP2(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
 {
   PQP_Model m1, m2;
 
@@ -584,9 +602,9 @@ bool collide_PQP2(const btTransform& T,
   for(unsigned int i = 0; i < triangles1.size(); ++i)
   {
     Triangle t = triangles1[i];
-    Point p1 = vertices1[t[0]];
-    Point p2 = vertices1[t[1]];
-    Point p3 = vertices1[t[2]];
+    Vec3f p1 = vertices1[t[0]];
+    Vec3f p2 = vertices1[t[1]];
+    Vec3f p3 = vertices1[t[2]];
 
     PQP_REAL q1[3];
     PQP_REAL q2[3];
@@ -606,9 +624,9 @@ bool collide_PQP2(const btTransform& T,
   for(unsigned int i = 0; i < triangles2.size(); ++i)
   {
     Triangle t = triangles2[i];
-    Point p1 = vertices2[t[0]];
-    Point p2 = vertices2[t[1]];
-    Point p3 = vertices2[t[2]];
+    Vec3f p1 = vertices2[t[0]];
+    Vec3f p2 = vertices2[t[1]];
+    Vec3f p3 = vertices2[t[2]];
 
     PQP_REAL q1[3];
     PQP_REAL q2[3];
@@ -670,22 +688,22 @@ bool collide_PQP2(const btTransform& T,
 
 template<typename BV>
 bool collide_Test(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, SplitMethodType split_method, bool verbose)
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, SplitMethodType split_method, bool verbose)
 {
   BVHModel<BV> m1;
   BVHModel<BV> m2;
   m1.bv_splitter.setSplitType(split_method);
   m2.bv_splitter.setSplitType(split_method);
 
-  std::vector<Point> vertices1_transformed(vertices1.size());
+  std::vector<Vec3f> vertices1_transformed(vertices1.size());
   for(unsigned int i = 0; i < vertices1.size(); ++i)
   {
-    Point p = vertices1[i];
+    Vec3f p = vertices1[i];
     btVector3 v(p[0], p[1], p[2]);
     v = T * v;
 
-    vertices1_transformed[i] = Point(v.x(), v.y(), v.z());
+    vertices1_transformed[i] = Vec3f(v.x(), v.y(), v.z());
   }
 
   m1.beginModel();
@@ -741,8 +759,8 @@ bool collide_Test(const btTransform& T,
 
 
 bool collide_Test2(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, SplitMethodType split_method, bool verbose)
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, SplitMethodType split_method, bool verbose)
 {
   BVHModel<OBB> m1;
   BVHModel<OBB> m2;
@@ -815,8 +833,8 @@ bool collide_Test2(const btTransform& T,
 
 
 bool distance_Test(const btTransform& T,
-                     const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                     const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                     const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                     const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                      SplitMethodType split_method,
                      bool verbose)
 {
@@ -862,8 +880,8 @@ bool distance_Test(const btTransform& T,
 
 
 bool distanceQueue_Test(const btTransform& T,
-                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                         SplitMethodType split_method,
                         bool verbose)
 {
@@ -911,8 +929,8 @@ bool distanceQueue_Test(const btTransform& T,
 
 #if USE_PQP
 bool distance_PQP(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
 {
   PQP_Model m1, m2;
 
@@ -920,9 +938,9 @@ bool distance_PQP(const btTransform& T,
   for(unsigned int i = 0; i < triangles1.size(); ++i)
   {
     Triangle t = triangles1[i];
-    Point p1 = vertices1[t[0]];
-    Point p2 = vertices1[t[1]];
-    Point p3 = vertices1[t[2]];
+    Vec3f p1 = vertices1[t[0]];
+    Vec3f p2 = vertices1[t[1]];
+    Vec3f p3 = vertices1[t[2]];
 
     btVector3 v1(p1[0], p1[1], p1[2]);
     btVector3 v2(p2[0], p2[1], p2[2]);
@@ -950,9 +968,9 @@ bool distance_PQP(const btTransform& T,
   for(unsigned int i = 0; i < triangles2.size(); ++i)
   {
     Triangle t = triangles2[i];
-    Point p1 = vertices2[t[0]];
-    Point p2 = vertices2[t[1]];
-    Point p3 = vertices2[t[2]];
+    Vec3f p1 = vertices2[t[0]];
+    Vec3f p2 = vertices2[t[1]];
+    Vec3f p3 = vertices2[t[2]];
 
     PQP_REAL q1[3];
     PQP_REAL q2[3];
@@ -991,8 +1009,8 @@ bool distance_PQP(const btTransform& T,
 
 
 bool distance_PQP2(const btTransform& T,
-                 const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                 const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
+                 const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                 const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2, bool verbose)
 {
   PQP_Model m1, m2;
 
@@ -1000,9 +1018,9 @@ bool distance_PQP2(const btTransform& T,
   for(unsigned int i = 0; i < triangles1.size(); ++i)
   {
     Triangle t = triangles1[i];
-    Point p1 = vertices1[t[0]];
-    Point p2 = vertices1[t[1]];
-    Point p3 = vertices1[t[2]];
+    Vec3f p1 = vertices1[t[0]];
+    Vec3f p2 = vertices1[t[1]];
+    Vec3f p3 = vertices1[t[2]];
 
     PQP_REAL q1[3];
     PQP_REAL q2[3];
@@ -1022,9 +1040,9 @@ bool distance_PQP2(const btTransform& T,
   for(unsigned int i = 0; i < triangles2.size(); ++i)
   {
     Triangle t = triangles2[i];
-    Point p1 = vertices2[t[0]];
-    Point p2 = vertices2[t[1]];
-    Point p3 = vertices2[t[2]];
+    Vec3f p1 = vertices2[t[0]];
+    Vec3f p2 = vertices2[t[1]];
+    Vec3f p3 = vertices2[t[2]];
 
     PQP_REAL q1[3];
     PQP_REAL q2[3];
@@ -1075,8 +1093,8 @@ bool distance_PQP2(const btTransform& T,
 
 template<typename BV>
 bool collide_front_Test(const btTransform& T, const btTransform& T2,
-                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                         SplitMethodType split_method,
                         bool refit_bottomup, bool verbose)
 {
@@ -1087,14 +1105,14 @@ bool collide_front_Test(const btTransform& T, const btTransform& T2,
 
   BVHFrontList front_list;
 
-  std::vector<Point> vertices1_transformed(vertices1.size());
+  std::vector<Vec3f> vertices1_transformed(vertices1.size());
   for(unsigned int i = 0; i < vertices1.size(); ++i)
   {
-    Point p = vertices1[i];
+    Vec3f p = vertices1[i];
     btVector3 v(p[0], p[1], p[2]);
     v = T * v;
 
-    vertices1_transformed[i] = Point(v.x(), v.y(), v.z());
+    vertices1_transformed[i] = Vec3f(v.x(), v.y(), v.z());
   }
 
   m1.beginModel();
@@ -1114,11 +1132,11 @@ bool collide_front_Test(const btTransform& T, const btTransform& T2,
   // update
   for(unsigned int i = 0; i < vertices1.size(); ++i)
   {
-    Point p = vertices1[i];
+    Vec3f p = vertices1[i];
     btVector3 v(p[0], p[1], p[2]);
     v = T2 * v;
 
-    vertices1_transformed[i] = Point(v.x(), v.y(), v.z());
+    vertices1_transformed[i] = Vec3f(v.x(), v.y(), v.z());
   }
   m1.beginReplaceModel();
   m1.replaceSubModel(vertices1_transformed);
@@ -1160,8 +1178,8 @@ bool collide_front_Test(const btTransform& T, const btTransform& T2,
 
 template<typename BV>
 bool continuous_collide_Test(const btTransform& T, const btTransform& T2,
-                        const std::vector<Point>& vertices1, const std::vector<Triangle>& triangles1,
-                        const std::vector<Point>& vertices2, const std::vector<Triangle>& triangles2,
+                        const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                        const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
                         SplitMethodType split_method,
                         bool refit_bottomup, bool verbose)
 {
@@ -1172,14 +1190,14 @@ bool continuous_collide_Test(const btTransform& T, const btTransform& T2,
 
   BVHFrontList front_list;
 
-  std::vector<Point> vertices1_transformed(vertices1.size());
+  std::vector<Vec3f> vertices1_transformed(vertices1.size());
   for(unsigned int i = 0; i < vertices1.size(); ++i)
   {
-    Point p = vertices1[i];
+    Vec3f p = vertices1[i];
     btVector3 v(p[0], p[1], p[2]);
     v = T * v;
 
-    vertices1_transformed[i] = Point(v.x(), v.y(), v.z());
+    vertices1_transformed[i] = Vec3f(v.x(), v.y(), v.z());
   }
 
   m1.beginModel();
@@ -1193,11 +1211,11 @@ bool continuous_collide_Test(const btTransform& T, const btTransform& T2,
   // update
   for(unsigned int i = 0; i < vertices1.size(); ++i)
   {
-    Point p = vertices1[i];
+    Vec3f p = vertices1[i];
     btVector3 v(p[0], p[1], p[2]);
     v = T2 * v;
 
-    vertices1_transformed[i] = Point(v.x(), v.y(), v.z());
+    vertices1_transformed[i] = Vec3f(v.x(), v.y(), v.z());
   }
   m1.beginUpdateModel();
   m1.updateSubModel(vertices1_transformed);
@@ -1232,6 +1250,78 @@ bool continuous_collide_Test(const btTransform& T, const btTransform& T2,
   {
     if(verbose) std::cout << "collision free " << std::endl;
     if(verbose) std::cout << res.num_bv_tests << " " << res.num_vf_tests << " " << res.num_ee_tests << std::endl;
+    return false;
+  }
+}
+
+bool continuous_collide_CA_Test(const btTransform& T, const btTransform& T2,
+                                const std::vector<Vec3f>& vertices1, const std::vector<Triangle>& triangles1,
+                                const std::vector<Vec3f>& vertices2, const std::vector<Triangle>& triangles2,
+                                SplitMethodType split_method,
+                                bool refit_bottomup, bool verbose)
+{
+  BVHModel<RSS> m1;
+  BVHModel<RSS> m2;
+  m1.bv_splitter.setSplitType(split_method);
+  m2.bv_splitter.setSplitType(split_method);
+
+  BVHFrontList front_list;
+
+  m1.beginModel();
+  m1.addSubModel(vertices1, triangles1);
+  m1.endModel();
+
+  m2.beginModel();
+  m2.addSubModel(vertices2, triangles2);
+  m2.endModel();
+
+  BVH_CAResult res;
+
+  Vec3f R1_1[3];
+  Vec3f R1_2[3];
+  Vec3f T1_1, T1_2;
+
+  Vec3f R2_1[3] = {Vec3f(1, 0, 0), Vec3f(0, 1, 0), Vec3f(0, 0, 1)};
+  Vec3f R2_2[3] = {Vec3f(1, 0, 0), Vec3f(0, 1, 0), Vec3f(0, 0, 1)};
+  Vec3f T2_1(0, 0, 0);
+  Vec3f T2_2(0, 0, 0);
+
+  btVector3 t = T.getOrigin();
+  T1_1 = Vec3f(t.x(), t.y(), t.z());
+  btMatrix3x3 r = T.getBasis();
+  for(int i = 0; i < 3; ++i)
+  {
+    R1_1[i] = Vec3f(r[i].x(),r[i].y(), r[i].z());
+  }
+
+  t = T2.getOrigin();
+  T1_2 = Vec3f(t.x(), t.y(), t.z());
+  r = T2.getBasis();
+  for(int i = 0; i < 3; ++i)
+  {
+    R1_2[i] = Vec3f(r[i].x(), r[i].y(), r[i].z());
+  }
+
+  continuousCollide_CA(m1, R1_1, T1_1, R1_2, T1_2,
+                       m2, R2_1, T2_1, R2_2, T2_2,
+                       &res, &front_list);
+
+  if(verbose)
+  {
+    std::cout << "toc: " << res.toc << std::endl;
+    std::cout << res.num_bv_tests << " " << res.num_tri_tests << std::endl;
+  }
+
+  if(res.toc < 1)
+  {
+    if(verbose)
+      std::cout << "in collision" << std::endl;
+    return true;
+  }
+  else
+  {
+    if(verbose)
+      std::cout << "collision free" << std::endl;
     return false;
   }
 }

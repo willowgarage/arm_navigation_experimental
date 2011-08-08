@@ -64,10 +64,10 @@ class OBB
     void toRotation(Vec3f axis[3]) const;
 
     /** \brief Dot product between two quaternions */
-    BVH_REAL dot(SimpleQuaternion const& other) const;
+    BVH_REAL dot(const SimpleQuaternion& other) const;
 
     /** \brief Addition of two quaternions */
-    SimpleQuaternion operator + (SimpleQuaternion const& other) const;
+    SimpleQuaternion operator + (const SimpleQuaternion& other) const;
 
     /** \brief Minus of two quaternions */
     SimpleQuaternion operator - () const;
@@ -187,7 +187,7 @@ private:
 
 public:
   /** Kernel check whether two OBB are disjoint */
-  static bool obbDisjoint(const Vec3f B[3], Vec3f const& T, Vec3f const& a, Vec3f const& b);
+  static bool obbDisjoint(const Vec3f B[3], const Vec3f& T, const Vec3f& a, const Vec3f& b);
 
 };
 

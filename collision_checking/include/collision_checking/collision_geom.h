@@ -46,7 +46,7 @@
 namespace collision_checking
 {
 
-inline void saveOBjFile(const std::string& name, const std::vector<Point>& points, const std::vector<Triangle>& tri_indices)
+inline void saveOBjFile(const std::string& name, const std::vector<Vec3f>& points, const std::vector<Triangle>& tri_indices)
 {
   std::ofstream file(name.c_str());
   file << points.size() << " " << tri_indices.size() << std::endl;
@@ -94,7 +94,7 @@ struct CollisionGeom
 template<typename BV>
 struct CollisionMesh;
 template<typename BV>
-CollisionMesh<BV>* makeMesh(const std::vector<Point>& points, const std::vector<Triangle>& tri_indices);
+CollisionMesh<BV>* makeMesh(const std::vector<Vec3f>& points, const std::vector<Triangle>& tri_indices);
 template<typename BV>
 CollisionMesh<BV>* makeBox(double a, double b, double c);
 template<typename BV>
@@ -111,7 +111,7 @@ private:
   }
 
 public:
-  friend CollisionMesh<BV>* makeMesh<>(const std::vector<Point>& points, const std::vector<Triangle>& tri_indices);
+  friend CollisionMesh<BV>* makeMesh<>(const std::vector<Vec3f>& points, const std::vector<Triangle>& tri_indices);
   friend CollisionMesh<BV>* makeBox<>(double a, double b, double c);
   friend CollisionMesh<BV>* makeCylinder<>(double r, double h, unsigned int tot);
   friend CollisionMesh<BV>* makeSphere<>(double r, unsigned int seg, unsigned int ring);
@@ -135,13 +135,13 @@ public:
     t2 = t1;
     t1 = pose;
 
-    std::vector<Point> points;
+    std::vector<Vec3f> points;
     for(int i = 0; i < model.num_vertices; ++i)
     {
-      const Point& p = model.vertices[i];
+      const Vec3f& p = model.vertices[i];
       btVector3 v(p[0], p[1], p[2]);
       v = pose * v;
-      points[i] = Point(v.x(), v.y(), v.z());
+      points[i] = Vec3f(v.x(), v.y(), v.z());
     }
 
     if(ccd)
@@ -167,18 +167,15 @@ public:
     {
       for(int i = 0; i < model.num_vertices; ++i)
       {
-        const Point& p1 = model.vertices[i];
-        aabb_ += Vec3f(p1[0], p1[1], p1[2]);
-        const Point& p2 = model.prev_vertices[i];
-        aabb_ += Vec3f(p2[0], p2[1], p2[2]);
+        aabb_ += model.vertices[i];
+        aabb_ += model.prev_vertices[i];
       }
     }
     else
     {
       for(int i = 0; i < model.num_vertices; ++i)
       {
-        const Point& p = model.vertices[i];
-        aabb_ += Vec3f(p[0], p[1], p[2]);
+        aabb_ += model.vertices[i];
       }
     }
 
@@ -200,7 +197,7 @@ private:
   }
 
 public:
-  friend CollisionMesh<OBB>* makeMesh<>(const std::vector<Point>& points, const std::vector<Triangle>& tri_indices);
+  friend CollisionMesh<OBB>* makeMesh<>(const std::vector<Vec3f>& points, const std::vector<Triangle>& tri_indices);
   friend CollisionMesh<OBB>* makeBox<>(double a, double b, double c);
   friend CollisionMesh<OBB>* makeCylinder<>(double r, double h, unsigned int tot);
   friend CollisionMesh<OBB>* makeSphere<>(double r, unsigned int seg, unsigned int ring);
@@ -252,7 +249,7 @@ public:
     {
       for(int i = 0; i < model.num_vertices; ++i)
       {
-        Point p = model.vertices[i];
+        Vec3f p = model.vertices[i];
         btVector3 v(p[0], p[1], p[2]);
         btVector3 v1 = t1 * v;
         btVector3 v2 = t2 * v;
@@ -265,7 +262,7 @@ public:
     {
       for(int i = 0; i < model.num_vertices; ++i)
       {
-        Point p = model.vertices[i];
+        Vec3f p = model.vertices[i];
         btVector3 v(p[0], p[1], p[2]);
         btVector3 v1 = t1 * v;
         aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
@@ -406,7 +403,7 @@ public:
 
 
 template<typename BV>
-inline CollisionMesh<BV>* makeMesh(const std::vector<Point>& points, const std::vector<Triangle>& tri_indices)
+inline CollisionMesh<BV>* makeMesh(const std::vector<Vec3f>& points, const std::vector<Triangle>& tri_indices)
 {
   CollisionMesh<BV>* m = new CollisionMesh<BV>;
   m->model.beginModel();
@@ -420,16 +417,16 @@ inline CollisionMesh<BV>* makeMesh(const std::vector<Point>& points, const std::
 template<typename BV>
 inline CollisionMesh<BV>* makeBox(double a, double b, double c)
 {
-  std::vector<Point> points(8);
+  std::vector<Vec3f> points(8);
   std::vector<Triangle> tri_indices(12);
-  points[0] = Point(0.5 * a, -0.5 * b, 0.5 * c);
-  points[1] = Point(0.5 * a, 0.5 * b, 0.5 * c);
-  points[2] = Point(-0.5 * a, 0.5 * b, 0.5 * c);
-  points[3] = Point(-0.5 * a, -0.5 * b, 0.5 * c);
-  points[4] = Point(0.5 * a, -0.5 * b, -0.5 * c);
-  points[5] = Point(0.5 * a, 0.5 * b, -0.5 * c);
-  points[6] = Point(-0.5 * a, 0.5 * b, -0.5 * c);
-  points[7] = Point(-0.5 * a, -0.5 * b, -0.5 * c);
+  points[0] = Vec3f(0.5 * a, -0.5 * b, 0.5 * c);
+  points[1] = Vec3f(0.5 * a, 0.5 * b, 0.5 * c);
+  points[2] = Vec3f(-0.5 * a, 0.5 * b, 0.5 * c);
+  points[3] = Vec3f(-0.5 * a, -0.5 * b, 0.5 * c);
+  points[4] = Vec3f(0.5 * a, -0.5 * b, -0.5 * c);
+  points[5] = Vec3f(0.5 * a, 0.5 * b, -0.5 * c);
+  points[6] = Vec3f(-0.5 * a, 0.5 * b, -0.5 * c);
+  points[7] = Vec3f(-0.5 * a, -0.5 * b, -0.5 * c);
 
   tri_indices[0] = Triangle(0, 4, 1);
   tri_indices[1] = Triangle(1, 4, 5);
@@ -457,7 +454,7 @@ inline CollisionMesh<BV>* makeBox(double a, double b, double c)
 template<typename BV>
 inline CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot)
 {
-  std::vector<Point> points;
+  std::vector<Vec3f> points;
   std::vector<Triangle> tri_indices;
 
   double phi, phid;
@@ -471,21 +468,21 @@ inline CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot)
   double hd = h / h_num;
 
   for(unsigned int i = 0; i < tot; ++i)
-    points.push_back(Point(r * cos(phi + phid * i), r * sin(phi + phid * i), h / 2));
+    points.push_back(Vec3f(r * cos(phi + phid * i), r * sin(phi + phid * i), h / 2));
 
   for(unsigned int i = 0; i < h_num - 1; ++i)
   {
     for(unsigned int j = 0; j < tot; ++j)
     {
-      points.push_back(Point(r * cos(phi + phid * j), r * sin(phi + phid * j), h / 2 - (i + 1) * hd));
+      points.push_back(Vec3f(r * cos(phi + phid * j), r * sin(phi + phid * j), h / 2 - (i + 1) * hd));
     }
   }
 
   for(unsigned int i = 0; i < tot; ++i)
-    points.push_back(Point(r * cos(phi + phid * i), r * sin(phi + phid * i), - h / 2));
+    points.push_back(Vec3f(r * cos(phi + phid * i), r * sin(phi + phid * i), - h / 2));
 
-  points.push_back(Point(0, 0, h / 2));
-  points.push_back(Point(0, 0, -h / 2));
+  points.push_back(Vec3f(0, 0, h / 2));
+  points.push_back(Vec3f(0, 0, -h / 2));
 
   for(unsigned int i = 0; i < tot; ++i)
   {
@@ -527,7 +524,7 @@ inline CollisionMesh<BV>* makeCylinder(double r, double h, unsigned int tot)
 template<typename BV>
 inline CollisionMesh<BV>* makeSphere(double r, unsigned int seg, unsigned int ring)
 {
-  std::vector<Point> points;
+  std::vector<Vec3f> points;
   std::vector<Triangle> tri_indices;
 
   double phi, phid;
@@ -544,11 +541,11 @@ inline CollisionMesh<BV>* makeSphere(double r, unsigned int seg, unsigned int ri
     double theta_ = theta + thetad * (i + 1);
     for(unsigned int j = 0; j < seg; ++j)
     {
-      points.push_back(Point(r * sin(theta_) * cos(phi + j * phid), r * sin(theta_) * sin(phi + j * phid), r * cos(theta_)));
+      points.push_back(Vec3f(r * sin(theta_) * cos(phi + j * phid), r * sin(theta_) * sin(phi + j * phid), r * cos(theta_)));
     }
   }
-  points.push_back(Point(0, 0, r));
-  points.push_back(Point(0, 0, -r));
+  points.push_back(Vec3f(0, 0, r));
+  points.push_back(Vec3f(0, 0, -r));
 
   for(unsigned int i = 0; i < ring - 1; ++i)
   {

@@ -36,5 +36,5 @@ rosbuild_add_boost_directories()
 #add_definitions(-DCOLLISION_USE_SSE=1)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3 -mssse3")
 
-rosbuild_add_library(collision_checking src/BVH_model.cpp src/intersect.cpp src/collision_primitive.cpp src/distance_primitive.cpp src/obb.cpp src/rss.cpp src/vec_3f.cpp src/BV_fitter.cpp src/BVH_split_rule.cpp src/collision.cpp src/proximity.cpp)
+rosbuild_add_library(collision_checking src/BVH_model.cpp src/intersect.cpp src/collision_primitive.cpp src/distance_primitive.cpp src/obb.cpp src/rss.cpp src/vec_3f.cpp src/BV_fitter.cpp src/BVH_split_rule.cpp src/collision.cpp src/proximity.cpp src/conservative_advancement.cpp)
 

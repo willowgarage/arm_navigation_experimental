@@ -112,13 +112,13 @@ private:
 
 public:
   /** \brief Geometry point data */
-  Point* vertices;
+  Vec3f* vertices;
 
   /** \brief Geometry triangle index data, will be NULL for point clouds */
   Triangle* tri_indices;
 
   /** \brief Geometry point data in previous frame */
-  Point* prev_vertices;
+  Vec3f* prev_vertices;
 
   /** \brief Bounding volume hierarchy */
   BVNode<BV>* bvs;
@@ -188,16 +188,16 @@ public:
   int beginModel(int num_tris = 0, int num_vertices = 0);
 
   /** \brief Add one point in the new BVH model */
-  int addVertex(const Point& p);
+  int addVertex(const Vec3f& p);
 
   /** \brief Add one triangle in the new BVH model */
-  int addTriangle(const Point& p1, const Point& p2, const Point& p3);
+  int addTriangle(const Vec3f& p1, const Vec3f& p2, const Vec3f& p3);
 
   /** \brief Add a set of triangles in the new BVH model */
-  int addSubModel(const std::vector<Point>& ps, const std::vector<Triangle>& ts);
+  int addSubModel(const std::vector<Vec3f>& ps, const std::vector<Triangle>& ts);
 
   /** \brief Add a set of points in the new BVH model */
-  int addSubModel(const std::vector<Point>& ps);
+  int addSubModel(const std::vector<Vec3f>& ps);
 
   /** \brief End BVH model construction, will build the bounding volume hierarchy */
   int endModel();
@@ -207,13 +207,13 @@ public:
   int beginReplaceModel();
 
   /** \brief Replace one point in the old BVH model */
-  int replaceVertex(const Point& p);
+  int replaceVertex(const Vec3f& p);
 
   /** \brief Replace one triangle in the old BVH model */
-  int replaceTriangle(const Point& p1, const Point& p2, const Point& p3);
+  int replaceTriangle(const Vec3f& p1, const Vec3f& p2, const Vec3f& p3);
 
   /** \brief Replace a set of points in the old BVH model */
-  int replaceSubModel(const std::vector<Point>& ps);
+  int replaceSubModel(const std::vector<Vec3f>& ps);
 
   /** \brief End BVH model replacement, will also refit or rebuild the bounding volume hierarchy */
   int endReplaceModel(bool refit = true, bool bottomup = true);
@@ -225,13 +225,13 @@ public:
   int beginUpdateModel();
 
   /** \brief Update one point in the old BVH model */
-  int updateVertex(const Point& p);
+  int updateVertex(const Vec3f& p);
 
   /** \brief Update one triangle in the old BVH model */
-  int updateTriangle(const Point& p1, const Point& p2, const Point& p3);
+  int updateTriangle(const Vec3f& p1, const Vec3f& p2, const Vec3f& p3);
 
   /** \brief Update a set of points in the old BVH model */
-  int updateSubModel(const std::vector<Point>& ps);
+  int updateSubModel(const std::vector<Vec3f>& ps);
 
   /** \brief End BVH model update, will also refit or rebuild the bounding volume hierarchy */
   int endUpdateModel(bool refit = true, bool bottomup = true);

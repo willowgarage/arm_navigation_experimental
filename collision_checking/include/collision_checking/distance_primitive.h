@@ -94,7 +94,7 @@ struct BVH_DistanceResult
 /** \brief Recursive proximity kernel between two BV trees */
 template<typename BV>
 void distanceRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
                     BVH_DistanceResult* res, BVHFrontList* front_list = NULL)
 {
@@ -105,7 +105,7 @@ void distanceRecurse(BVNode<BV>* tree1, BVNode<BV>* tree2, int b1, int b2,
 void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                     const Vec3f R[3], const Vec3f& T,
                     int b1, int b2,
-                    Point* vertices1, Point* vertices2,
+                    Vec3f* vertices1, Vec3f* vertices2,
                     Triangle* tri_indices1, Triangle* tri_indices2,
                     BVH_DistanceResult* res, BVHFrontList* front_list = NULL);
 
@@ -114,7 +114,7 @@ void distanceRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
 void distanceQueueRecurse(BVNode<RSS>* tree1, BVNode<RSS>* tree2,
                           const Vec3f R[3], const Vec3f& T,
                           int b1, int b2,
-                          Point* vertices1, Point* vertices2,
+                          Vec3f* vertices1, Vec3f* vertices2,
                           Triangle* tri_indices1, Triangle* tri_indices2,
                           BVH_DistanceResult* res, BVHFrontList* front_list = NULL);
 

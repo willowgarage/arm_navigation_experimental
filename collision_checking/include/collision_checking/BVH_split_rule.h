@@ -69,7 +69,7 @@ public:
   }
 
   /** \brief Set the geometry data needed by the split rule */
-  void set(Point* vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     tri_indices = tri_indices_;
@@ -96,7 +96,7 @@ public:
   }
 
   /** \brief Apply the split rule on a given point */
-  bool operator()(const Point& q) const
+  bool operator()(const Vec3f& q) const
   {
     return q[split_axis] > split_value;
   }
@@ -117,7 +117,7 @@ private:
   /** \brief The split threshold */
   BVH_REAL split_value;
 
-  Point* vertices;
+  Vec3f* vertices;
   Triangle* tri_indices;
   BVHModelType type;
   SplitMethodType split_method;
@@ -228,7 +228,7 @@ public:
   }
 
   /** \brief Set the geometry data needed by the split rule */
-  void set(Point* vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     tri_indices = tri_indices_;
@@ -244,7 +244,7 @@ public:
   }
 
   /** \brief Apply the split rule on a given point */
-  bool operator()(const Point& q) const
+  bool operator()(const Vec3f& q) const
   {
     return split_vector.dot(Vec3f(q[0], q[1], q[2])) > split_value;
   }
@@ -271,7 +271,7 @@ private:
   BVH_REAL split_value;
   Vec3f split_vector;
 
-  Point* vertices;
+  Vec3f* vertices;
   Triangle* tri_indices;
   BVHModelType type;
   SplitMethodType split_method;

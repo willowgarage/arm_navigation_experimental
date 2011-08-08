@@ -56,20 +56,19 @@ class BVFitter
 public:
 
   /** \brief Compute a bounding volume that fits a set of n points. */
-  static BV fit(Point* ps, int n)
+  static BV fit(Vec3f* ps, int n)
   {
     BV bv;
     for(int i = 0; i < n; ++i)
     {
-      Point p = ps[i];
-      bv += Vec3f(p[0], p[1], p[2]);
+      bv += ps[i];
     }
 
     return bv;
   }
 
   /** \brief Prepare the geometry primitive data for fitting */
-  void set(Point* vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     prev_vertices = NULL;
@@ -78,7 +77,7 @@ public:
   }
 
   /** \brief Prepare the geometry primitive data for fitting */
-  void set(Point* vertices_, Point* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Vec3f* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     prev_vertices = prev_vertices_;
@@ -98,21 +97,15 @@ public:
       for(int i = 0; i < num_primitives; ++i)
       {
         Triangle t = tri_indices[primitive_indices[i]];
-        Point v = vertices[t[0]];
-        bv += Vec3f(v[0], v[1], v[2]);
-        v = vertices[t[1]];
-        bv += Vec3f(v[0], v[1], v[2]);
-        v = vertices[t[2]];
-        bv += Vec3f(v[0], v[1], v[2]);
+        bv += vertices[t[0]];
+        bv += vertices[t[1]];
+        bv += vertices[t[2]];
 
         if(prev_vertices) /* When fitting both current and previous frame */
         {
-          v = prev_vertices[t[0]];
-          bv += Vec3f(v[0], v[1], v[2]);
-          v = prev_vertices[t[1]];
-          bv += Vec3f(v[0], v[1], v[2]);
-          v = prev_vertices[t[2]];
-          bv += Vec3f(v[0], v[1], v[2]);
+          bv += prev_vertices[t[0]];
+          bv += prev_vertices[t[1]];
+          bv += prev_vertices[t[2]];
         }
       }
     }
@@ -120,13 +113,11 @@ public:
     {
       for(int i = 0; i < num_primitives; ++i)
       {
-        Point v = vertices[primitive_indices[i]];
-        bv += Vec3f(v[0], v[1], v[2]);
+        bv += vertices[primitive_indices[i]];
 
         if(prev_vertices) /* When fitting both current and previous frame */
         {
-          v = prev_vertices[primitive_indices[i]];
-          bv += Vec3f(v[0], v[1], v[2]);
+          bv += prev_vertices[primitive_indices[i]];
         }
       }
     }
@@ -145,8 +136,8 @@ public:
 
 private:
 
-  Point* vertices;
-  Point* prev_vertices;
+  Vec3f* vertices;
+  Vec3f* prev_vertices;
   Triangle* tri_indices;
   BVHModelType type;
 };
@@ -159,10 +150,10 @@ class BVFitter<OBB>
 public:
 
   /** \brief Compute a bounding volume that fits a set of n points. */
-  static OBB fit(Point* ps, int n);
+  static OBB fit(Vec3f* ps, int n);
 
   /** \brief Prepare the geometry primitive data for fitting */
-  void set(Point* vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     prev_vertices = NULL;
@@ -171,7 +162,7 @@ public:
   }
 
   /** \brief Prepare the geometry primitive data for fitting */
-  void set(Point* vertices_, Point* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Vec3f* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     prev_vertices = prev_vertices_;
@@ -195,25 +186,25 @@ public:
 
 private:
 
-  Point* vertices;
-  Point* prev_vertices;
+  Vec3f* vertices;
+  Vec3f* prev_vertices;
   Triangle* tri_indices;
   BVHModelType type;
 
   /** \brief Fit OBB for one point */
-  static inline OBB fit1(Point* ps);
+  static inline OBB fit1(Vec3f* ps);
 
   /** \brief Fit OBB for two points */
-  static inline OBB fit2(Point* ps);
+  static inline OBB fit2(Vec3f* ps);
 
   /** \brief Fit OBB for three point (one triangle) */
-  static inline OBB fit3(Point* ps);
+  static inline OBB fit3(Vec3f* ps);
 
   /** \brief Fit OBB for six point (two triangles) */
-  static inline OBB fit6(Point* ps);
+  static inline OBB fit6(Vec3f* ps);
 
   /** \brief Fit OBB for n points */
-  static OBB fitn(Point* ps, int n);
+  static OBB fitn(Vec3f* ps, int n);
 };
 
 
@@ -224,10 +215,10 @@ class BVFitter<RSS>
 public:
 
   /** \brief Compute a bounding volume that fits a set of n points. */
-  static RSS fit(Point* ps, int n);
+  static RSS fit(Vec3f* ps, int n);
 
   /** \brief Prepare the geometry primitive data for fitting */
-  void set(Point* vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     prev_vertices = NULL;
@@ -236,7 +227,7 @@ public:
   }
 
   /** \brief Prepare the geometry primitive data for fitting */
-  void set(Point* vertices_, Point* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
+  void set(Vec3f* vertices_, Vec3f* prev_vertices_, Triangle* tri_indices_, BVHModelType type_)
   {
     vertices = vertices_;
     prev_vertices = prev_vertices_;
@@ -260,20 +251,20 @@ public:
 
 private:
 
-  Point* vertices;
-  Point* prev_vertices;
+  Vec3f* vertices;
+  Vec3f* prev_vertices;
   Triangle* tri_indices;
   BVHModelType type;
 
   /** \brief Fit RSS for one point */
-  static RSS fit1(Point* ps);
+  static RSS fit1(Vec3f* ps);
 
-  static RSS fit2(Point* ps);
+  static RSS fit2(Vec3f* ps);
 
-  static RSS fit3(Point* ps);
+  static RSS fit3(Vec3f* ps);
 
   /** \brief Fit RSS for n points */
-  static RSS fitn(Point* ps, int n);
+  static RSS fitn(Vec3f* ps, int n);
 
 };
 
