@@ -310,6 +310,8 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
   double timeout = max_time.toSec();
   std::vector<int> error_codes;
   response.trajectory.joint_trajectory.points.clear();
+  arm_navigation_msgs::Constraints empty_constraints;
+  int error_code;
   while(timeout >= 0.0)
   {
     // Find initial collision free solutions for both arms
@@ -337,13 +339,16 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
         poses.push_back(path[j][i]);
       if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,solution_states,error_codes,max_distance_))
       {
-        if(checkMotion(seed_states,solution_states,timeout,response))
+        if(checkMotion(seed_states,solution_states,empty_constraints,timeout,error_code))
         {
           addToJointTrajectory(response.trajectory.joint_trajectory,solution_states);
           seed_states = solution_states;
         }
         else
+        {
+          response.error_code = kinematicsErrorCodeToArmNavigationErrorCode(error_code);
           return false;
+        }
       }
       else
       {
@@ -357,9 +362,13 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
   return false;
 }
 
-bool InterpolatedIKMotionPlanner::checkMotion(const std::vector<std::vector<double> > &start, const std::vector<std::vector<double> >&end)
+bool InterpolatedIKMotionPlanner::checkMotion(const std::vector<std::vector<double> > &start, 
+                                              const std::vector<std::vector<double> >&end,
+                                              const arm_navigation_msgs::Constraints &constraints,
+                                              double &timeout,
+                                              int &error_code)
 {
-  return kinematics_solver_->checkMotion(start,end);
+  return kinematics_solver_->checkMotion(start,end,constraints,timeout,error_code);
 }
 
 arm_navigation_msgs::ArmNavigationErrorCodes InterpolatedIKMotionPlanner::kinematicsErrorCodeToArmNavigationErrorCode(const int& error_code)

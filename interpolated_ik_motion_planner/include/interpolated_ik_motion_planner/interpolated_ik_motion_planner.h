@@ -88,6 +88,12 @@ private:
   bool computePlan(arm_navigation_msgs::GetMotionPlan::Request &request,
                    arm_navigation_msgs::GetMotionPlan::Response &response);
 
+  bool checkMotion(const std::vector<std::vector<double> > &start, 
+                   const std::vector<std::vector<double> >&end,
+                   const arm_navigation_msgs::Constraints &constraints,
+                   double &timeout,
+                   int &error_code);
+
   bool getStart(const arm_navigation_msgs::GetMotionPlan::Request &request,
                 arm_navigation_msgs::GetMotionPlan::Response &response,
                 std::vector<geometry_msgs::Pose> &start);
