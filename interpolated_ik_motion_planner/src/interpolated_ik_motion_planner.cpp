@@ -36,17 +36,19 @@
 namespace interpolated_ik_motion_planner 
 {
 
+static const std::string DISPLAY_PATH_PUB_TOPIC  = "display_path";
+
 InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner(const std::vector<std::string> &group_names, 
                                                          const std::vector<std::string> &kinematics_solver_names,
                                                          const std::vector<std::string> &end_effector_link_names,
-                                                         planning_environment::CollisionModelsInterface *collision_models_interface):node_handle_("~")
+                                                         planning_environment::CollisionModelsInterface *collision_models_interface):node_handle_("~"),planning_visualizer_(DISPLAY_PATH_PUB_TOPIC)
 {
   if(!initialize(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface))
     throw new MultiArmKinematicsException();
   collision_models_interface_generated_ = false;
 }
 
-InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~")
+InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~"),planning_visualizer_(DISPLAY_PATH_PUB_TOPIC)
 {
   planning_environment::CollisionModelsInterface* collision_models_interface = new planning_environment::CollisionModelsInterface("robot_description");
   std::vector<std::string> group_names, kinematics_solver_names, end_effector_link_names;
@@ -156,8 +158,16 @@ bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan
 
   ros::Duration allowed_planning_time = request.motion_plan_request.allowed_planning_time;
   if(getPath(start,goal,planning_scene,collision_operations,allowed_planning_time,response))
+  {
     response.error_code.val = response.error_code.SUCCESS;
-
+    arm_navigation_msgs::RobotState robot_state;
+    planning_environment::convertKinematicStateToRobotState(*collision_models_interface_->getPlanningSceneState(),
+                                                            ros::Time::now(),
+                                                            collision_models_interface_->getWorldFrameId(),
+                                                            robot_state);
+    
+    planning_visualizer_.visualizePlan(response.trajectory.joint_trajectory, robot_state);
+  }
   return true;//services always return true (otherwise rospy chokes?)
 }
 
@@ -331,14 +341,16 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
       response.error_code = getArmNavigationErrorCode(error_codes);
       return false;
     }
+    ROS_INFO("Path size: %d",path.size());
     //Now use those collision free solutions to try and find solutions that are close
-    for(unsigned int i=1; i < path.size(); i++)
+    for(unsigned int i=1; i < path[0].size(); i++)
     {
       poses.clear();
       for(unsigned int j=0; j < num_groups_; j++)
         poses.push_back(path[j][i]);
       if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,solution_states,error_codes,max_distance_))
       {
+        ROS_INFO("Path %d",i);
         if(checkMotion(seed_states,solution_states,empty_constraints,timeout,error_code))
         {
           addToJointTrajectory(response.trajectory.joint_trajectory,solution_states);
@@ -347,12 +359,14 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
         else
         {
           response.error_code = kinematicsErrorCodeToArmNavigationErrorCode(error_code);
+          ROS_ERROR("Motion check failed");
           return false;
         }
       }
       else
       {
         response.error_code = getArmNavigationErrorCode(error_codes);
+        ROS_ERROR("IK check failed");
         return false;
       }
     }
@@ -440,6 +454,7 @@ bool InterpolatedIKMotionPlanner::addToJointTrajectory(trajectory_msgs::JointTra
     for(unsigned int j=0; j < solution[i].size(); j++)
       point.positions.push_back(solution[i][j]);
 
+  trajectory.points.push_back(point);
   return true;
 }
 

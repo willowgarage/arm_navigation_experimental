@@ -40,13 +40,14 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <arm_navigation_msgs/GetMotionPlan.h>
 #include <arm_navigation_msgs/convert_messages.h>
+#include <arm_navigation_msgs/planning_visualizer.h>
 
 #include <planning_environment/models/collision_models_interface.h>
+#include <planning_environment/models/model_utils.h>
 
 
 namespace interpolated_ik_motion_planner 
 {
-
 class InterpolatedIKMotionPlanner
 {
 public:
@@ -153,6 +154,8 @@ private:
 
   double max_distance_;
   std::vector<std::string> group_names_, end_effector_link_names_;
+
+  arm_navigation_msgs::PlanningVisualizer planning_visualizer_;
 };
 
 }

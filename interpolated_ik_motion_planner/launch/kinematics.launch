@@ -6,4 +6,10 @@
   <node launch-prefix="xterm -e gdb --args" machine="c2" pkg="interpolated_ik_motion_planner" type="interpolated_ik_planner" name="interpolated_ik_planner" output="screen">    
     <rosparam command="load" file="$(find interpolated_ik_motion_planner)/launch/kinematics.yaml" />
   </node>
+
+  <!-- load perception -->
+  <include file="$(find pr2_arm_navigation_perception)/launch/laser-perception.launch"/>
+
+  <!-- load planning_environment -->
+  <include file="$(find planning_environment)/launch/environment_server.launch"/>
 </launch>
