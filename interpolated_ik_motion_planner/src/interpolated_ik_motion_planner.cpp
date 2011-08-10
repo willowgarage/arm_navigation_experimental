@@ -77,6 +77,8 @@ bool InterpolatedIKMotionPlanner::initialize(const std::vector<std::string> &gro
     return false;
   }
   plan_path_service_ = node_handle_.advertiseService("plan_kinematic_path", &InterpolatedIKMotionPlanner::computePlan, this);
+  end_effector_pose_publisher_= node_handle_.advertise<visualization_msgs::Marker>("end_effector_pose", 128);
+  end_effector_pose_array_publisher_= node_handle_.advertise<visualization_msgs::MarkerArray>("end_effector_pose_array", 128);
   ROS_INFO("Initialized interpolated ik motion planner");
   return true;
 }
@@ -148,6 +150,9 @@ bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan
     return false;
   } 
 
+  if(!setRobotState(request,response))
+    return false;
+
   if(!convertToBaseFrame(request,response))
     return true;
 
@@ -169,6 +174,15 @@ bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan
     planning_visualizer_.visualizePlan(response.trajectory.joint_trajectory, robot_state);
   }
   return true;//services always return true (otherwise rospy chokes?)
+}
+
+bool InterpolatedIKMotionPlanner::setRobotState(arm_navigation_msgs::GetMotionPlan::Request &request,
+                                                arm_navigation_msgs::GetMotionPlan::Response &response)
+{
+  planning_models::KinematicState* kinematic_state = collision_models_interface_->getPlanningSceneState();
+  planning_environment::setRobotStateAndComputeTransforms(request.motion_plan_request.start_state,
+                                                          *kinematic_state);
+  return true;
 }
 
 bool InterpolatedIKMotionPlanner::convertToBaseFrame(arm_navigation_msgs::GetMotionPlan::Request &request,arm_navigation_msgs::GetMotionPlan::Response &response)
@@ -298,7 +312,11 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
   }
 
   for(unsigned int i=0; i < num_groups_; i++)
+  {
+    ROS_DEBUG("%s Start Quaternion: %f %f %f %f",group_names_[i].c_str(),start[i].orientation.x,start[i].orientation.y,start[i].orientation.z,start[i].orientation.w);
+    ROS_DEBUG("%s End Quaternion: %f %f %f %f",group_names_[i].c_str(),end[i].orientation.x,end[i].orientation.y,end[i].orientation.z,end[i].orientation.w);
     interpolateCartesian(start[i],end[i],pos_spacing_,rot_spacing_,path[i],max_num_points);
+  }
   
   while(timeout.toSec() >= 0.0)
   {
@@ -335,13 +353,18 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
       poses.push_back(path[i][0]);
 
     if(kinematics_solver_->searchConstraintAwarePositionIK(poses,timeout,seed_states,error_codes))
+    {
       ROS_DEBUG("Got solution for initial pose");
+      addToJointTrajectory(response.trajectory.joint_trajectory,seed_states);
+    }
     else
     {
       response.error_code = getArmNavigationErrorCode(error_codes);
+      ROS_ERROR("Could not find solution for initial pose. Error code: %s",arm_navigation_msgs::armNavigationErrorCodeToString(response.error_code).c_str());
+      visualizeEndEffectorPoses(poses);
       return false;
     }
-    ROS_INFO("Path size: %d",path.size());
+    ROS_DEBUG("Num groups in path: %d",(int)path.size());
     //Now use those collision free solutions to try and find solutions that are close
     for(unsigned int i=1; i < path[0].size(); i++)
     {
@@ -350,7 +373,6 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
         poses.push_back(path[j][i]);
       if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,solution_states,error_codes,max_distance_))
       {
-        ROS_INFO("Path %d",i);
         if(checkMotion(seed_states,solution_states,empty_constraints,timeout,error_code))
         {
           addToJointTrajectory(response.trajectory.joint_trajectory,solution_states);
@@ -374,6 +396,27 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
     return true;
   }
   return false;
+}
+
+bool InterpolatedIKMotionPlanner::visualizeEndEffectorPoses(const std::vector<geometry_msgs::Pose> &poses)
+{
+  visualization_msgs::MarkerArray mk;
+  mk.markers.resize(poses.size());
+  for(unsigned int i=0; i < poses.size(); i++)
+  {
+    mk.markers[i].header.stamp = ros::Time::now();
+    mk.markers[i].header.frame_id = kinematics_solver_->getBaseFrame();
+    mk.markers[i].pose = poses[i];
+
+    mk.markers[i].scale.x = 1.0;
+    mk.markers[i].scale.y = mk.markers[i].scale.z = 0.1;
+    mk.markers[i].color.a = 1.0;
+    mk.markers[i].color.r = 0.04;
+    mk.markers[i].color.g = 1.0;
+    mk.markers[i].color.b = 0.04;
+  }
+  end_effector_pose_array_publisher_.publish(mk);
+  return true;
 }
 
 bool InterpolatedIKMotionPlanner::checkMotion(const std::vector<std::vector<double> > &start, 
@@ -482,7 +525,7 @@ bool InterpolatedIKMotionPlanner::interpolateCartesian(const geometry_msgs::Pose
   else
     getNumPoints(start_tf,end_tf,start_rot_tf,end_rot_tf,translation_resolution,rotation_resolution,num_points);
 
-  ROS_INFO("Interpolating with num points: %d",num_points);
+  ROS_DEBUG("Interpolating cartesian path with num points: %d",num_points);
 
   for(unsigned int i=0; i < num_points; i++)
   {
@@ -491,6 +534,9 @@ bool InterpolatedIKMotionPlanner::interpolateCartesian(const geometry_msgs::Pose
     point_rot_tf = start_rot_tf.slerp(end_rot_tf,fraction);
     tf::pointTFToMsg(point_tf,pose.position);
     tf::quaternionTFToMsg(point_rot_tf,pose.orientation);
+    ROS_DEBUG("Interpolate point (%d)",i);
+    ROS_DEBUG("Position : %f, %f, %f",pose.position.x,pose.position.y,pose.position.z);
+    ROS_DEBUG("Orientation : %f, %f, %f, %f",pose.orientation.x,pose.orientation.y,pose.orientation.z,pose.orientation.w);
     path.push_back(pose);
   }
   return true;

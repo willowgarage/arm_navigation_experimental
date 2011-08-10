@@ -41,6 +41,7 @@
 #include <arm_navigation_msgs/GetMotionPlan.h>
 #include <arm_navigation_msgs/convert_messages.h>
 #include <arm_navigation_msgs/planning_visualizer.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <planning_environment/models/collision_models_interface.h>
 #include <planning_environment/models/model_utils.h>
@@ -94,7 +95,10 @@ private:
                    const arm_navigation_msgs::Constraints &constraints,
                    double &timeout,
                    int &error_code);
-
+  
+  bool setRobotState(arm_navigation_msgs::GetMotionPlan::Request &request,
+                     arm_navigation_msgs::GetMotionPlan::Response &response);
+  
   bool getStart(const arm_navigation_msgs::GetMotionPlan::Request &request,
                 arm_navigation_msgs::GetMotionPlan::Response &response,
                 std::vector<geometry_msgs::Pose> &start);
@@ -108,7 +112,7 @@ private:
                               const std::string &end_effector_name,
                               arm_navigation_msgs::PositionConstraint &position_constraint,
                               arm_navigation_msgs::OrientationConstraint &orientation_constraint,
-                              const bool &need_both_constraints=false);
+                              const bool &need_both_constraints=true);
 
   bool getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                              const ros::Duration &max_time,
@@ -142,6 +146,8 @@ private:
   bool addToJointTrajectory(trajectory_msgs::JointTrajectory &trajectory,
                             const std::vector<std::vector<double> > &solution);
   
+  bool visualizeEndEffectorPoses(const std::vector<geometry_msgs::Pose> &poses);
+
   planning_environment::CollisionModelsInterface *collision_models_interface_;
   bool collision_models_interface_generated_;
   ros::NodeHandle node_handle_;
@@ -156,6 +162,8 @@ private:
   std::vector<std::string> group_names_, end_effector_link_names_;
 
   arm_navigation_msgs::PlanningVisualizer planning_visualizer_;
+
+  ros::Publisher end_effector_pose_publisher_,end_effector_pose_array_publisher_;
 };
 
 }
