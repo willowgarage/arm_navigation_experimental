@@ -32,6 +32,8 @@
 #include <move_arm_warehouse/planning_scene_warehouse_viewer.h>
 #include <qt4/QtGui/qapplication.h>
 #include <assert.h>
+#include <qt4/QtGui/qsplashscreen.h>
+#include <ros/package.h>
 
 using namespace collision_space;
 using namespace kinematics_msgs;
@@ -1629,9 +1631,24 @@ int main(int argc, char** argv)
   ParameterDialog* dialog = new ParameterDialog(params);
   dialog->exec();
   dialog->updateParams();
+
+  QImage image;
+  if(chdir(ros::package::getPath("move_arm_warehouse").c_str()) != 0)
+  {
+    ROS_ERROR("FAILED TO CHANGE PACKAGE TO %s", ros::package::getPath("move_arm_warehouse").c_str());
+  }
+  if(!image.load("./res/splash.png"))
+  {
+    ROS_ERROR("FAILED TO LOAD ./res/splash.png");
+  }
+
+  QSplashScreen screen(QPixmap::fromImage(image));
+  screen.show();
+  app->processEvents();
   psv = new PlanningSceneVisualizer(NULL, dialog->params_);
   app->setActiveWindow(psv);
   psv->show();
+  screen.close();
   inited = true;
 
   int ret = app->exec();
