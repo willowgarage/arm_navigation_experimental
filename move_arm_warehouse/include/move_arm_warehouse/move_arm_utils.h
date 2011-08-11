@@ -63,6 +63,14 @@
 #include <arm_navigation_msgs/CollisionObject.h>
 #include <planning_environment/monitors/kinematic_model_state_monitor.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
+#include <gazebo_msgs/SetModelConfiguration.h>
+#include <std_srvs/Empty.h>
+#include <pr2_mechanism_msgs/ListControllers.h>
+#include <pr2_mechanism_msgs/LoadController.h>
+#include <pr2_mechanism_msgs/UnloadController.h>
+#include <pr2_mechanism_msgs/SwitchController.h>
+#include <gazebo_msgs/SetLinkProperties.h>
+#include <gazebo_msgs/GetLinkProperties.h>
 
 typedef map<std::string, interactive_markers::MenuHandler::EntryHandle> MenuEntryMap;
 typedef map<std::string, MenuEntryMap> MenuMap;
@@ -1070,7 +1078,12 @@ namespace planning_scene_utils
       std::string left_arm_group_;
       std::string execute_left_trajectory_;
       std::string execute_right_trajectory_;
+      std::string list_controllers_service_;
+      std::string unload_controllers_service_;
+      std::string load_controllers_service_;
+      std::string switch_controllers_service_;
       bool use_robot_data_;
+      bool sync_robot_state_with_gazebo_;
   };
 
   ////
@@ -1175,6 +1188,16 @@ namespace planning_scene_utils
       ros::ServiceClient right_ik_service_client_;
       ros::ServiceClient right_interpolate_service_client_;
       ros::ServiceClient trajectory_filter_service_client_;
+      ros::ServiceClient gazebo_joint_state_client_;
+      ros::ServiceClient list_controllers_client_;
+      ros::ServiceClient load_controllers_client_;
+      ros::ServiceClient unload_controllers_client_;
+      ros::ServiceClient switch_controllers_client_;
+      ros::ServiceClient pause_gazebo_client_;
+      ros::ServiceClient unpause_gazebo_client_;
+      ros::ServiceClient set_link_properties_client_;
+      ros::ServiceClient get_link_properties_client_;
+
       std::map<std::string, double> robot_state_joint_values_;
       std::vector<ros::Time> last_creation_time_query_;
       tf::TransformBroadcaster transform_broadcaster_;

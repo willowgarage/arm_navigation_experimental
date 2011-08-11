@@ -1179,6 +1179,170 @@ void CollisionProximitySpace::getProximityGradientMarkers(const std::vector<std:
   }
 }
 
+bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTrajectory& trajectory,
+                                               const arm_navigation_msgs::Constraints& goal_constraints,
+                                               const arm_navigation_msgs::Constraints& path_constraints,
+                                               const std::string& groupName)
+{
+
+  if(!collision_models_interface_->getPlanningSceneState()->hasJointStateGroup(groupName))
+  {
+    ROS_ERROR("Group %s does not exist. Cannot evaluate trajectory safety.", groupName.c_str());
+    return false;
+  }
+  planning_models::KinematicState::JointStateGroup* stateGroup = collision_models_interface_->getPlanningSceneState()->
+      getJointStateGroup(groupName);
+  arm_navigation_msgs::ArmNavigationErrorCodes error_code;
+  std::vector<arm_navigation_msgs::ArmNavigationErrorCodes> error_codes;
+  std::map<std::string, double> stateMap;
+  collision_models_interface_->getPlanningSceneState()->getKinematicStateValues(stateMap);
+
+  // If the trajectory is already valid and has no mesh to mesh collisions, we know it's safe.
+  if(collision_models_interface_->isJointTrajectoryValid(*(collision_models_interface_->getPlanningSceneState()),
+                                                      trajectory, goal_constraints, path_constraints, error_code, error_codes, false))
+  {
+    return true;
+  }
+  // Otherwise we have to do something more clever. We know it may have mesh to mesh collisions, but we might
+  // want to plan into collision or out of collision. We will still avoid planning through obstacles.
+  else
+  {
+    std::vector<double> lastDistances;
+    TrajectoryPointType type = None;
+    // For each trajectory point, get gradients and assert that the collision cost of start points
+    // is monotonically decreasing, and that the collision cost of end points is monotonically increasing.
+    // Midpoints must never have collisions.
+    //+--------------------------------------------------------------------------------------------------------------+
+    //|  NONE         | START                                  | MIDDLE                           | END              |
+    //| Starting Phase| First collision to first non-collision | First non-collision to collision | collision to end |
+    //| First point.  | Monotonically increasing distance      | No collisions allowed            | Monoton. decrease|
+    //+--------------------------------------------------------------------------------------------------------------+
+    for(size_t i = 0; i < trajectory.points.size(); i++)
+    {
+      std::vector<GradientInfo> gradients;
+      std::vector<double> distances;
+      const trajectory_msgs::JointTrajectoryPoint& trajectoryPoint =  trajectory.points[i];
+      stateGroup->setKinematicState(trajectoryPoint.positions);
+      setCurrentGroupState(*(collision_models_interface_->getPlanningSceneState()));
+
+      getStateGradients(gradients, true);
+      bool in_collision = false;
+      for(size_t j = 0; j < gradients.size(); j++)
+      {
+        GradientInfo& gradient = gradients[j];
+        in_collision = in_collision || gradient.collision;
+
+        for(size_t k = 0; k < gradient.distances.size(); k++)
+        {
+          distances.push_back(gradient.distances[k]);
+          in_collision = in_collision || gradient.distances[k] < 0.0;
+        }
+      }
+
+      // If the first point is in collision, we're in the start collision phase
+      if(type == None && in_collision && i == 0)
+      {
+        type = StartCollision;
+        ROS_DEBUG("In starting collision phase at index 0");
+      }
+      // If the first point is not in collision, then the first collision we encounter is the end phase.
+      else if(type == None && in_collision && i != 0)
+      {
+        type = EndCollision;
+        ROS_DEBUG("In ending collision phase at index %lu", (long unsigned int)i);
+      }
+      // If the first point is not in collision, and the next point is not in collision, then we've entered the
+      // middle phase.
+      else if(type == None && !in_collision && i != 0)
+      {
+        type = Middle;
+        ROS_DEBUG("In middle collision phase at index %lu",  (long unsigned int)i);
+      }
+      // If we've exited collision from the start, then we're in the middle phase.
+      else if (type == StartCollision && !in_collision)
+      {
+        type = Middle;
+        ROS_DEBUG("In middle collision phase at index %lu",  (long unsigned int)i);
+      }
+      // If we're in the middle phase, and we encounter a collision, we're in the end phase.
+      else if(type == Middle && in_collision)
+      {
+        type = EndCollision;
+        ROS_DEBUG("In end collision phase at index %lu",  (long unsigned int)i);
+      }
+      // If the end phase has collisions, then there should be no point in which it is out of collision.
+      // We want to avoid passing through obstacles, but not going into contact with obstacles.
+      else if(type == EndCollision && !in_collision)
+      {
+        ROS_DEBUG("Got point in the end collision phase that was not in collision : %lu", (long unsigned int) i);
+        return false;
+      }
+
+
+      for(size_t j = 0; j < distances.size(); j++)
+      {
+        double dist = distances[j];
+        double lastDist = -10000;
+
+        if(lastDistances.size() > j)
+        {
+          lastDist = lastDistances[j];
+        }
+        else
+        {
+          lastDistances.push_back(dist);
+        }
+
+        // Only consider spheres in collision.
+        if(dist > 0.02)
+        {
+          continue;
+        }
+
+        // Switch occurs in start phase during collision, in end phase during collision, or middle phase
+        // during non-collision.
+        switch(type)
+        {
+          case StartCollision:
+            // Assert monotonically increasing.
+            if(dist < lastDist)
+            {
+              ROS_DEBUG("Start phase was not monotonically increasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
+              return false;
+            }
+            break;
+          case EndCollision:
+            // Assert monotonically decreasing.
+            if(dist > lastDist)
+            {
+              ROS_DEBUG("End phase was not monotonically decreasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
+              return false;
+            }
+            break;
+          case Middle:
+            // Assert no collisions.
+            if(in_collision)
+            {
+              ROS_DEBUG("Middle phase had a collision. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
+              return false;
+            }
+            break;
+          case None:
+            // Nothing.
+            break;
+        }
+
+        lastDistances[j] = dist;
+      }
+    }
+    // Trajectory passed all tests.
+    ROS_DEBUG("Trajectory passed all safety tests.");
+    return true;
+  }
+
+
+}
+
 ////////////
 // Visualization functions
 ///////////

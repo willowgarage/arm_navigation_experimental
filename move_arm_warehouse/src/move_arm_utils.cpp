@@ -521,6 +521,19 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   /////
   /// Subscribers
   //////
+  if(params.sync_robot_state_with_gazebo_)
+  {
+    ros::service::waitForService("/gazebo/set_model_configuration");
+    ros::service::waitForService(params.list_controllers_service_);
+    ros::service::waitForService(params.load_controllers_service_);
+    ros::service::waitForService(params.unload_controllers_service_);
+    ros::service::waitForService(params.switch_controllers_service_);
+    ros::service::waitForService("/gazebo/pause_physics");
+    ros::service::waitForService("/gazebo/unpause_physics");
+    ros::service::waitForService("/gazebo/set_link_properties");
+    ros::service::waitForService("/gazebo/get_link_properties");
+  }
+
   if(params.left_arm_group_ != "none")
   {
     ros::service::waitForService(params.left_ik_name_);
@@ -544,6 +557,19 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   if(params.proximity_space_validity_name_ != "none")
   {
     ros::service::waitForService(params.proximity_space_validity_name_);
+  }
+
+  if(params.sync_robot_state_with_gazebo_)
+  {
+    gazebo_joint_state_client_ = nh_.serviceClient<gazebo_msgs::SetModelConfiguration>("/gazebo/set_model_configuration", true);
+    list_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::ListControllers>(params.list_controllers_service_, true);
+    load_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::LoadController>(params.load_controllers_service_, true);
+    unload_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::UnloadController>(params.unload_controllers_service_, true);
+    switch_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::SwitchController>(params.switch_controllers_service_, true);
+    pause_gazebo_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/pause_physics", true);
+    unpause_gazebo_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics", true);
+    set_link_properties_client_ = nh_.serviceClient<gazebo_msgs::SetLinkProperties>("/gazebo/set_link_properties", true);
+    get_link_properties_client_ = nh_.serviceClient<gazebo_msgs::GetLinkProperties>("/gazebo/get_link_properties", true);
   }
 
   if(params.left_arm_group_ != "none")
@@ -1100,28 +1126,28 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
         {
         case VisualMesh:
           cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, col,
-                                         it->first + "_start", ros::Duration(MARKER_REFRESH_TIME), 
+                                         it->first + "_Goal", ros::Duration(MARKER_REFRESH_TIME),
                                          &lnames, 1.0, false);
           // Bodies held by robot
-          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_start",
+          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_Goal",
                                                  col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
           
           break;
         case CollisionMesh:
           cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, col,
-                                         it->first + "_start", ros::Duration(MARKER_REFRESH_TIME), 
+                                         it->first + "_Goal", ros::Duration(MARKER_REFRESH_TIME),
                                          &lnames, 1.0, true);
-          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_start",
+          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_Goal",
                                                  col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
           break;
         case PaddingMesh:
           cm_->getRobotPaddedMarkersGivenState(*(data.getGoalState()),
                                                arr,
                                                col,
-                                               it->first + "_start",
+                                               it->first + "_Goal",
                                                ros::Duration(MARKER_REFRESH_TIME),
                                                (const vector<string>*)&lnames);
-          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_start",
+          cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_Goal",
                                                  col, ros::Duration(MARKER_REFRESH_TIME), true, &lnames);
           break;
         }
@@ -2927,6 +2953,205 @@ void PlanningSceneEditor::setIKControlsVisible(std::string ID, PositionType type
 
 void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 {
+  if(params_.sync_robot_state_with_gazebo_)
+  {
+    pr2_mechanism_msgs::ListControllers listControllers;
+
+    if(!list_controllers_client_.call(listControllers.request, listControllers.response))
+    {
+      ROS_ERROR("Failed to get list of controllers!");
+      return;
+    }
+
+
+    std::map<std::string, planning_models::KinematicModel::JointModelGroup*> jointModelGroupMap = cm_->getKinematicModel()->getJointModelGroupMap();
+    planning_models::KinematicModel::JointModelGroup* rightGroup = NULL;
+    planning_models::KinematicModel::JointModelGroup* leftGroup = NULL;
+    planning_models::KinematicModel::JointModelGroup* undefinedGroup = (planning_models::KinematicModel::JointModelGroup*)0x1;
+    if(params_.right_arm_group_ != "none")
+    {
+      rightGroup = jointModelGroupMap[params_.right_arm_group_];
+    }
+
+    if(params_.left_arm_group_ != "none")
+    {
+      leftGroup = jointModelGroupMap[params_.left_arm_group_];
+    }
+
+
+    /*
+    for(planning_models::KinematicModel::JointModelGroup* group = rightGroup; group != undefinedGroup; group = leftGroup )
+    {
+      if(group != NULL)
+      {
+        for(size_t i = 0; i < group->getUpdatedLinkModelNames().size(); i++)
+        {
+          gazebo_msgs::SetLinkProperties turnGravityOff;
+          gazebo_msgs::GetLinkProperties linkProperties;
+
+          linkProperties.request.link_name = "pr2::" + group->getUpdatedLinkModelNames()[i];
+
+
+          if(!get_link_properties_client_.call(linkProperties.request, linkProperties.response))
+          {
+            ROS_ERROR("Unable to call get link properties for link %s : %s!", linkProperties.request.link_name.c_str(), linkProperties.response.status_message.c_str());
+            return;
+          }
+
+          if(!linkProperties.response.success)
+          {
+            ROS_ERROR("Failed to get link properties for link %s", linkProperties.request.link_name.c_str());
+            return;
+          }
+
+          turnGravityOff.request.gravity_mode = false;
+          turnGravityOff.request.com = linkProperties.response.com;
+          turnGravityOff.request.ixx = linkProperties.response.ixx;
+          turnGravityOff.request.ixy = linkProperties.response.ixy;
+          turnGravityOff.request.ixz = linkProperties.response.ixz;
+          turnGravityOff.request.iyy = linkProperties.response.iyy;
+          turnGravityOff.request.iyz = linkProperties.response.iyz;
+          turnGravityOff.request.izz = linkProperties.response.izz;
+          turnGravityOff.request.link_name = linkProperties.request.link_name;
+          turnGravityOff.request.mass = linkProperties.response.mass;
+
+          if(!set_link_properties_client_.call(turnGravityOff.request, turnGravityOff.response))
+          {
+
+            ROS_ERROR("Unable to call set link properties for link %s : %s!", linkProperties.request.link_name.c_str(), turnGravityOff.response.status_message.c_str());
+            return;
+          }
+
+          if(!turnGravityOff.response.success)
+          {
+            ROS_ERROR("Failed to set link properties for link %s", linkProperties.request.link_name.c_str());
+          }
+        }
+      }
+    }
+
+    ROS_INFO("Disabled gravity");
+    */
+
+    pr2_mechanism_msgs::SwitchController switchControllers;
+    switchControllers.request.stop_controllers = listControllers.response.controllers;
+    if(!switch_controllers_client_.call(switchControllers.request, switchControllers.response))
+    {
+      ROS_ERROR("Failed to shut down controllers!");
+      return;
+    }
+
+    ROS_INFO("Shut down controllers.");
+
+    MotionPlanRequestData& motionPlanData = (*motion_plan_map_)[trajectory.getMotionPlanRequestID()];
+
+    gazebo_msgs::SetModelConfiguration modelConfiguration;
+    //TODO: Parameterize
+    modelConfiguration.request.model_name = "pr2";
+    modelConfiguration.request.test_urdf_param_name = "robot_description";
+
+    for(size_t i = 0; i < motionPlanData.getStartState()->getJointStateVector().size(); i++)
+    {
+      const KinematicState::JointState* jointState = motionPlanData.getStartState()->getJointStateVector()[i];
+      if(jointState->getJointStateValues().size() > 0)
+      {
+        modelConfiguration.request.joint_names.push_back(jointState->getName());
+        modelConfiguration.request.joint_positions.push_back(jointState->getJointStateValues()[0]);
+      }
+    }
+
+    if(!gazebo_joint_state_client_.call(modelConfiguration.request, modelConfiguration.response))
+    {
+      ROS_ERROR("Failed to call gazebo set joint state client!");
+      return;
+    }
+
+    ROS_INFO("Set joint state");
+
+    if(!modelConfiguration.response.success)
+    {
+      ROS_ERROR("Failed to set gazebo model configuration to start state!");
+      return;
+    }
+    ROS_INFO("Gazebo returned: %s", modelConfiguration.response.status_message.c_str());
+
+    pr2_mechanism_msgs::SwitchController restartControllers;
+    restartControllers.request.start_controllers = listControllers.response.controllers;
+    if(!switch_controllers_client_.call(restartControllers.request, restartControllers.response))
+    {
+      ROS_ERROR("Failed to restart controllers: service call failed!");
+      return;
+    }
+    else if(!restartControllers.response.ok)
+    {
+      ROS_ERROR("Failed to restart controllers: Response not ok!");
+    }
+
+    ROS_INFO("Restart controllers.");
+
+    /*
+    for(planning_models::KinematicModel::JointModelGroup* group = rightGroup; group != undefinedGroup; group = leftGroup )
+    {
+      if(group != NULL)
+      {
+        for(size_t i = 0; i < group->getUpdatedLinkModelNames().size(); i++)
+        {
+          gazebo_msgs::SetLinkProperties turnGravityOn;
+          gazebo_msgs::GetLinkProperties linkProperties;
+
+          linkProperties.request.link_name = "pr2::" + group->getUpdatedLinkModelNames()[i];
+
+
+          if(!get_link_properties_client_.call(linkProperties.request, linkProperties.response))
+          {
+            ROS_ERROR("Unable to call get link properties for link %s!", linkProperties.request.link_name.c_str());
+            return;
+          }
+
+          if(!linkProperties.response.success)
+          {
+            ROS_ERROR("Failed to get link properties for link %s", linkProperties.request.link_name.c_str());
+            return;
+          }
+
+
+          turnGravityOn.request.gravity_mode = true;
+          turnGravityOn.request.com = linkProperties.response.com;
+          turnGravityOn.request.ixx = linkProperties.response.ixx;
+          turnGravityOn.request.ixy = linkProperties.response.ixy;
+          turnGravityOn.request.ixz = linkProperties.response.ixz;
+          turnGravityOn.request.iyy = linkProperties.response.iyy;
+          turnGravityOn.request.iyz = linkProperties.response.iyz;
+          turnGravityOn.request.izz = linkProperties.response.izz;
+          turnGravityOn.request.link_name = linkProperties.request.link_name;
+          turnGravityOn.request.mass = linkProperties.response.mass;
+
+          if(!set_link_properties_client_.call(turnGravityOn.request, turnGravityOn.response))
+          {
+            ROS_ERROR("Unable to call set link properties!");
+            return;
+          }
+
+          if(!turnGravityOn.response.success)
+          {
+            ROS_ERROR("Failed to set link properties for link %s", linkProperties.request.link_name.c_str());
+          }
+        }
+      }
+    }
+
+    ROS_INFO("Re-enabled gravity.");
+    */
+
+       ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.5));
+       SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
+       FollowJointTrajectoryGoal goal;
+       goal.trajectory.joint_names = trajectory.getTrajectory().joint_names;
+       goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(0.2);
+       goal.trajectory.points.push_back(trajectory.getTrajectory().points[0]);
+       controller->sendGoalAndWait(goal, ros::Duration(1.0), ros::Duration(1.0));
+  }
+
   SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
   FollowJointTrajectoryGoal goal;
   goal.trajectory = trajectory.getTrajectory();
@@ -2938,6 +3163,8 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
   logged_trajectory_.points.clear();
   logged_trajectory_start_time_ = ros::Time::now() + ros::Duration(0.2);
   monitor_status_ = Executing;
+
+
 }
 
 void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionType type)

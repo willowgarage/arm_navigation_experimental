@@ -106,6 +106,10 @@ static const std::string TRAJECTORY_FILTER_SERVICE_NAME = "/trajectory_filter/fi
 static const std::string PROXIMITY_SPACE_SERVICE_NAME = "/collision_proximity_server_test/get_distance_aware_plan";
 static const std::string PROXIMITY_SPACE_VALIDITY_NAME = "/collision_proximity_server_test/get_state_validity";
 static const std::string PROXIMITY_SPACE_PLANNER_NAME = "/collision_proximity_planner/plan";
+static const std::string LIST_CONTROLLERS_SERVICE = "/pr2_controller_manager/list_controllers" ;
+static const std::string LOAD_CONTROLLERS_SERVICE = "/pr2_controller_manager/load_controller";
+static const std::string UNLOAD_CONTROLLERS_SERVICE = "/pr2_controller_manager/unload_controller";
+static const std::string SWITCH_CONTROLLERS_SERVICE = "/pr2_controller_manager/switch_controller";
 
 static const ros::Duration PLANNING_DURATION = ros::Duration(5.0);
 
@@ -211,6 +215,11 @@ class ParameterDialog : public QDialog
       use_robot_data_->setChecked(false);
       layout->addRow("Use Data From Simulated/Real Robot?", use_robot_data_);
 
+      sync_with_gazebo_ = new QCheckBox(groupBox);
+      sync_with_gazebo_->setText("Sync With Gazebo");
+      sync_with_gazebo_->setChecked(false);
+      layout->addRow("Synchronize Robot State With Gazebo?", sync_with_gazebo_);
+
       QPushButton* button = new QPushButton(groupBox);
       button->setText("Accept");
       button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
@@ -245,6 +254,7 @@ class ParameterDialog : public QDialog
       params_.execute_left_trajectory_ = execute_left_trajectory_->text().toStdString();
       params_.execute_right_trajectory_ = execute_right_trajectory_->text().toStdString();
       params_.use_robot_data_ = use_robot_data_->isChecked();
+      params_.sync_robot_state_with_gazebo_ = sync_with_gazebo_->isChecked();
     }
 
   private:
@@ -269,6 +279,7 @@ class ParameterDialog : public QDialog
     QLineEdit* execute_left_trajectory_;
     QLineEdit* execute_right_trajectory_;
     QCheckBox* use_robot_data_;
+    QCheckBox* sync_with_gazebo_;
 
 
 };

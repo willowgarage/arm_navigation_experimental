@@ -490,11 +490,14 @@ namespace chomp
       jointTrajectory.points.push_back(point);
     }
 
+    bool valid = collision_space_->isTrajectorySafe(jointTrajectory, goalConstraints, pathConstraints, planning_group_);
+    /*
     bool valid = collision_space_->getCollisionModelsInterface()->isJointTrajectoryValid(*robot_state_,
                                                                                          jointTrajectory,
                                                                                          goalConstraints,
                                                                                          pathConstraints, errorCode,
                                                                                          trajectoryErrorCodes, false);
+                                                                                         */
 
     return valid;
   }

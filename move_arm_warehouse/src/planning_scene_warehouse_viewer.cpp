@@ -1592,6 +1592,11 @@ int main(int argc, char** argv)
   param<string>("left_redundancy", params.left_redundancy_ , LEFT_ARM_REDUNDANCY);
   param<string>("execute_left_trajectory", params.execute_left_trajectory_ , EXECUTE_LEFT_TRAJECTORY);
   param<string>("execute_right_trajectory", params.execute_right_trajectory_ , EXECUTE_RIGHT_TRAJECTORY);
+  param<string>("list_controllers_service", params.list_controllers_service_, LIST_CONTROLLERS_SERVICE);
+  param<string>("load_controllers_service", params.load_controllers_service_, LOAD_CONTROLLERS_SERVICE);
+  param<string>("unload_controllers_service", params.unload_controllers_service_, UNLOAD_CONTROLLERS_SERVICE);
+  param<string>("switch_controllers_service", params.switch_controllers_service_, SWITCH_CONTROLLERS_SERVICE);
+  params.sync_robot_state_with_gazebo_ = false;
 
   ParameterDialog* dialog = new ParameterDialog(params);
   dialog->exec();
