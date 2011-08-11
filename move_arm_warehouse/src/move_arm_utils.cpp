@@ -2963,11 +2963,10 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
       return;
     }
 
-
-    std::map<std::string, planning_models::KinematicModel::JointModelGroup*> jointModelGroupMap = cm_->getKinematicModel()->getJointModelGroupMap();
+    std::map<std::string, planning_models::KinematicModel::JointModelGroup*> jointModelGroupMap =
+        cm_->getKinematicModel()->getJointModelGroupMap();
     planning_models::KinematicModel::JointModelGroup* rightGroup = NULL;
     planning_models::KinematicModel::JointModelGroup* leftGroup = NULL;
-    planning_models::KinematicModel::JointModelGroup* undefinedGroup = (planning_models::KinematicModel::JointModelGroup*)0x1;
     if(params_.right_arm_group_ != "none")
     {
       rightGroup = jointModelGroupMap[params_.right_arm_group_];
@@ -2977,61 +2976,6 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
     {
       leftGroup = jointModelGroupMap[params_.left_arm_group_];
     }
-
-
-    /*
-    for(planning_models::KinematicModel::JointModelGroup* group = rightGroup; group != undefinedGroup; group = leftGroup )
-    {
-      if(group != NULL)
-      {
-        for(size_t i = 0; i < group->getUpdatedLinkModelNames().size(); i++)
-        {
-          gazebo_msgs::SetLinkProperties turnGravityOff;
-          gazebo_msgs::GetLinkProperties linkProperties;
-
-          linkProperties.request.link_name = "pr2::" + group->getUpdatedLinkModelNames()[i];
-
-
-          if(!get_link_properties_client_.call(linkProperties.request, linkProperties.response))
-          {
-            ROS_ERROR("Unable to call get link properties for link %s : %s!", linkProperties.request.link_name.c_str(), linkProperties.response.status_message.c_str());
-            return;
-          }
-
-          if(!linkProperties.response.success)
-          {
-            ROS_ERROR("Failed to get link properties for link %s", linkProperties.request.link_name.c_str());
-            return;
-          }
-
-          turnGravityOff.request.gravity_mode = false;
-          turnGravityOff.request.com = linkProperties.response.com;
-          turnGravityOff.request.ixx = linkProperties.response.ixx;
-          turnGravityOff.request.ixy = linkProperties.response.ixy;
-          turnGravityOff.request.ixz = linkProperties.response.ixz;
-          turnGravityOff.request.iyy = linkProperties.response.iyy;
-          turnGravityOff.request.iyz = linkProperties.response.iyz;
-          turnGravityOff.request.izz = linkProperties.response.izz;
-          turnGravityOff.request.link_name = linkProperties.request.link_name;
-          turnGravityOff.request.mass = linkProperties.response.mass;
-
-          if(!set_link_properties_client_.call(turnGravityOff.request, turnGravityOff.response))
-          {
-
-            ROS_ERROR("Unable to call set link properties for link %s : %s!", linkProperties.request.link_name.c_str(), turnGravityOff.response.status_message.c_str());
-            return;
-          }
-
-          if(!turnGravityOff.response.success)
-          {
-            ROS_ERROR("Failed to set link properties for link %s", linkProperties.request.link_name.c_str());
-          }
-        }
-      }
-    }
-
-    ROS_INFO("Disabled gravity");
-    */
 
     pr2_mechanism_msgs::SwitchController switchControllers;
     switchControllers.request.stop_controllers = listControllers.response.controllers;
@@ -3089,67 +3033,17 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 
     ROS_INFO("Restart controllers.");
 
-    /*
-    for(planning_models::KinematicModel::JointModelGroup* group = rightGroup; group != undefinedGroup; group = leftGroup )
-    {
-      if(group != NULL)
-      {
-        for(size_t i = 0; i < group->getUpdatedLinkModelNames().size(); i++)
-        {
-          gazebo_msgs::SetLinkProperties turnGravityOn;
-          gazebo_msgs::GetLinkProperties linkProperties;
+    ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.5));
+    SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
+    FollowJointTrajectoryGoal goal;
+    goal.trajectory.joint_names = trajectory.getTrajectory().joint_names;
+    goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(0.2);
+    trajectory_msgs::JointTrajectoryPoint endPoint = trajectory.getTrajectory().points[0];
+    endPoint.time_from_start = ros::Duration(1.0);
+    goal.trajectory.points.push_back(endPoint);
+    controller->sendGoalAndWait(goal, ros::Duration(1.0), ros::Duration(1.0));
+    ros::Time::sleepUntil(ros::Time::now() + ros::Duration(1.0));
 
-          linkProperties.request.link_name = "pr2::" + group->getUpdatedLinkModelNames()[i];
-
-
-          if(!get_link_properties_client_.call(linkProperties.request, linkProperties.response))
-          {
-            ROS_ERROR("Unable to call get link properties for link %s!", linkProperties.request.link_name.c_str());
-            return;
-          }
-
-          if(!linkProperties.response.success)
-          {
-            ROS_ERROR("Failed to get link properties for link %s", linkProperties.request.link_name.c_str());
-            return;
-          }
-
-
-          turnGravityOn.request.gravity_mode = true;
-          turnGravityOn.request.com = linkProperties.response.com;
-          turnGravityOn.request.ixx = linkProperties.response.ixx;
-          turnGravityOn.request.ixy = linkProperties.response.ixy;
-          turnGravityOn.request.ixz = linkProperties.response.ixz;
-          turnGravityOn.request.iyy = linkProperties.response.iyy;
-          turnGravityOn.request.iyz = linkProperties.response.iyz;
-          turnGravityOn.request.izz = linkProperties.response.izz;
-          turnGravityOn.request.link_name = linkProperties.request.link_name;
-          turnGravityOn.request.mass = linkProperties.response.mass;
-
-          if(!set_link_properties_client_.call(turnGravityOn.request, turnGravityOn.response))
-          {
-            ROS_ERROR("Unable to call set link properties!");
-            return;
-          }
-
-          if(!turnGravityOn.response.success)
-          {
-            ROS_ERROR("Failed to set link properties for link %s", linkProperties.request.link_name.c_str());
-          }
-        }
-      }
-    }
-
-    ROS_INFO("Re-enabled gravity.");
-    */
-
-       ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.5));
-       SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
-       FollowJointTrajectoryGoal goal;
-       goal.trajectory.joint_names = trajectory.getTrajectory().joint_names;
-       goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(0.2);
-       goal.trajectory.points.push_back(trajectory.getTrajectory().points[0]);
-       controller->sendGoalAndWait(goal, ros::Duration(1.0), ros::Duration(1.0));
   }
 
   SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
@@ -3163,7 +3057,6 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
   logged_trajectory_.points.clear();
   logged_trajectory_start_time_ = ros::Time::now() + ros::Duration(0.2);
   monitor_status_ = Executing;
-
 
 }
 
