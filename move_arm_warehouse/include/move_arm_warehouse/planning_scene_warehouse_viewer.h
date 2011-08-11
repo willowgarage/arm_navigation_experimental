@@ -110,6 +110,8 @@ static const std::string LIST_CONTROLLERS_SERVICE = "/pr2_controller_manager/lis
 static const std::string LOAD_CONTROLLERS_SERVICE = "/pr2_controller_manager/load_controller";
 static const std::string UNLOAD_CONTROLLERS_SERVICE = "/pr2_controller_manager/unload_controller";
 static const std::string SWITCH_CONTROLLERS_SERVICE = "/pr2_controller_manager/switch_controller";
+static const std::string GAZEBO_ROBOT_MODEL = "pr2";
+static const std::string ROBOT_DESCRIPTION_PARAM = "robot_description";
 
 static const ros::Duration PLANNING_DURATION = ros::Duration(5.0);
 

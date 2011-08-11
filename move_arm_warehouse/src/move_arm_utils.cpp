@@ -2150,8 +2150,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
 
     if(type == StartPosition)
     {
-      (*motion_plan_map_)[controller.motion_plan_ID_].getStartState()->updateKinematicStateWithLinkAt(
-                                                                                                      (*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
+      (*motion_plan_map_)[controller.motion_plan_ID_].getStartState()->updateKinematicStateWithLinkAt((*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
                                                                                                       pose);
       findIKSolution = true;
       if(selected_motion_plan_ID_ != controller.motion_plan_ID_)
@@ -2162,8 +2161,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
     }
     else
     {
-      (*motion_plan_map_)[controller.motion_plan_ID_].getGoalState()->updateKinematicStateWithLinkAt(
-                                                                                                     (*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
+      (*motion_plan_map_)[controller.motion_plan_ID_].getGoalState()->updateKinematicStateWithLinkAt((*motion_plan_map_)[controller.motion_plan_ID_].getEndEffectorLink(),
                                                                                                      pose);
       findIKSolution = true;
       if(selected_motion_plan_ID_ != controller.motion_plan_ID_)
@@ -2990,9 +2988,8 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
     MotionPlanRequestData& motionPlanData = (*motion_plan_map_)[trajectory.getMotionPlanRequestID()];
 
     gazebo_msgs::SetModelConfiguration modelConfiguration;
-    //TODO: Parameterize
-    modelConfiguration.request.model_name = "pr2";
-    modelConfiguration.request.test_urdf_param_name = "robot_description";
+    modelConfiguration.request.model_name = params_.gazebo_model_name_;
+    modelConfiguration.request.test_urdf_param_name = params_.robot_description_param_;
 
     for(size_t i = 0; i < motionPlanData.getStartState()->getJointStateVector().size(); i++)
     {

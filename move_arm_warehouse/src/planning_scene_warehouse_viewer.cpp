@@ -910,6 +910,32 @@ void PlanningSceneVisualizer::playButtonPressed()
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
     selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_ID_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+
+    // Set checkbox to visible.
+    for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
+    {
+      QTreeWidgetItem* item = trajectory_tree_->topLevelItem(i);
+
+      if(item->text(0).toStdString() == selected_trajectory_ID_)
+      {
+        for(int j = 0; j < item->childCount(); j++)
+        {
+          QTreeWidgetItem* child = item->child(j);
+          QCheckBox* box = dynamic_cast<QCheckBox*>(trajectory_tree_->itemWidget(child, 0));
+
+          if(box != NULL)
+          {
+            if(box->text().toStdString() == "Visible")
+            {
+              box->setChecked(true);
+              break;
+            }
+          }
+        }
+        break;
+      }
+    }
+
   }
   else
   {
@@ -1596,6 +1622,8 @@ int main(int argc, char** argv)
   param<string>("load_controllers_service", params.load_controllers_service_, LOAD_CONTROLLERS_SERVICE);
   param<string>("unload_controllers_service", params.unload_controllers_service_, UNLOAD_CONTROLLERS_SERVICE);
   param<string>("switch_controllers_service", params.switch_controllers_service_, SWITCH_CONTROLLERS_SERVICE);
+  param<string>("gazebo_robot_model", params.gazebo_model_name_, GAZEBO_ROBOT_MODEL);
+  param<string>("robot_description_param", params.robot_description_param_, ROBOT_DESCRIPTION_PARAM);
   params.sync_robot_state_with_gazebo_ = false;
 
   ParameterDialog* dialog = new ParameterDialog(params);

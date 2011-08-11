@@ -1,7 +1,7 @@
 <launch>
 	
 	 <param name="/use_sim_time" value="true" />
-
+        <param name="warehouse_host" value="bke.willowgarage.com"/>
 	  <param name="/robot_description" textfile="$(find planning_models)/test_urdf/robot.xml" />
 
 	  <!-- send parameters for multidof -->
@@ -52,7 +52,7 @@
 
 	  <node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
 
-	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
+	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer" output="screen"/>
 
 	<!-- Called when left arm executes trajectory using controllers -->
 	<param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />

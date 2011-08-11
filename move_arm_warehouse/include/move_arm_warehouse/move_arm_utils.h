@@ -1082,6 +1082,8 @@ namespace planning_scene_utils
       std::string unload_controllers_service_;
       std::string load_controllers_service_;
       std::string switch_controllers_service_;
+      std::string gazebo_model_name_;
+      std::string robot_description_param_;
       bool use_robot_data_;
       bool sync_robot_state_with_gazebo_;
   };
