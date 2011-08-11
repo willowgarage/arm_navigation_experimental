@@ -83,7 +83,12 @@ private:
                const arm_navigation_msgs::PlanningScene& planning_scene,
                const arm_navigation_msgs::OrderedCollisionOperations &collision_operations,
                const ros::Duration &max_time,
-               arm_navigation_msgs::GetMotionPlan::Response &response);
+               arm_navigation_msgs::GetMotionPlan::Response &response,
+               const std::vector<std::vector<double> > &requested_seed_states);
+
+  bool getSeedStates(const arm_navigation_msgs::GetMotionPlan::Request &request,
+                     arm_navigation_msgs::GetMotionPlan::Response &response,
+                     std::vector<std::vector<double> > &requested_seed_states);
 
   bool convertToBaseFrame(arm_navigation_msgs::GetMotionPlan::Request &request,arm_navigation_msgs::GetMotionPlan::Response &response);
     
@@ -116,7 +121,8 @@ private:
 
   bool getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                              const ros::Duration &max_time,
-                             arm_navigation_msgs::GetMotionPlan::Response &response);
+                             arm_navigation_msgs::GetMotionPlan::Response &response,
+                             const std::vector<std::vector<double> > &requested_seed_states);
 
   arm_navigation_msgs::ArmNavigationErrorCodes kinematicsErrorCodeToArmNavigationErrorCode(const int& error_code);
 

@@ -156,13 +156,17 @@ bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan
   if(!convertToBaseFrame(request,response))
     return true;
 
+  std::vector<std::vector<double> > seed_states;
+  if(!getSeedStates(request,response,seed_states))
+    return false;
+
   if(!getStart(request,response,start))
     return true;
   if(!getGoal(request,response,goal))
     return true;
 
   ros::Duration allowed_planning_time = request.motion_plan_request.allowed_planning_time;
-  if(getPath(start,goal,planning_scene,collision_operations,allowed_planning_time,response))
+  if(getPath(start,goal,planning_scene,collision_operations,allowed_planning_time,response,seed_states))
   {
     response.error_code.val = response.error_code.SUCCESS;
     arm_navigation_msgs::RobotState robot_state;
@@ -190,6 +194,53 @@ bool InterpolatedIKMotionPlanner::convertToBaseFrame(arm_navigation_msgs::GetMot
   if(!collision_models_interface_->convertConstraintsGivenNewWorldTransform(*collision_models_interface_->getPlanningSceneState(),request.motion_plan_request.goal_constraints,kinematics_solver_->getBaseFrame()))
   {
     response.error_code.val = response.error_code.FRAME_TRANSFORM_FAILURE;
+    return false;
+  }
+  return true;
+}
+
+bool InterpolatedIKMotionPlanner::getSeedStates(const arm_navigation_msgs::GetMotionPlan::Request &request,
+                                                arm_navigation_msgs::GetMotionPlan::Response &response,
+                                                std::vector<std::vector<double> > &requested_seed_states)
+{
+  std::vector<std::vector<std::string> > joint_names = kinematics_solver_->getJointNamesByGroup();
+  requested_seed_states.resize(joint_names.size());
+  unsigned int groups_found = 0;
+  for (unsigned int i=0; i < num_groups_; i++)
+  {
+    unsigned int joints_found = 0;
+    requested_seed_states[i].resize(joint_names[i].size());
+    for(unsigned int j=0; j < joint_names[i].size(); j++)
+    {
+      for(unsigned int k=0; k < request.motion_plan_request.start_state.joint_state.name.size(); k++)
+      {
+        if(request.motion_plan_request.start_state.joint_state.name[k] == joint_names[i][j])
+        {
+          joints_found++;
+          requested_seed_states[i][j] = request.motion_plan_request.start_state.joint_state.position[k];
+          break;
+        }
+      }
+    }
+    if(joints_found == joint_names[i].size())
+    {
+      groups_found++;
+    }
+    else if(joints_found !=0)
+    {
+        ROS_ERROR("Could not find start state for group %s",group_names_[i].c_str());
+        response.error_code.val = response.error_code.INVALID_ROBOT_STATE;        
+        return false;
+    }
+  }
+  if(groups_found == 0)
+  {
+    requested_seed_states.clear();
+    return true;
+  }
+  else if(groups_found < num_groups_)
+  { 
+    requested_seed_states.clear();   
     return false;
   }
   return true;
@@ -298,7 +349,8 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
                                           const arm_navigation_msgs::PlanningScene& planning_scene,
                                           const arm_navigation_msgs::OrderedCollisionOperations &collision_operations,
                                           const ros::Duration &max_time,
-                                          arm_navigation_msgs::GetMotionPlan::Response &response)
+                                          arm_navigation_msgs::GetMotionPlan::Response &response,
+                                          const std::vector<std::vector<double> > &requested_seed_states)
 {
   ros::Duration timeout(max_time);
   std::vector<std::vector<geometry_msgs::Pose> > path;
@@ -321,7 +373,7 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
   while(timeout.toSec() >= 0.0)
   {
     ros::Time start_time = ros::Time::now();
-    if(getInterpolatedIKPath(path,timeout,response))
+    if(getInterpolatedIKPath(path,timeout,response,requested_seed_states))
     {
       timeout -= (ros::Time::now()-start_time);
       return true;
@@ -333,7 +385,8 @@ bool InterpolatedIKMotionPlanner::getPath(const std::vector<geometry_msgs::Pose>
 
 bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::vector<geometry_msgs::Pose> > &path,
                                                         const ros::Duration &max_time,
-                                                        arm_navigation_msgs::GetMotionPlan::Response &response)
+                                                        arm_navigation_msgs::GetMotionPlan::Response &response,
+                                                        const std::vector<std::vector<double> > &requested_seed_states)
 {
   double timeout = max_time.toSec();
   std::vector<int> error_codes;
@@ -342,10 +395,13 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
   int error_code;
   while(timeout >= 0.0)
   {
-    // Find initial collision free solutions for both arms
+    // Find initial collision free solutions for all arms
     std::vector<std::vector <double> > seed_states, solution_states;
     std::vector<geometry_msgs::Pose> poses;
-    seed_states.resize(num_groups_);
+    if(!requested_seed_states.empty())
+      seed_states = requested_seed_states;
+    else
+      seed_states.resize(num_groups_);
     solution_states.resize(num_groups_);
     error_codes.resize(num_groups_);
 
