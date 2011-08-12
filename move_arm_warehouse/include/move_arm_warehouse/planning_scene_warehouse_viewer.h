@@ -75,30 +75,18 @@ static const std::string VIS_TOPIC_NAME = "planning_scene_visualizer_markers";
 
 //in 100 hz ticks
 static const unsigned int CONTROL_SPEED = 5;
-
-static const double BASE_TRANS_SPEED = .3;
-static const double BASE_ROT_SPEED = .15;
-
-static const double HAND_TRANS_SPEED = .05;
-static const double HAND_ROT_SPEED = .15;
-
 static const std::string EXECUTE_RIGHT_TRAJECTORY = "/r_arm_controller/follow_joint_trajectory";
 static const std::string EXECUTE_LEFT_TRAJECTORY = "/l_arm_controller/follow_joint_trajectory";
 static const std::string LEFT_IK_NAME = "/pr2_left_arm_kinematics/get_constraint_aware_ik";
 static const std::string RIGHT_IK_NAME = "/pr2_right_arm_kinematics/get_constraint_aware_ik";
-
 static const std::string NON_COLL_LEFT_IK_NAME = "/pr2_left_arm_kinematics/get_ik";
 static const std::string NON_COLL_RIGHT_IK_NAME = "/pr2_right_arm_kinematics/get_ik";
-
 static const std::string RIGHT_ARM_GROUP = "right_arm";
 static const std::string LEFT_ARM_GROUP = "left_arm";
-
 static const std::string RIGHT_ARM_REDUNDANCY = "r_upper_arm_roll_joint";
 static const std::string LEFT_ARM_REDUNDANCY = "l_upper_arm_roll_joint";
-
 static const std::string LEFT_IK_LINK = "l_wrist_roll_link";
 static const std::string RIGHT_IK_LINK = "r_wrist_roll_link";
-
 static const std::string PLANNER_SERVICE_NAME = "/ompl_planning/plan_kinematic_path";
 static const std::string LEFT_INTERPOLATE_SERVICE_NAME = "/l_interpolated_ik_motion_plan";
 static const std::string RIGHT_INTERPOLATE_SERVICE_NAME = "/r_interpolated_ik_motion_plan";
@@ -112,11 +100,12 @@ static const std::string UNLOAD_CONTROLLERS_SERVICE = "/pr2_controller_manager/u
 static const std::string SWITCH_CONTROLLERS_SERVICE = "/pr2_controller_manager/switch_controller";
 static const std::string GAZEBO_ROBOT_MODEL = "pr2";
 static const std::string ROBOT_DESCRIPTION_PARAM = "robot_description";
-
 static const ros::Duration PLANNING_DURATION = ros::Duration(5.0);
-
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "environment_server/set_planning_scene_diff";
 
+/////
+/// @brief Class for configuring PlanningSceneParameter struct in GUI.
+/////
 class ParameterDialog : public QDialog
 {
   public:
@@ -128,6 +117,9 @@ class ParameterDialog : public QDialog
       setup();
     }
 
+    /////
+    /// @brief Creates all the Qt Widgets
+    /////
     void setup()
     {
       QGroupBox* groupBox = new QGroupBox(this);
@@ -234,6 +226,9 @@ class ParameterDialog : public QDialog
 
     }
 
+    /////
+    /// @brief Sets the params_ struct to use data from the Qt widgets.
+    /////
     void updateParams()
     {
       params_.left_ik_name_ = left_ik_name_->text().toStdString();
@@ -286,13 +281,19 @@ class ParameterDialog : public QDialog
 
 };
 
+/////
+/// @brief Main Warehouse Viewer application.
+/////
 class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils::PlanningSceneEditor
 {
     Q_OBJECT
   public:
-
+    /// @brief flag for causing the spin thread and marker thread to stop.
     bool quit_threads_;
 
+    /////
+    /// @brief Thread that loads all warehouse data and creates a table from it.
+    /////
     class TableLoadThread : public QThread
     {
       public:
@@ -307,8 +308,8 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
         }
     };
 
-    PlanningSceneVisualizer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params);
 
+    PlanningSceneVisualizer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params);
     ~PlanningSceneVisualizer();
 
     void initQtWidgets();
@@ -318,7 +319,9 @@ class PlanningSceneVisualizer : public QMainWindow, public planning_scene_utils:
     void createMotionPlanTable();
     void createNewObjectDialog();
     void createRequestDialog();
+    /// @brief resets the trajectory and motion plan tables.
     void updateState();
+    /// @brief callback that occurs when a planning scene is loaded from the warehouse
     void onPlanningSceneLoaded(int scene, int numScenes);
     void createOutcomeDialog();
 

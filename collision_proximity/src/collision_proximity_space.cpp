@@ -1235,7 +1235,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
         for(size_t k = 0; k < gradient.distances.size(); k++)
         {
           distances.push_back(gradient.distances[k]);
-          in_collision = in_collision || gradient.distances[k] < 0.0;
+          in_collision = in_collision || gradient.distances[k] < 0.05;
         }
       }
 
