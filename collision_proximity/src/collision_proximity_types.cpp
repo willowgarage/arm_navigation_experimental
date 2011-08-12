@@ -126,14 +126,14 @@ bool collision_proximity::getCollisionSphereCollision(const distance_field::Prop
 /// BodyDecomposition
 ///
 
-collision_proximity::BodyDecomposition::BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution) :
+collision_proximity::BodyDecomposition::BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution, double padding) :
   object_name_(object_name)
 {
   body_ = bodies::createBodyFromShape(shape); //unpadded
   btTransform ident;
   ident.setIdentity();
   body_->setPose(ident);
-  body_->setPadding(.01);
+  body_->setPadding(padding);
   collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
   relative_collision_points_ = determineCollisionPoints(body_, resolution);
   posed_collision_points_ = relative_collision_points_;

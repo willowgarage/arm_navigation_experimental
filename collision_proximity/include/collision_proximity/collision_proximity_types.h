@@ -134,7 +134,7 @@ class BodyDecomposition {
 
 public:
     
-  BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution);
+  BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution, double padding = 0.01);
 
   ~BodyDecomposition();
 

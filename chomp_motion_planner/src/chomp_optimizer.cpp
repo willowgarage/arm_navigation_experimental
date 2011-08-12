@@ -287,6 +287,7 @@ namespace chomp
     int costWindow = 10;
     vector<double>costs(costWindow, 0.0);
     double minimaThreshold = 0.01;
+    bool shouldBreakOut = false;
 
     if(parameters_->getAnimatePath())
     {
@@ -351,33 +352,36 @@ namespace chomp
       handleJointLimits();
       updateFullTrajectory();
 
-
       if(iteration_ % 10 == 0)
       {
         ROS_DEBUG("Trajectory cost: %f (s=%f, c=%f)", getTrajectoryCost(), getSmoothnessCost(), getCollisionCost());
         if(checkCurrentIterValidity())
         {
-          ROS_INFO("Chomp Got mesh-to-mesh collision free iteration. Breaking out early.");
+          ROS_INFO("Chomp Got safe iteration at iter %d. Breaking out early.", iteration_);
           is_collision_free_ = true;
           iteration_++;
-          break;
+          shouldBreakOut = true;
+        }
+        else
+        {
+          is_collision_free_ = false;
         }
       }
 
       if(!parameters_->getFilterMode())
       {
-        if(collision_free_iteration_ >= parameters_->getMaxIterationsAfterCollisionFree() || cCost < parameters_->getCollisionThreshold())
+        if(cCost < parameters_->getCollisionThreshold())
         {
           if(checkCurrentIterValidity())
           {
             is_collision_free_ = true;
             iteration_++;
-            break;
+            shouldBreakOut = true;
           }
           else
           {
             is_collision_free_ = false;
-            ROS_DEBUG("CHOMP thought trajectory was collision free, but it has mesh collisions!");
+            ROS_DEBUG("CHOMP thought trajectory was collision free, but it is not safe!");
           }
         }
       }
@@ -442,6 +446,16 @@ namespace chomp
       if(parameters_->getAnimatePath() && iteration_ % 25 == 0)
       {
         animatePath();
+      }
+
+      if(shouldBreakOut)
+      {
+        ROS_INFO("Trying collision free iteration %d", collision_free_iteration_);
+        collision_free_iteration_++;
+        if(collision_free_iteration_ > parameters_->getMaxIterationsAfterCollisionFree())
+        {
+          break;
+        }
       }
 
     }
@@ -887,13 +901,6 @@ namespace chomp
         collision_point_vel_mag_[i][j] = collision_point_vel_eigen_[i][j].norm();
       }
     }
-
-    if(is_collision_free_)
-      collision_free_iteration_++;
-    else
-      collision_free_iteration_ = 0;
-
-
   }
 
   void ChompOptimizer::setRobotStateFromPoint(ChompTrajectory& group_trajectory, int i)

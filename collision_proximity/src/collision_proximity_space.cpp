@@ -237,9 +237,17 @@ void CollisionProximitySpace::loadRobotBodyDecompositions()
   
   for(unsigned int i = 0; i < kmodel->getLinkModels().size(); i++) {
     if(kmodel->getLinkModels()[i]->getLinkShape() != NULL) {
+      double padding = collision_models_interface_->getDefaultPadding();
+
+      if(collision_models_interface_->getDefaultLinkPaddingMap().find(kmodel->getLinkModels()[i]->getName()) !=
+          collision_models_interface_->getDefaultLinkPaddingMap().end())
+      {
+        padding = collision_models_interface_->getDefaultLinkPaddingMap().at(kmodel->getLinkModels()[i]->getName());
+      }
+
       body_decomposition_map_[kmodel->getLinkModels()[i]->getName()] = new BodyDecomposition(kmodel->getLinkModels()[i]->getName(),
                                                                                              kmodel->getLinkModels()[i]->getLinkShape(),
-                                                                                             resolution_/2.0);
+                                                                                             resolution_/2.0, padding);
     }
   }
 }
@@ -1235,7 +1243,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
         for(size_t k = 0; k < gradient.distances.size(); k++)
         {
           distances.push_back(gradient.distances[k]);
-          in_collision = in_collision || gradient.distances[k] < 0.05;
+          in_collision = in_collision || gradient.distances[k] < tolerance_;
         }
       }
 
