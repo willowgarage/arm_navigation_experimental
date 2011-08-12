@@ -37,18 +37,19 @@ namespace interpolated_ik_motion_planner
 {
 
 static const std::string DISPLAY_PATH_PUB_TOPIC  = "display_path";
+static const std::string DISPLAY_MARKERS_PUB_TOPIC = "display_markers";
 
 InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner(const std::vector<std::string> &group_names, 
                                                          const std::vector<std::string> &kinematics_solver_names,
                                                          const std::vector<std::string> &end_effector_link_names,
-                                                         planning_environment::CollisionModelsInterface *collision_models_interface):node_handle_("~"),planning_visualizer_(DISPLAY_PATH_PUB_TOPIC)
+                                                         planning_environment::CollisionModelsInterface *collision_models_interface):node_handle_("~"),planning_visualizer_(DISPLAY_PATH_PUB_TOPIC,DISPLAY_MARKERS_PUB_TOPIC)
 {
   if(!initialize(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface))
     throw new MultiArmKinematicsException();
   collision_models_interface_generated_ = false;
 }
 
-InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~"),planning_visualizer_(DISPLAY_PATH_PUB_TOPIC)
+InterpolatedIKMotionPlanner::InterpolatedIKMotionPlanner():node_handle_("~"),planning_visualizer_(DISPLAY_PATH_PUB_TOPIC,DISPLAY_MARKERS_PUB_TOPIC)
 {
   planning_environment::CollisionModelsInterface* collision_models_interface = new planning_environment::CollisionModelsInterface("robot_description");
   std::vector<std::string> group_names, kinematics_solver_names, end_effector_link_names;
@@ -415,10 +416,10 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
     }
     else
     {
-      response.error_code = getArmNavigationErrorCode(error_codes);
-      ROS_ERROR("Could not find solution for initial pose. Error code: %s",arm_navigation_msgs::armNavigationErrorCodeToString(response.error_code).c_str());
-      visualizeEndEffectorPoses(poses);
-      return false;
+        response.error_code = getArmNavigationErrorCode(error_codes);
+        ROS_ERROR("Could not find solution for initial pose. Error code: %s",arm_navigation_msgs::armNavigationErrorCodeToString(response.error_code).c_str());
+        visualizeEndEffectorPoses(poses);
+        return false;
     }
     ROS_DEBUG("Num groups in path: %d",(int)path.size());
     //Now use those collision free solutions to try and find solutions that are close
