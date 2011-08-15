@@ -2989,7 +2989,7 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 
     gazebo_msgs::SetModelConfiguration modelConfiguration;
     modelConfiguration.request.model_name = params_.gazebo_model_name_;
-    modelConfiguration.request.test_urdf_param_name = params_.robot_description_param_;
+    modelConfiguration.request.urdf_param_name = params_.robot_description_param_;
 
     for(size_t i = 0; i < motionPlanData.getStartState()->getJointStateVector().size(); i++)
     {

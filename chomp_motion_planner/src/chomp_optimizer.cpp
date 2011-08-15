@@ -539,7 +539,25 @@ namespace chomp
 
 
     collision_increments_.setZero(num_vars_free_, num_joints_);
-    for(int i = free_vars_start_; i <= free_vars_end_; i++)
+
+    int startPoint = 0;
+    int endPoint = free_vars_end_;
+
+    // In stochastic descent, simply use a random point in the trajectory, rather than all the trajectory points.
+    // This is faster and guaranteed to converge, but it may take more iterations in the worst case.
+    if(parameters_->getUseStochasticDescent())
+    {
+      startPoint =  (int)(((double)random() / (double)RAND_MAX)*(free_vars_end_ - free_vars_start_) + free_vars_start_);
+      if(startPoint < free_vars_start_) startPoint = free_vars_start_;
+      if(startPoint > free_vars_end_) startPoint = free_vars_end_;
+      endPoint = startPoint;
+    }
+    else
+    {
+      startPoint = free_vars_start_;
+    }
+
+    for(int i = startPoint; i <= endPoint; i++)
     {
       for(int j = 0; j < num_collision_points_; j++)
       {
