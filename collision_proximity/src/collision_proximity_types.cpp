@@ -75,7 +75,7 @@ std::vector<btVector3> collision_proximity::determineCollisionPoints(const bodie
   return ret_vec;
 }
 
-bool collision_proximity::getCollisionSphereGradients(const distance_field::PropagationDistanceField* distance_field,
+bool collision_proximity::getCollisionSphereGradients(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
                                                       const std::vector<CollisionSphere>& sphere_list,
                                                       GradientInfo& gradient, 
                                                       double tolerance, 
@@ -106,7 +106,7 @@ bool collision_proximity::getCollisionSphereGradients(const distance_field::Prop
   return in_collision;
 }
 
-bool collision_proximity::getCollisionSphereCollision(const distance_field::PropagationDistanceField* distance_field,
+bool collision_proximity::getCollisionSphereCollision(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
                                                       const std::vector<CollisionSphere>& sphere_list,
                                                       double tolerance)
 {
@@ -120,7 +120,7 @@ bool collision_proximity::getCollisionSphereCollision(const distance_field::Prop
   }
   return false;
 
-} 
+}
 
 ///
 /// BodyDecomposition

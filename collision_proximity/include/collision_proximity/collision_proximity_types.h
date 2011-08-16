@@ -113,7 +113,7 @@ std::vector<CollisionSphere> determineCollisionSpheres(const bodies::Body* body,
 std::vector<btVector3> determineCollisionPoints(const bodies::Body* body, double resolution);
 
 //determines a set of gradients of the given collision spheres in the distance field
-bool getCollisionSphereGradients(const distance_field::PropagationDistanceField* distance_field,
+bool getCollisionSphereGradients(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
                                  const std::vector<CollisionSphere>& sphere_list, 
                                  GradientInfo& gradient, 
                                  double tolerance, 
@@ -121,7 +121,7 @@ bool getCollisionSphereGradients(const distance_field::PropagationDistanceField*
                                  double maximum_value, 
                                  bool stop_at_first_collision);
 
-bool getCollisionSphereCollision(const distance_field::PropagationDistanceField* distance_field,
+bool getCollisionSphereCollision(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
                                  const std::vector<CollisionSphere>& sphere_list,
                                  double tolerance);
 

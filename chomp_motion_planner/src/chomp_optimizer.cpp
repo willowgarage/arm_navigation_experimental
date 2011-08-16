@@ -591,10 +591,12 @@ namespace chomp
           collision_increments_.row(i - free_vars_start_).transpose() -= jacobian_.transpose() * cartesian_gradient;
         }
 
+        /*
         if(point_is_in_collision_[i][j])
         {
           break;
         }
+        */
       }
     }
     //cout << collision_increments_ << endl;

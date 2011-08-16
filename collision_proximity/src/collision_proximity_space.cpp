@@ -62,7 +62,7 @@ static std::string makeAttachedObjectId(std::string link, std::string object)
 }
 
 CollisionProximitySpace::CollisionProximitySpace(const std::string& robot_description_name,
-                                                 bool register_with_environment_server) :
+                                                 bool register_with_environment_server, bool use_signed_environment_field , bool use_signed_self_field) :
   priv_handle_("~")
 {
   collision_models_interface_ = new planning_environment::CollisionModelsInterface(robot_description_name,
@@ -83,8 +83,22 @@ CollisionProximitySpace::CollisionProximitySpace(const std::string& robot_descri
   vis_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("collision_proximity_body_spheres", 128);
   vis_marker_array_publisher_ = root_handle_.advertise<visualization_msgs::MarkerArray>("collision_proximity_body_spheres_array", 128);
 
-  self_distance_field_ = new distance_field::PropagationDistanceField(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_, origin_z_, max_self_distance_);
-  environment_distance_field_ = new distance_field::PropagationDistanceField(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_, origin_z_, max_environment_distance_);
+  if(use_signed_self_field)
+  {
+    self_distance_field_ = (distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>*)(new distance_field::SignedPropagationDistanceField(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_, origin_z_, max_self_distance_));
+  }
+  else
+  {
+    self_distance_field_ = new distance_field::PropagationDistanceField(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_, origin_z_, max_self_distance_);
+  }
+  if(use_signed_environment_field)
+  {
+    environment_distance_field_ = (distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>*)(new distance_field::SignedPropagationDistanceField(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_, origin_z_, max_environment_distance_));
+  }
+  else
+  {
+    environment_distance_field_ = new distance_field::PropagationDistanceField(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_, origin_z_, max_environment_distance_);
+  }
 
   collision_models_interface_->addSetPlanningSceneCallback(boost::bind(&CollisionProximitySpace::setPlanningSceneCallback, this, _1));
   collision_models_interface_->addRevertPlanningSceneCallback(boost::bind(&CollisionProximitySpace::revertPlanningSceneCallback, this));
@@ -1355,10 +1369,11 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
 // Visualization functions
 ///////////
   
-void CollisionProximitySpace::visualizeDistanceField(distance_field::PropagationDistanceField* distance_field) const
+void CollisionProximitySpace::visualizeDistanceField(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const
 {
   btTransform ident;
   ident.setIdentity();
+  //distance_field->visualizePlane(distance_field::XYPlane, 2, 2, 1, btVector3(0,0,0), collision_models_interface_->getRobotFrameId(), ros::Time::now() );
   distance_field->visualize(0.0, 0.0, collision_models_interface_->getRobotFrameId(), ident, ros::Time::now());
 }
 
