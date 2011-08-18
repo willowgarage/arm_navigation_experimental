@@ -776,19 +776,34 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
   (*ik_controllers_).clear();
 
 
+  std::vector<std::string> mprDeletions;
   /////
   /// Make sure all old trajectories and MPRs are gone.
   /////
   for(map<string, MotionPlanRequestData>::iterator it = motion_plan_map_->begin(); it != motion_plan_map_->end(); it ++)
   {
-    deleteMotionPlanRequest(it->first);
+    mprDeletions.push_back(it->first);
   }
+
+  for(size_t i = 0; i < mprDeletions.size(); i++)
+  {
+    deleteMotionPlanRequest(mprDeletions[i]);
+  }
+
   motion_plan_map_->clear();
+
+  std::vector<std::string> trajectoryDeletions;
 
   for(map<string, TrajectoryData>::iterator it = trajectory_map_->begin(); it != trajectory_map_->end(); it++)
   {
-    deleteTrajectory(it->first);
+    trajectoryDeletions.push_back(it->first);
   }
+
+  for(size_t i = 0; i < trajectoryDeletions.size(); i++)
+  {
+    deleteTrajectory(trajectoryDeletions[i]);
+  }
+
   trajectory_map_->clear();
 
 
