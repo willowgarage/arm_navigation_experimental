@@ -1536,7 +1536,7 @@ std::string PlanningSceneEditor::createNewPlanningScene()
                                     data.getPlanningScene().robot_state);
   //end_effector_state_ = planning_state_;
 
-  data.getPlanningScene().collision_objects.clear();
+  data.getPlanningScene().collision_objects = std::vector<CollisionObject>();
 
   sendPlanningScene(data);
 
@@ -1706,6 +1706,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
                                     planning_scene_req.planning_scene_diff.robot_state);
 
 
+ planning_scene_req.planning_scene_diff.collision_objects = std::vector<CollisionObject>();
   deleteKinematicStates();
 
   if(robot_state_ != NULL)
