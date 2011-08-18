@@ -194,6 +194,8 @@ void WarehouseViewer::initQtWidgets()
   connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
   connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
   connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
+  connect(this, SIGNAL(plannerFailure(int)),this, SLOT(popupPlannerFailure(int)));
+  connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -1539,6 +1541,42 @@ void WarehouseViewer::motionPlanRenderTypeChanged(const QString& type)
   }
 }
 
+void WarehouseViewer::planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+{
+  if(errorCode.val != ArmNavigationErrorCodes::SUCCESS)
+  {
+    emit plannerFailure(errorCode.val);
+  }
+}
+
+void WarehouseViewer::filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+{
+  if(errorCode.val != ArmNavigationErrorCodes::SUCCESS)
+  {
+    emit filterFailure(errorCode.val);
+  }
+}
+
+
+void WarehouseViewer::popupPlannerFailure(int value)
+{
+  ArmNavigationErrorCodes errorCode;
+  errorCode.val = value;
+  std::string failure  = "Planning Failed: " + armNavigationErrorCodeToString(errorCode);
+  QMessageBox msg(QMessageBox::Critical, "Planning Failed!", QString::fromStdString(failure));
+  msg.addButton("Ok", QMessageBox::AcceptRole);
+  msg.exec();
+}
+
+void WarehouseViewer::popupFilterFailure(int value)
+{
+  ArmNavigationErrorCodes errorCode;
+  errorCode.val = value;
+  std::string failure  = "Filter Failed: " + armNavigationErrorCodeToString(errorCode);
+  QMessageBox msg(QMessageBox::Critical, "Filter Failed!", QString::fromStdString(failure));
+  msg.addButton("Ok", QMessageBox::AcceptRole);
+  msg.exec();
+}
 
 void marker_function()
 {

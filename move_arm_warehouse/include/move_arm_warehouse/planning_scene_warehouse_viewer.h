@@ -330,13 +330,23 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
     void onPlanningSceneLoaded(int scene, int numScenes);
     void createOutcomeDialog();
 
+    void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+    void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+
   signals:
     /// @brief Changes the progress bar of the load planning scene dialog.
     void changeProgress(int progress);
     /// @brief Updates the trajectory and motion plan tables.
     void updateTables();
 
+    void plannerFailure(int value);
+    void filterFailure(int value);
+
   public slots:
+
+    void popupPlannerFailure(int value);
+    void popupFilterFailure(int value);
+
     /// @brief closes the window and deconstructs.
     void quit();
     /// @brief Opens the planning scene load dialog.

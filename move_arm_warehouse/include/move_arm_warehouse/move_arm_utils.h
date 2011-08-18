@@ -1166,6 +1166,24 @@ namespace planning_scene_utils
       {
       }
 
+      //////
+      /// @brief Pure virtual function called when the planner is invoked.
+      /// @param errorCode, the result of the plan.
+      //////
+      virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+      {
+
+      }
+
+      ///////
+      /// @brief Pure virtual function called when the filter is invoked.
+      /// @param errorCode, the result of the filter call.
+      //////
+      virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+      {
+
+      }
+
 
       boost::recursive_mutex lock_scene_;
       arm_navigation_msgs::ArmNavigationErrorCodes last_collision_set_error_code_;

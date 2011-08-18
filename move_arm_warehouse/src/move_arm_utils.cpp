@@ -1314,6 +1314,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
   if(!planning_service_client_.call(plan_req, plan_res))
   {
     ROS_INFO("Something wrong with planner client");
+    planCallback(plan_res.error_code);
     return false;
   }
 
@@ -1341,12 +1342,13 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, std::string
     trajectoryData.trajectory_error_code_.val = plan_res.error_code.val;
     (*trajectory_map_)[trajectoryID_Out] = trajectoryData;
     data.getTrajectories().push_back(trajectoryData.getID());
-
+    planCallback(trajectoryData.trajectory_error_code_);
     return false;
   }
   trajectoryData.trajectory_error_code_.val = plan_res.error_code.val;
   (*trajectory_map_)[trajectoryID_Out] = trajectoryData;
   data.getTrajectories().push_back(trajectoryData.getID());
+  planCallback(trajectoryData.trajectory_error_code_);
   return true;
 }
 
@@ -1404,6 +1406,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   if(!trajectory_filter_service_client_.call(filter_req, filter_res))
   {
     ROS_INFO("Problem with trajectory filter");
+    filterCallback(filter_res.error_code);
     return false;
   }
 
@@ -1425,6 +1428,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
     filter_ID = data.getID();
     data.setVisible(true);
     data.play();
+    filterCallback(filter_res.error_code);
     return false;
   }
   else
@@ -1435,6 +1439,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
     filter_ID = data.getID();
     data.setVisible(true);
     data.play();
+    filterCallback(filter_res.error_code);
     return true;
   }
 }
