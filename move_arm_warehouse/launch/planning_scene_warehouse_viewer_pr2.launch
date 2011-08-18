@@ -1,7 +1,7 @@
 <launch>
 	
 	 <param name="/use_sim_time" value="true" />
-        <param name="warehouse_host" value="bke.willowgarage.com"/>
+        <param name="warehouse_host" value="byw.willowgarage.com"/>
 	  <param name="/robot_description" textfile="$(find planning_models)/test_urdf/robot.xml" />
 
 	  <!-- send parameters for multidof -->

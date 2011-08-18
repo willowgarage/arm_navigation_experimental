@@ -1373,8 +1373,8 @@ void CollisionProximitySpace::visualizeDistanceField(distance_field::DistanceFie
 {
   btTransform ident;
   ident.setIdentity();
-  //distance_field->visualizePlane(distance_field::XYPlane, 2, 2, 1, btVector3(0,0,0), collision_models_interface_->getRobotFrameId(), ros::Time::now() );
-  distance_field->visualize(0.0, 0.0, collision_models_interface_->getRobotFrameId(), ident, ros::Time::now());
+  distance_field->visualizePlane(distance_field::XYPlane, 2, 2, 1, btVector3(0,0,0), collision_models_interface_->getRobotFrameId(), ros::Time::now() );
+  //distance_field->visualize(0.0, 0.0, collision_models_interface_->getRobotFrameId(), ident, ros::Time::now());
 }
 
 /*

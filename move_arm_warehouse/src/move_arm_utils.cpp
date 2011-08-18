@@ -680,6 +680,7 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   registerMenuEntry("IK Control", "Randomly Perturb", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Filter Last Trajectory", ik_control_feedback_ptr_);
+  registerMenuEntry("IK Control", "Delete Request", ik_control_feedback_ptr_);
 
   if(params_.use_robot_data_)
   {
@@ -2239,6 +2240,10 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
         updateState();
       }
     }
+    else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Delete Request"])
+    {
+      deleteMotionPlanRequest(controller.motion_plan_ID_);
+    }
   }
 
   if(findIKSolution)
@@ -3316,14 +3321,21 @@ void PlanningSceneEditor::deleteMotionPlanRequest(std::string ID)
         states_[i].source = "Delete motion plan request";
       }
     }
-    (*motion_plan_map_)[ID].reset();
-
     MotionPlanRequestData& motionPlanData = (*motion_plan_map_)[ID];
+    std::vector<std::string> trajectoriesToErase;
     for(size_t i = 0; i < motionPlanData.getTrajectories().size(); i++)
     {
-      deleteTrajectory(motionPlanData.getTrajectories()[i]);
+      trajectoriesToErase.push_back(motionPlanData.getTrajectories()[i]);
     }
 
+    for(size_t i = 0; i < trajectoriesToErase.size(); i++)
+    {
+      deleteTrajectory(trajectoriesToErase[i]);
+    }
+
+    deleteJointMarkers((*motion_plan_map_)[ID], StartPosition);
+    deleteJointMarkers((*motion_plan_map_)[ID], GoalPosition);
+    (*motion_plan_map_)[ID].reset();
     motion_plan_map_->erase(ID);
     interactive_marker_server_->erase(ID + "_start_control");
     interactive_marker_server_->erase(ID + "_end_control");
