@@ -1536,7 +1536,19 @@ std::string PlanningSceneEditor::createNewPlanningScene()
                                     data.getPlanningScene().robot_state);
   //end_effector_state_ = planning_state_;
 
-  data.getPlanningScene().collision_objects = std::vector<CollisionObject>();
+  std::vector<string> collisionObjects;
+
+  for(map<string, SelectableObject>::iterator it = selectable_objects_->begin(); it != selectable_objects_->end(); it++)
+  {
+    collisionObjects.push_back(it->first);
+  }
+
+  for(size_t i = 0; i < collisionObjects.size(); i++)
+  {
+    deleteCollisionObject(collisionObjects[i]);
+  }
+
+  selectable_objects_->clear();
 
   sendPlanningScene(data);
 
@@ -2398,6 +2410,7 @@ void PlanningSceneEditor::deleteCollisionObject(std::string& name)
   (*selectable_objects_)[name].collision_object_.operation.operation
       = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
   interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
+  interactive_marker_server_->erase((*selectable_objects_)[name].control_marker_.name);
   sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
   interactive_marker_server_->applyChanges();
 }
