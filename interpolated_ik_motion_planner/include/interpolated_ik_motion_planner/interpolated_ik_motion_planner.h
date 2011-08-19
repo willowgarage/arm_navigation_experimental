@@ -44,6 +44,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 #include <planning_environment/models/collision_models_interface.h>
+#include <planning_environment/models/collision_models.h>
 #include <planning_environment/models/model_utils.h>
 
 

@@ -70,7 +70,7 @@ bool InterpolatedIKMotionPlanner::initialize(const std::vector<std::string> &gro
   ROS_DEBUG("Initializing interpolated ik motion planner");
   try
   {  
-    kinematics_solver_ = new arm_kinematics_constraint_aware::MultiArmKinematicsConstraintAware(group_names,kinematics_solver_names,end_effector_link_names,collision_models_interface);
+    kinematics_solver_ = new arm_kinematics_constraint_aware::MultiArmKinematicsConstraintAware(group_names,kinematics_solver_names,end_effector_link_names,(planning_environment::CollisionModels *) (collision_models_interface));
   }
   catch (MultiArmKinematicsException &e)
   {
@@ -176,7 +176,7 @@ bool InterpolatedIKMotionPlanner::computePlan(arm_navigation_msgs::GetMotionPlan
                                                             collision_models_interface_->getWorldFrameId(),
                                                             robot_state);
     
-    planning_visualizer_.visualizePlan(response.trajectory.joint_trajectory, robot_state);
+    planning_visualizer_.visualize(response.trajectory.joint_trajectory, robot_state);
   }
   return true;//services always return true (otherwise rospy chokes?)
 }
@@ -409,7 +409,7 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
     for(unsigned int i=0; i < num_groups_; i++)
       poses.push_back(path[i][0]);
 
-    if(kinematics_solver_->searchConstraintAwarePositionIK(poses,timeout,seed_states,error_codes))
+    if(kinematics_solver_->searchConstraintAwarePositionIK(poses,timeout,collision_models_interface_->getPlanningSceneState(),seed_states,error_codes))
     {
       ROS_DEBUG("Got solution for initial pose");
       addToJointTrajectory(response.trajectory.joint_trajectory,seed_states);
@@ -428,7 +428,7 @@ bool InterpolatedIKMotionPlanner::getInterpolatedIKPath(const std::vector<std::v
       poses.clear();
       for(unsigned int j=0; j < num_groups_; j++)
         poses.push_back(path[j][i]);
-      if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,solution_states,error_codes,max_distance_))
+      if(kinematics_solver_->searchConstraintAwarePositionIK(poses,seed_states,timeout,collision_models_interface_->getPlanningSceneState(),solution_states,error_codes,max_distance_))
       {
         if(checkMotion(seed_states,solution_states,empty_constraints,timeout,error_code))
         {
@@ -482,7 +482,7 @@ bool InterpolatedIKMotionPlanner::checkMotion(const std::vector<std::vector<doub
                                               double &timeout,
                                               int &error_code)
 {
-  return kinematics_solver_->checkMotion(start,end,constraints,timeout,error_code);
+  return kinematics_solver_->checkMotion(start,end,constraints,timeout,collision_models_interface_->getPlanningSceneState(),error_code);
 }
 
 arm_navigation_msgs::ArmNavigationErrorCodes InterpolatedIKMotionPlanner::kinematicsErrorCodeToArmNavigationErrorCode(const int& error_code)
