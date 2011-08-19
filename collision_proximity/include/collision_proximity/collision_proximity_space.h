@@ -144,6 +144,7 @@ public:
 
   void visualizeDistanceField(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const;
 
+  void visualizeDistanceFieldPlane(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const;
   //void visualizeClosestCollisionSpheres(const std::vector<std::string>& link_names) const;
 
   void visualizeCollisions(const std::vector<std::string>& link_names, 

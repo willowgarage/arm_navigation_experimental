@@ -281,7 +281,6 @@ void CollisionProximitySpace::setPlanningSceneCallback(const arm_navigation_msgs
   prepareEnvironmentDistanceField(*collision_models_interface_->getPlanningSceneState());
   ros::WallTime n2 = ros::WallTime::now();
   ROS_DEBUG_STREAM("Setting environment took " << (n2-n1).toSec());
-  visualizeDistanceField(environment_distance_field_);
 }
 
 void CollisionProximitySpace::setupForGroupQueries(const std::string& group_name,
@@ -1373,10 +1372,28 @@ void CollisionProximitySpace::visualizeDistanceField(distance_field::DistanceFie
 {
   btTransform ident;
   ident.setIdentity();
-  distance_field->visualizePlane(distance_field::XYPlane, 2, 2, 1, btVector3(0,0,0), collision_models_interface_->getRobotFrameId(), ros::Time::now() );
-  //distance_field->visualize(0.0, 0.0, collision_models_interface_->getRobotFrameId(), ident, ros::Time::now());
+  distance_field->visualize(0.0, 0.0, collision_models_interface_->getWorldFrameId(), ident, ros::Time::now());
 }
 
+void CollisionProximitySpace::visualizeDistanceFieldPlane(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const
+{
+  double length = distance_field->getSize(distance_field::PropagationDistanceField::DIM_X);
+  double width = distance_field->getSize(distance_field::PropagationDistanceField::DIM_Y);
+  double height = distance_field->getSize(distance_field::PropagationDistanceField::DIM_Z);
+  btVector3 origin(distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_X) + length / 2.0,
+                   distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_Y)  + width / 2.0,
+                   distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_Z) + height / 2.0);
+
+  for(double z = distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_Z);
+      z < distance_field->getSize(distance_field::PropagationDistanceField::DIM_Z);
+      z += distance_field->getResolution(distance_field::PropagationDistanceField::DIM_Z))
+  {
+    distance_field->visualizePlane(distance_field::XYPlane, length, width,
+                                          z, origin,  collision_models_interface_->getWorldFrameId(), ros::Time::now());
+    ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.02));
+    ros::spinOnce();
+  }
+}
 /*
 void CollisionProximitySpace::visualizeClosestCollisionSpheres(const std::vector<std::string>& link_names) const 
 {
