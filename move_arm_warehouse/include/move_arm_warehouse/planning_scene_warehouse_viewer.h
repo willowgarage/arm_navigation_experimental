@@ -430,6 +430,7 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
     void objectColorButtonPressed();
 
   protected:
+    bool warehouse_data_loaded_once_;
     QLabel* selected_trajectory_label_;
     QLabel* selected_request_label_;
     QMenuBar* menu_bar_;

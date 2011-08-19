@@ -55,6 +55,8 @@ WarehouseViewer::WarehouseViewer(QWidget* parent, planning_scene_utils::Planning
   quit_threads_ = false;
   initQtWidgets();
   selected_trajectory_ID_ = "";
+  warehouse_data_loaded_once_ = false;
+  table_load_thread_ = NULL;
 }
 
 WarehouseViewer::~WarehouseViewer()
@@ -429,8 +431,6 @@ void WarehouseViewer::setupPlanningSceneDialog()
   layout->addWidget(refresh_planning_scene_button_);
 
   load_planning_scene_dialog_->setLayout(layout);
-  table_load_thread_ = new TableLoadThread(this);
-  table_load_thread_->start();
 }
 
 void WarehouseViewer::quit()
@@ -810,7 +810,11 @@ void WarehouseViewer::updateStateTriggered()
 void WarehouseViewer::popupLoadPlanningScenes()
 {
   load_planning_scene_dialog_->show();
-  refreshButtonPressed();
+
+  if(!warehouse_data_loaded_once_)
+  {
+    refreshButtonPressed();
+  }
 }
 
 void WarehouseViewer::refreshButtonPressed()
@@ -1183,6 +1187,7 @@ void WarehouseViewer::onPlanningSceneLoaded(int scene, int numScenes)
 void WarehouseViewer::createPlanningSceneTable()
 {
   loadAllWarehouseData();
+  warehouse_data_loaded_once_ = true;
   assert(planning_scene_map_ != NULL);
   planning_scene_table_->clear();
   int count = 0;
@@ -1197,12 +1202,6 @@ void WarehouseViewer::createPlanningSceneTable()
   labels.append("Name");
   labels.append("Timestamp");
   labels.append("Notes");
-  planning_scene_table_->setHorizontalHeaderLabels(labels);
-  planning_scene_table_->setColumnWidth(0, 150);
-  planning_scene_table_->setColumnWidth(1, 150);
-  planning_scene_table_->setColumnWidth(2, 300);
-  planning_scene_table_->setColumnWidth(3, 400);
-  planning_scene_table_->setMinimumWidth(1000);
 
   ROS_INFO("Num Planning Scenes: %d", planning_scene_table_->rowCount());
 
@@ -1258,6 +1257,12 @@ void WarehouseViewer::createPlanningSceneTable()
   }
 
   planning_scene_table_->sortByColumn(2);
+  planning_scene_table_->setHorizontalHeaderLabels(labels);
+  planning_scene_table_->setColumnWidth(0, 150);
+  planning_scene_table_->setColumnWidth(1, 150);
+  planning_scene_table_->setColumnWidth(2, 300);
+  planning_scene_table_->setColumnWidth(3, 400);
+  planning_scene_table_->setMinimumWidth(1000);
 
 
 }
