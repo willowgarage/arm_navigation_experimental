@@ -467,6 +467,10 @@ PlanningSceneEditor::PlanningSceneEditor()
   selectable_objects_ = NULL;
   ik_controllers_ = NULL;
   state_monitor_ = NULL;
+  max_collision_object_ID_ = 0;
+  max_planning_scene_ID_ = 0;
+  max_request_ID_ = 0;
+  max_trajectory_ID_ = 0;
 }
 
 PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
@@ -476,7 +480,10 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   /////
   params_ = params;
   monitor_status_ = Idle;
-
+  max_collision_object_ID_ = 0;
+  max_planning_scene_ID_ = 0;
+  max_request_ID_ = 0;
+  max_trajectory_ID_ = 0;
   last_collision_object_color_.r = 0.7;
   last_collision_object_color_.g = 0.7;
   last_collision_object_color_.b = 0.7;
