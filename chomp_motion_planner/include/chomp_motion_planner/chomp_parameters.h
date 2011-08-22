@@ -78,6 +78,8 @@ public:
   void setFilterMode(bool mode);
   double getRandomJumpAmount() const;
   void setRandomJumpAmount(double amount);
+  bool getUseStochasticDescent() const;
+
 private:
   double planning_time_limit_;
   int max_iterations_;
@@ -91,6 +93,7 @@ private:
   double smoothness_cost_jerk_;
   bool add_randomness_;
   bool use_hamiltonian_monte_carlo_;
+  bool use_stochastic_descent_;
   double hmc_stochasticity_;
   double hmc_discretization_;
   double hmc_annealing_factor_;
@@ -241,6 +244,11 @@ inline double ChompParameters::getPseudoInverseRidgeFactor() const
 inline bool ChompParameters::getAnimateEndeffector() const
 {
   return animate_endeffector_;
+}
+
+inline bool ChompParameters::getUseStochasticDescent() const
+{
+  return use_stochastic_descent_;
 }
 
 inline std::string ChompParameters::getAnimateEndeffectorSegment() const

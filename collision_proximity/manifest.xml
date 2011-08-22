@@ -1,7 +1,7 @@
 <package>
   <description brief="collision_proximity">
 
-     collision_proximity
+     collision_proximity provides an API for maintaining distance fields through the planning_models paradigm. It provides functionality for generating distance fields from planning scenes, decomposing objects into swept sphere volumes, and finding distances and gradients for all points on a robot.
 
   </description>
   <author>Gil Jones</author>

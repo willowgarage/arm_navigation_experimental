@@ -75,7 +75,7 @@ std::vector<btVector3> collision_proximity::determineCollisionPoints(const bodie
   return ret_vec;
 }
 
-bool collision_proximity::getCollisionSphereGradients(const distance_field::PropagationDistanceField* distance_field, 
+bool collision_proximity::getCollisionSphereGradients(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
                                                       const std::vector<CollisionSphere>& sphere_list,
                                                       GradientInfo& gradient, 
                                                       double tolerance, 
@@ -106,7 +106,7 @@ bool collision_proximity::getCollisionSphereGradients(const distance_field::Prop
   return in_collision;
 }
 
-bool collision_proximity::getCollisionSphereCollision(const distance_field::PropagationDistanceField* distance_field, 
+bool collision_proximity::getCollisionSphereCollision(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
                                                       const std::vector<CollisionSphere>& sphere_list,
                                                       double tolerance)
 {
@@ -120,20 +120,20 @@ bool collision_proximity::getCollisionSphereCollision(const distance_field::Prop
   }
   return false;
 
-} 
+}
 
 ///
 /// BodyDecomposition
 ///
 
-collision_proximity::BodyDecomposition::BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution) :
+collision_proximity::BodyDecomposition::BodyDecomposition(const std::string& object_name, const shapes::Shape* shape, double resolution, double padding) :
   object_name_(object_name)
 {
   body_ = bodies::createBodyFromShape(shape); //unpadded
   btTransform ident;
   ident.setIdentity();
   body_->setPose(ident);
-  body_->setPadding(.01);
+  body_->setPadding(padding);
   collision_spheres_ = determineCollisionSpheres(body_, relative_cylinder_pose_);
   relative_collision_points_ = determineCollisionPoints(body_, resolution);
   posed_collision_points_ = relative_collision_points_;

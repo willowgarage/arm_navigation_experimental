@@ -549,7 +549,11 @@ int main(int argc, char** argv)
   ros::NodeHandle node_handle("~");
   string robotDescription;
   ros::param::param<string>("robot_description_file_name", robotDescription, "");
-  chomp::ChompPlannerNode chomp_planner_node(node_handle, new CollisionProximitySpace("robot_description",true));
+  bool use_signed_environment_field = false;
+  bool use_signed_self_field = false;
+  ros::param::param<bool>("use_signed_environment_field", use_signed_environment_field, false);
+  ros::param::param<bool>("use_signed_self_field", use_signed_self_field, false);
+  chomp::ChompPlannerNode chomp_planner_node(node_handle, new CollisionProximitySpace("robot_description",true,use_signed_environment_field, use_signed_self_field));
   if (!chomp_planner_node.init())
     return 1;
   return chomp_planner_node.run();

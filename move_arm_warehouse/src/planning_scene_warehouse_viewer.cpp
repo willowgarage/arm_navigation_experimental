@@ -32,6 +32,8 @@
 #include <move_arm_warehouse/planning_scene_warehouse_viewer.h>
 #include <qt4/QtGui/qapplication.h>
 #include <assert.h>
+#include <qt4/QtGui/qsplashscreen.h>
+#include <ros/package.h>
 
 using namespace collision_space;
 using namespace kinematics_msgs;
@@ -44,23 +46,25 @@ using namespace std;
 using namespace trajectory_msgs;
 using namespace planning_scene_utils;
 using namespace ros::param;
-PlanningSceneVisualizer* psv = NULL;
+WarehouseViewer* psv = NULL;
 bool inited = false;
 
-PlanningSceneVisualizer::PlanningSceneVisualizer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params) :
+WarehouseViewer::WarehouseViewer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params) :
   QMainWindow(parent), PlanningSceneEditor(params)
 {
   quit_threads_ = false;
   initQtWidgets();
   selected_trajectory_ID_ = "";
+  warehouse_data_loaded_once_ = false;
+  table_load_thread_ = NULL;
 }
 
-PlanningSceneVisualizer::~PlanningSceneVisualizer()
+WarehouseViewer::~WarehouseViewer()
 {
 
 }
 
-void PlanningSceneVisualizer::initQtWidgets()
+void WarehouseViewer::initQtWidgets()
 {
   menu_bar_ = new QMenuBar(this);
   setMenuBar(menu_bar_);
@@ -192,6 +196,8 @@ void PlanningSceneVisualizer::initQtWidgets()
   connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
   connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
   connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
+  connect(this, SIGNAL(plannerFailure(int)),this, SLOT(popupPlannerFailure(int)));
+  connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -208,7 +214,7 @@ void PlanningSceneVisualizer::initQtWidgets()
   setCurrentPlanningScene(createNewPlanningScene(), false, false);
 }
 
-void PlanningSceneVisualizer::createOutcomeDialog()
+void WarehouseViewer::createOutcomeDialog()
 {
   outcome_dialog_ = new QDialog(this);
   outcome_dialog_->setWindowTitle("Planning Scene Outcomes");
@@ -309,14 +315,14 @@ void PlanningSceneVisualizer::createOutcomeDialog()
 
 }
 
-void PlanningSceneVisualizer::viewOutcomesPressed()
+void WarehouseViewer::viewOutcomesPressed()
 {
   createOutcomeDialog();
   outcome_dialog_->exec();
   delete outcome_dialog_;
 }
 
-void PlanningSceneVisualizer::refreshSceneButtonPressed()
+void WarehouseViewer::refreshSceneButtonPressed()
 {
   if(current_planning_scene_ID_ != "" )
   {
@@ -330,7 +336,7 @@ void PlanningSceneVisualizer::refreshSceneButtonPressed()
   }
 }
 
-void PlanningSceneVisualizer::executeButtonPressed()
+void WarehouseViewer::executeButtonPressed()
 {
   if(selected_trajectory_ID_ != "")
   {
@@ -344,7 +350,7 @@ void PlanningSceneVisualizer::executeButtonPressed()
   }
 }
 
-void PlanningSceneVisualizer::deleteSelectedMotionPlan()
+void WarehouseViewer::deleteSelectedMotionPlan()
 {
   if(selected_motion_plan_ID_ != "")
   {
@@ -361,7 +367,7 @@ void PlanningSceneVisualizer::deleteSelectedMotionPlan()
   }
 }
 
-void PlanningSceneVisualizer::deleteSelectedTrajectory()
+void WarehouseViewer::deleteSelectedTrajectory()
 {
   if(selected_trajectory_ID_ != "")
   {
@@ -379,12 +385,12 @@ void PlanningSceneVisualizer::deleteSelectedTrajectory()
   }
 }
 
-void PlanningSceneVisualizer::createNewMotionPlanPressed()
+void WarehouseViewer::createNewMotionPlanPressed()
 {
   new_request_dialog_->open();
 }
 
-void PlanningSceneVisualizer::trajectoryEditChanged()
+void WarehouseViewer::trajectoryEditChanged()
 {
   if(selected_trajectory_ID_ != "")
   {
@@ -393,7 +399,7 @@ void PlanningSceneVisualizer::trajectoryEditChanged()
   }
 }
 
-void PlanningSceneVisualizer::setupPlanningSceneDialog()
+void WarehouseViewer::setupPlanningSceneDialog()
 {
   planning_scene_table_ = new QTableWidget(load_planning_scene_dialog_);
   QVBoxLayout* layout = new QVBoxLayout(load_planning_scene_dialog_);
@@ -425,11 +431,9 @@ void PlanningSceneVisualizer::setupPlanningSceneDialog()
   layout->addWidget(refresh_planning_scene_button_);
 
   load_planning_scene_dialog_->setLayout(layout);
-  table_load_thread_ = new TableLoadThread(this);
-  table_load_thread_->start();
 }
 
-void PlanningSceneVisualizer::quit()
+void WarehouseViewer::quit()
 {
   QMessageBox msgBox(QMessageBox::Warning, "Quit?", "Are you sure you want to quit? Unsaved changes will be lost.");
   QPushButton *quitButton = msgBox.addButton("Quit", QMessageBox::ActionRole);
@@ -457,7 +461,7 @@ void PlanningSceneVisualizer::quit()
   }
 }
 
-void PlanningSceneVisualizer::motionPlanTableSelection()
+void WarehouseViewer::motionPlanTableSelection()
 {
   QList<QTreeWidgetItem*> selected = motion_plan_tree_->selectedItems();
 
@@ -468,7 +472,7 @@ void PlanningSceneVisualizer::motionPlanTableSelection()
   }
 }
 
-void PlanningSceneVisualizer::selectMotionPlan(std::string ID)
+void WarehouseViewer::selectMotionPlan(std::string ID)
 {
   selected_motion_plan_ID_ = ID;
   selected_trajectory_ID_ = "";
@@ -482,7 +486,7 @@ void PlanningSceneVisualizer::selectMotionPlan(std::string ID)
   }
 }
 
-void PlanningSceneVisualizer::createMotionPlanTable()
+void WarehouseViewer::createMotionPlanTable()
 {
   if(current_planning_scene_ID_ != "")
   {
@@ -623,7 +627,7 @@ void PlanningSceneVisualizer::createMotionPlanTable()
   }
 }
 
-void PlanningSceneVisualizer::motionPlanCollisionVisibleButtonClicked(bool checked)
+void WarehouseViewer::motionPlanCollisionVisibleButtonClicked(bool checked)
 {
   QObject* sender = QObject::sender();
   QCheckBox* button = qobject_cast<QCheckBox*> (sender);
@@ -636,7 +640,7 @@ void PlanningSceneVisualizer::motionPlanCollisionVisibleButtonClicked(bool check
   }
 }
 
-void PlanningSceneVisualizer::motionPlanStartColorButtonClicked()
+void WarehouseViewer::motionPlanStartColorButtonClicked()
 {
   QObject* sender = QObject::sender();
   QPushButton* button = qobject_cast<QPushButton*>(sender);
@@ -668,7 +672,7 @@ void PlanningSceneVisualizer::motionPlanStartColorButtonClicked()
   }
 }
 
-void PlanningSceneVisualizer::motionPlanEndColorButtonClicked()
+void WarehouseViewer::motionPlanEndColorButtonClicked()
 {
   QObject* sender = QObject::sender();
   QPushButton* button = qobject_cast<QPushButton*>(sender);
@@ -701,7 +705,7 @@ void PlanningSceneVisualizer::motionPlanEndColorButtonClicked()
   }
 }
 
-void PlanningSceneVisualizer::motionPlanStartVisibleButtonClicked(bool checked)
+void WarehouseViewer::motionPlanStartVisibleButtonClicked(bool checked)
 {
   QObject* sender = QObject::sender();
   QCheckBox* button = qobject_cast<QCheckBox*> (sender);
@@ -718,7 +722,7 @@ void PlanningSceneVisualizer::motionPlanStartVisibleButtonClicked(bool checked)
 
 }
 
-void PlanningSceneVisualizer::motionPlanEndVisibleButtonClicked(bool checked)
+void WarehouseViewer::motionPlanEndVisibleButtonClicked(bool checked)
 {
   QObject* sender = QObject::sender();
   QCheckBox* button = qobject_cast<QCheckBox*> (sender);
@@ -733,7 +737,7 @@ void PlanningSceneVisualizer::motionPlanEndVisibleButtonClicked(bool checked)
   }
 }
 
-void PlanningSceneVisualizer::createNewMotionPlanRequest(std::string group_name, std::string end_effector_name)
+void WarehouseViewer::createNewMotionPlanRequest(std::string group_name, std::string end_effector_name)
 {
 
   if(current_planning_scene_ID_ != "")
@@ -750,7 +754,7 @@ void PlanningSceneVisualizer::createNewMotionPlanRequest(std::string group_name,
   }
 }
 
-void PlanningSceneVisualizer::saveCurrentPlanningScene()
+void WarehouseViewer::saveCurrentPlanningScene()
 {
   savePlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
   QMessageBox msgBox(QMessageBox::Information, "Saved", "Saved planning scene successfully.");
@@ -758,7 +762,7 @@ void PlanningSceneVisualizer::saveCurrentPlanningScene()
   msgBox.exec();
 }
 
-void PlanningSceneVisualizer::createNewPlanningScenePressed()
+void WarehouseViewer::createNewPlanningScenePressed()
 {
   QMessageBox msgBox(QMessageBox::Warning, "Create New Planning Scene", "Are you sure you want to create a new planning scene? Unsaved changes to the current planning scene will be lost.");
   QPushButton *createButton= msgBox.addButton("Create New Without Saving Changes", QMessageBox::ActionRole);
@@ -790,12 +794,12 @@ void PlanningSceneVisualizer::createNewPlanningScenePressed()
 
 }
 
-void PlanningSceneVisualizer::updateState()
+void WarehouseViewer::updateState()
 {
   emit updateTables();
 }
 
-void PlanningSceneVisualizer::updateStateTriggered()
+void WarehouseViewer::updateStateTriggered()
 {
   lockScene();
   createMotionPlanTable();
@@ -803,13 +807,17 @@ void PlanningSceneVisualizer::updateStateTriggered()
   unlockScene();
 }
 
-void PlanningSceneVisualizer::popupLoadPlanningScenes()
+void WarehouseViewer::popupLoadPlanningScenes()
 {
   load_planning_scene_dialog_->show();
-  refreshButtonPressed();
+
+  if(!warehouse_data_loaded_once_)
+  {
+    refreshButtonPressed();
+  }
 }
 
-void PlanningSceneVisualizer::refreshButtonPressed()
+void WarehouseViewer::refreshButtonPressed()
 {
   if(table_load_thread_ != NULL)
   {
@@ -821,7 +829,7 @@ void PlanningSceneVisualizer::refreshButtonPressed()
   table_load_thread_->start();
 }
 
-void PlanningSceneVisualizer::loadButtonPressed()
+void WarehouseViewer::loadButtonPressed()
 {
 
   QMessageBox msgBox(QMessageBox::Information, "Load New Planning Scene", "Are you sure you want to load a new planning scene? Unsaved changes to the current planning scene will be lost.");
@@ -857,7 +865,7 @@ void PlanningSceneVisualizer::loadButtonPressed()
   load_planning_scene_dialog_->close();
 }
 
-void PlanningSceneVisualizer::replanButtonPressed()
+void WarehouseViewer::replanButtonPressed()
 {
   if(selected_motion_plan_ID_ != "")
   {
@@ -875,7 +883,7 @@ void PlanningSceneVisualizer::replanButtonPressed()
   }
 }
 
-void PlanningSceneVisualizer::trajectoryTableSelection()
+void WarehouseViewer::trajectoryTableSelection()
 {
   QList<QTreeWidgetItem*> selected = trajectory_tree_->selectedItems();
 
@@ -886,7 +894,7 @@ void PlanningSceneVisualizer::trajectoryTableSelection()
   }
 }
 
-void PlanningSceneVisualizer::selectTrajectory(std::string ID)
+void WarehouseViewer::selectTrajectory(std::string ID)
 {
   selected_trajectory_ID_ = ID;
   TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
@@ -901,7 +909,7 @@ void PlanningSceneVisualizer::selectTrajectory(std::string ID)
   selected_trajectory_label_->setText(QString::fromStdString(ID + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
 }
 
-void PlanningSceneVisualizer::playButtonPressed()
+void WarehouseViewer::playButtonPressed()
 {
   if(selected_trajectory_ID_ != "")
   {
@@ -910,6 +918,32 @@ void PlanningSceneVisualizer::playButtonPressed()
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
     selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_ID_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+
+    // Set checkbox to visible.
+    for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
+    {
+      QTreeWidgetItem* item = trajectory_tree_->topLevelItem(i);
+
+      if(item->text(0).toStdString() == selected_trajectory_ID_)
+      {
+        for(int j = 0; j < item->childCount(); j++)
+        {
+          QTreeWidgetItem* child = item->child(j);
+          QCheckBox* box = dynamic_cast<QCheckBox*>(trajectory_tree_->itemWidget(child, 0));
+
+          if(box != NULL)
+          {
+            if(box->text().toStdString() == "Visible")
+            {
+              box->setChecked(true);
+              break;
+            }
+          }
+        }
+        break;
+      }
+    }
+
   }
   else
   {
@@ -919,7 +953,7 @@ void PlanningSceneVisualizer::playButtonPressed()
   }
 }
 
-void PlanningSceneVisualizer::filterButtonPressed()
+void WarehouseViewer::filterButtonPressed()
 {
   if(selected_trajectory_ID_ != "")
   {
@@ -941,7 +975,7 @@ void PlanningSceneVisualizer::filterButtonPressed()
   }
 }
 
-void PlanningSceneVisualizer::sliderDragged()
+void WarehouseViewer::sliderDragged()
 {
   if(selected_trajectory_ID_ != "")
   {
@@ -955,7 +989,7 @@ void PlanningSceneVisualizer::sliderDragged()
   }
 }
 
-void PlanningSceneVisualizer::createTrajectoryTable()
+void WarehouseViewer::createTrajectoryTable()
 {
   if(selected_motion_plan_ID_ == "")
   {
@@ -1087,7 +1121,7 @@ void PlanningSceneVisualizer::createTrajectoryTable()
 
 }
 
-void PlanningSceneVisualizer::trajectoryCollisionsVisibleButtonClicked(bool checked)
+void WarehouseViewer::trajectoryCollisionsVisibleButtonClicked(bool checked)
 {
   QObject* sender = QObject::sender();
   QCheckBox* button = qobject_cast<QCheckBox*> (sender);
@@ -1100,7 +1134,7 @@ void PlanningSceneVisualizer::trajectoryCollisionsVisibleButtonClicked(bool chec
   }
 }
 
-void PlanningSceneVisualizer::trajectoryVisibleButtonClicked(bool checked)
+void WarehouseViewer::trajectoryVisibleButtonClicked(bool checked)
 {
   QObject* sender = QObject::sender();
   QCheckBox* button = qobject_cast<QCheckBox*> (sender);
@@ -1113,7 +1147,7 @@ void PlanningSceneVisualizer::trajectoryVisibleButtonClicked(bool checked)
   }
 }
 
-void PlanningSceneVisualizer::trajectoryColorButtonClicked()
+void WarehouseViewer::trajectoryColorButtonClicked()
 {
   QObject* sender = QObject::sender();
   QPushButton* button = qobject_cast<QPushButton*>(sender);
@@ -1145,14 +1179,15 @@ void PlanningSceneVisualizer::trajectoryColorButtonClicked()
   }
 }
 
-void PlanningSceneVisualizer::onPlanningSceneLoaded(int scene, int numScenes)
+void WarehouseViewer::onPlanningSceneLoaded(int scene, int numScenes)
 {
   emit changeProgress((int)((100.0f)*((float)(scene + 1)/ (float)numScenes)));
 }
 
-void PlanningSceneVisualizer::createPlanningSceneTable()
+void WarehouseViewer::createPlanningSceneTable()
 {
   loadAllWarehouseData();
+  warehouse_data_loaded_once_ = true;
   assert(planning_scene_map_ != NULL);
   planning_scene_table_->clear();
   int count = 0;
@@ -1167,12 +1202,6 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
   labels.append("Name");
   labels.append("Timestamp");
   labels.append("Notes");
-  planning_scene_table_->setHorizontalHeaderLabels(labels);
-  planning_scene_table_->setColumnWidth(0, 150);
-  planning_scene_table_->setColumnWidth(1, 150);
-  planning_scene_table_->setColumnWidth(2, 300);
-  planning_scene_table_->setColumnWidth(3, 400);
-  planning_scene_table_->setMinimumWidth(1000);
 
   ROS_INFO("Num Planning Scenes: %d", planning_scene_table_->rowCount());
 
@@ -1228,11 +1257,17 @@ void PlanningSceneVisualizer::createPlanningSceneTable()
   }
 
   planning_scene_table_->sortByColumn(2);
+  planning_scene_table_->setHorizontalHeaderLabels(labels);
+  planning_scene_table_->setColumnWidth(0, 150);
+  planning_scene_table_->setColumnWidth(1, 150);
+  planning_scene_table_->setColumnWidth(2, 300);
+  planning_scene_table_->setColumnWidth(3, 400);
+  planning_scene_table_->setMinimumWidth(1000);
 
 
 }
 
-void PlanningSceneVisualizer::motionPlanJointControlsActiveButtonClicked(bool checked)
+void WarehouseViewer::motionPlanJointControlsActiveButtonClicked(bool checked)
 {
   QObject* sender = QObject::sender();
   QCheckBox* box = dynamic_cast<QCheckBox*>(sender);
@@ -1254,12 +1289,12 @@ void PlanningSceneVisualizer::motionPlanJointControlsActiveButtonClicked(bool ch
   interactive_marker_server_->applyChanges();
 }
 
-void PlanningSceneVisualizer::createNewObjectPressed()
+void WarehouseViewer::createNewObjectPressed()
 {
   new_object_dialog_->show();
 }
 
-void PlanningSceneVisualizer::createNewObjectDialog()
+void WarehouseViewer::createNewObjectDialog()
 {
   new_object_dialog_ = new QDialog(this);
   QVBoxLayout* layout = new QVBoxLayout(new_object_dialog_);
@@ -1343,7 +1378,7 @@ void PlanningSceneVisualizer::createNewObjectDialog()
 
 }
 
-void PlanningSceneVisualizer::objectColorButtonPressed()
+void WarehouseViewer::objectColorButtonPressed()
 {
 
   QColor selected = QColorDialog::getColor(QColor(last_collision_object_color_.r*255, last_collision_object_color_.g*255, last_collision_object_color_.b*255), new_object_dialog_);
@@ -1364,7 +1399,7 @@ void PlanningSceneVisualizer::objectColorButtonPressed()
   }
 }
 
-void PlanningSceneVisualizer::createObjectConfirmedPressed()
+void WarehouseViewer::createObjectConfirmedPressed()
 {
   geometry_msgs::Pose pose;
   pose.position.x = (float)collision_object_pos_x_box_->value() / 100.0f;
@@ -1396,7 +1431,7 @@ void PlanningSceneVisualizer::createObjectConfirmedPressed()
                         (float)collision_object_scale_z_box_->value() / 100.0f, last_collision_object_color_);
 }
 
-void PlanningSceneVisualizer::createRequestDialog()
+void WarehouseViewer::createRequestDialog()
 {
   new_request_dialog_ = new QDialog(this);
   QVBoxLayout* layout = new QVBoxLayout(new_request_dialog_);
@@ -1435,7 +1470,7 @@ void PlanningSceneVisualizer::createRequestDialog()
   new_request_dialog_->setLayout(layout);
 }
 
-void PlanningSceneVisualizer::createRequestPressed()
+void WarehouseViewer::createRequestPressed()
 {
   std::string group_name = request_group_name_box_->currentText().toStdString();
   std::string end_effector_name = "";
@@ -1457,7 +1492,7 @@ void PlanningSceneVisualizer::createRequestPressed()
   new_request_dialog_->close();
 }
 
-void PlanningSceneVisualizer::trajectoryRenderTypeChanged(const QString& type)
+void WarehouseViewer::trajectoryRenderTypeChanged(const QString& type)
 {
   QObject* sender = QObject::sender();
   QComboBox* box = dynamic_cast<QComboBox*>(sender);
@@ -1484,7 +1519,7 @@ void PlanningSceneVisualizer::trajectoryRenderTypeChanged(const QString& type)
   }
 }
 
-void PlanningSceneVisualizer::motionPlanRenderTypeChanged(const QString& type)
+void WarehouseViewer::motionPlanRenderTypeChanged(const QString& type)
 {
   QObject* sender = QObject::sender();
   QComboBox* box = dynamic_cast<QComboBox*>(sender);
@@ -1511,6 +1546,42 @@ void PlanningSceneVisualizer::motionPlanRenderTypeChanged(const QString& type)
   }
 }
 
+void WarehouseViewer::planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+{
+  if(errorCode.val != ArmNavigationErrorCodes::SUCCESS)
+  {
+    emit plannerFailure(errorCode.val);
+  }
+}
+
+void WarehouseViewer::filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+{
+  if(errorCode.val != ArmNavigationErrorCodes::SUCCESS)
+  {
+    emit filterFailure(errorCode.val);
+  }
+}
+
+
+void WarehouseViewer::popupPlannerFailure(int value)
+{
+  ArmNavigationErrorCodes errorCode;
+  errorCode.val = value;
+  std::string failure  = "Planning Failed: " + armNavigationErrorCodeToString(errorCode);
+  QMessageBox msg(QMessageBox::Critical, "Planning Failed!", QString::fromStdString(failure));
+  msg.addButton("Ok", QMessageBox::AcceptRole);
+  msg.exec();
+}
+
+void WarehouseViewer::popupFilterFailure(int value)
+{
+  ArmNavigationErrorCodes errorCode;
+  errorCode.val = value;
+  std::string failure  = "Filter Failed: " + armNavigationErrorCodeToString(errorCode);
+  QMessageBox msg(QMessageBox::Critical, "Filter Failed!", QString::fromStdString(failure));
+  msg.addButton("Ok", QMessageBox::AcceptRole);
+  msg.exec();
+}
 
 void marker_function()
 {
@@ -1592,13 +1663,35 @@ int main(int argc, char** argv)
   param<string>("left_redundancy", params.left_redundancy_ , LEFT_ARM_REDUNDANCY);
   param<string>("execute_left_trajectory", params.execute_left_trajectory_ , EXECUTE_LEFT_TRAJECTORY);
   param<string>("execute_right_trajectory", params.execute_right_trajectory_ , EXECUTE_RIGHT_TRAJECTORY);
+  param<string>("list_controllers_service", params.list_controllers_service_, LIST_CONTROLLERS_SERVICE);
+  param<string>("load_controllers_service", params.load_controllers_service_, LOAD_CONTROLLERS_SERVICE);
+  param<string>("unload_controllers_service", params.unload_controllers_service_, UNLOAD_CONTROLLERS_SERVICE);
+  param<string>("switch_controllers_service", params.switch_controllers_service_, SWITCH_CONTROLLERS_SERVICE);
+  param<string>("gazebo_robot_model", params.gazebo_model_name_, GAZEBO_ROBOT_MODEL);
+  param<string>("robot_description_param", params.robot_description_param_, ROBOT_DESCRIPTION_PARAM);
+  params.sync_robot_state_with_gazebo_ = false;
 
   ParameterDialog* dialog = new ParameterDialog(params);
   dialog->exec();
   dialog->updateParams();
-  psv = new PlanningSceneVisualizer(NULL, dialog->params_);
+
+  QImage image;
+  if(chdir(ros::package::getPath("move_arm_warehouse").c_str()) != 0)
+  {
+    ROS_ERROR("FAILED TO CHANGE PACKAGE TO %s", ros::package::getPath("move_arm_warehouse").c_str());
+  }
+  if(!image.load("./res/splash.png"))
+  {
+    ROS_ERROR("FAILED TO LOAD ./res/splash.png");
+  }
+
+  QSplashScreen screen(QPixmap::fromImage(image));
+  screen.show();
+  app->processEvents();
+  psv = new WarehouseViewer(NULL, dialog->params_);
   app->setActiveWindow(psv);
   psv->show();
+  screen.close();
   inited = true;
 
   int ret = app->exec();

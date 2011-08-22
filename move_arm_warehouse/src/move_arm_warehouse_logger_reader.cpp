@@ -63,24 +63,12 @@ MoveArmWarehouseLoggerReader::MoveArmWarehouseLoggerReader()
 
   ROS_INFO_STREAM("Hostname is " << hostname_);
 
-  std::vector<std::string> indexed_fields;
-  indexed_fields.push_back(PLANNING_SCENE_TIME_NAME);
-  planning_scene_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::PlanningScene>(DATABASE_NAME, "planning_scene", indexed_fields);
 
-  indexed_fields.clear();
-  indexed_fields.push_back("group_name");
-  motion_plan_request_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::MotionPlanRequest>(DATABASE_NAME, "motion_plan_request", indexed_fields);
-
-  indexed_fields.clear();
-  trajectory_collection_ = new mongo_ros::MessageCollection<trajectory_msgs::JointTrajectory>(DATABASE_NAME, "trajectory", indexed_fields);
-
-  indexed_fields.clear();
-  indexed_fields.push_back("val");
-  outcome_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::ArmNavigationErrorCodes>(DATABASE_NAME, "outcome", indexed_fields);
-
-  indexed_fields.clear();
-  indexed_fields.push_back("paused_collision_map_stamp");
-  paused_state_collection_ = new mongo_ros::MessageCollection<head_monitor_msgs::HeadMonitorFeedback>(DATABASE_NAME, "paused_state", indexed_fields);
+  planning_scene_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::PlanningScene>(DATABASE_NAME, "planning_scene");
+  motion_plan_request_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::MotionPlanRequest>(DATABASE_NAME, "motion_plan_request");
+  trajectory_collection_ = new mongo_ros::MessageCollection<trajectory_msgs::JointTrajectory>(DATABASE_NAME, "trajectory");
+  outcome_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::ArmNavigationErrorCodes>(DATABASE_NAME, "outcome");
+  paused_state_collection_ = new mongo_ros::MessageCollection<head_monitor_msgs::HeadMonitorFeedback>(DATABASE_NAME, "paused_state");
 }
 
 MoveArmWarehouseLoggerReader::~MoveArmWarehouseLoggerReader() {
