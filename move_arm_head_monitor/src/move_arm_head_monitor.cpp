@@ -42,7 +42,6 @@
 #include <planning_environment/models/model_utils.h>
 #include <planning_environment/monitors/monitor_utils.h>
 #include <arm_navigation_msgs/convert_messages.h>
-#include <angles/angles.h>
 #include "planning_environment/util/construct_object.h"
 
 #include <sensor_msgs/PointCloud2.h>
@@ -221,10 +220,11 @@ public:
     sensor_msgs::JointState js = last_joint_state_;
     trajectory_msgs::JointTrajectory joint_trajectory_subset;
     if(current_execution_status_.status == current_execution_status_.EXECUTING) {
-      removeCompletedTrajectory(monitor_goal_.joint_trajectory,
-                                js,
-                                joint_trajectory_subset,
-                                false);
+      planning_environment::removeCompletedTrajectory(collision_models_interface_->getParsedDescription(),
+                                                      monitor_goal_.joint_trajectory,
+                                                      js,
+                                                      joint_trajectory_subset,
+                                                      false);
     } else {
       joint_trajectory_subset = monitor_goal_.joint_trajectory;
     }
@@ -391,10 +391,11 @@ public:
         sensor_msgs::JointState js = last_joint_state_;
         trajectory_msgs::JointTrajectory joint_trajectory_subset;
         
-        removeCompletedTrajectory(monitor_goal_.joint_trajectory,
-                                  js,
-                                  joint_trajectory_subset,
-                                  false);
+        planning_environment::removeCompletedTrajectory(collision_models_interface_->getParsedDescription(),
+                                                        monitor_goal_.joint_trajectory,
+                                                        js,
+                                                        joint_trajectory_subset,
+                                                        false);
 
         control_msgs::FollowJointTrajectoryGoal goal;
         goal.trajectory = generateHeadTrajectory(monitor_goal_.target_link, joint_trajectory_subset);
@@ -571,12 +572,6 @@ public:
       stopEverything();
     }
 
-    if(head_monitor_action_server_.isPreemptRequested())
-    {
-      ROS_INFO_STREAM(ros::this_node::getName() << ": Preempted");
-      head_monitor_action_server_.setPreempted(monitor_result_);
-    }
-
     if(!head_monitor_action_server_.isNewGoalAvailable())
     {
       ROS_INFO_STREAM("Preempted, no new goal");
@@ -707,10 +702,11 @@ public:
     control_msgs::FollowJointTrajectoryGoal goal;  
 
     sensor_msgs::JointState js = last_joint_state_;
-    removeCompletedTrajectory(monitor_goal_.joint_trajectory,
-                              js,
-                              goal.trajectory,
-                              false);
+    planning_environment::removeCompletedTrajectory(collision_models_interface_->getParsedDescription(),
+                                                    monitor_goal_.joint_trajectory,
+                                                    js,
+                                                    goal.trajectory,
+                                                    false);
     goal.trajectory.header.stamp = ros::Time::now()+ros::Duration(0.2);
 
     ROS_INFO("Sending trajectory with %d points (excerpted from %d points) and timestamp: %f",(int)goal.trajectory.points.size(),(int) monitor_goal_.joint_trajectory.points.size(), goal.trajectory.header.stamp.toSec());
@@ -776,132 +772,6 @@ public:
       point_head_action_client_.sendGoal(goal);
     }
   }
-
-  int closestStateOnTrajectory(const trajectory_msgs::JointTrajectory &trajectory, const sensor_msgs::JointState &joint_state, unsigned int start, unsigned int end)
-  {
-    double dist = 0.0;
-    int    pos  = -1;
-
-    std::map<std::string, double> current_state_map;
-    std::map<std::string, bool> continuous;
-    for(unsigned int i = 0; i < joint_state.name.size(); i++) {
-      current_state_map[joint_state.name[i]] = joint_state.position[i];
-    }
-
-    for(unsigned int j = 0; j < trajectory.joint_names.size(); j++) {
-      std::string name = trajectory.joint_names[j];
-      boost::shared_ptr<const urdf::Joint> joint = collision_models_interface_->getParsedDescription()->getJoint(name);
-      if (joint.get() == NULL)
-      {
-        ROS_ERROR("Joint name %s not found in urdf model", name.c_str());
-        return false;
-      }
-      if (joint->type == urdf::Joint::CONTINUOUS) {
-        continuous[name] = true;
-      } else {
-        continuous[name] = false;
-      }
-
-    }
-
-    for (unsigned int i = start ; i <= end ; ++i)
-    {
-      double d = 0.0;
-      for(unsigned int j = 0; j < trajectory.joint_names.size(); j++) {
-        double diff; 
-        if(!continuous[trajectory.joint_names[j]]) {
-          diff = fabs(trajectory.points[i].positions[j] - current_state_map[trajectory.joint_names[j]]);
-        } else {
-          diff = angles::shortest_angular_distance(trajectory.points[i].positions[j],current_state_map[trajectory.joint_names[j]]);
-        }
-        d += diff * diff;
-      }
-	
-      if (pos < 0 || d < dist)
-      {
-        pos = i;
-        dist = d;
-      }
-    }    
-
-    // if(pos == 0) {
-    //   for(unsigned int i = 0; i < joint_state.name.size(); i++) {
-    //     ROS_INFO_STREAM("Current state for joint " << joint_state.name[i] << " is " << joint_state.position[i]);
-    //   }
-    //   for(unsigned int j = 0; j < trajectory.joint_names.size(); j++) {
-    //     ROS_INFO_STREAM("Trajectory zero has " << trajectory.points[0].positions[j] << " for joint " << trajectory.joint_names[j]);
-    //   }
-    // }
-
-    return pos;
-  }
-
-  bool removeCompletedTrajectory(const trajectory_msgs::JointTrajectory &trajectory_in, 
-                                 const sensor_msgs::JointState& current_state, 
-                                 trajectory_msgs::JointTrajectory &trajectory_out, 
-                                 bool zero_vel_acc)
-  {
-
-    trajectory_out = trajectory_in;
-    trajectory_out.points.clear();
-
-    if(trajectory_in.points.empty())
-    {
-      ROS_WARN("No points in input trajectory");
-      return true;
-    }
-        
-    int current_position_index = 0;        
-    //Get closest state in given trajectory
-    current_position_index = closestStateOnTrajectory(trajectory_in, current_state, current_position_index, trajectory_in.points.size() - 1);
-    if (current_position_index < 0)
-    {
-      ROS_ERROR("Unable to identify current state in trajectory");
-      return false;
-    } else {
-      ROS_DEBUG_STREAM("Closest state is " << current_position_index << " of " << trajectory_in.points.size());
-    }
-    
-    // Start one ahead of returned closest state index to make sure first trajectory point is not behind current state
-    for(unsigned int i = current_position_index+1; i < trajectory_in.points.size(); ++i)
-    {
-      trajectory_out.points.push_back(trajectory_in.points[i]);
-    }
-
-    if(trajectory_out.points.empty())
-    {
-      ROS_DEBUG("No points in output trajectory");
-      return false;
-    }	
-
-    ros::Duration first_time = trajectory_out.points[0].time_from_start;
-
-    if(first_time < ros::Duration(.1)) {
-      first_time = ros::Duration(0.0);
-    } else {
-      first_time -= ros::Duration(.1);
-    }
-
-    for(unsigned int i=0; i < trajectory_out.points.size(); ++i)
-    {
-      if(trajectory_out.points[i].time_from_start > first_time) {
-        trajectory_out.points[i].time_from_start -= first_time;
-      } else {
-        ROS_INFO_STREAM("Not enough time in time from start for trajectory point " << i);
-      }
-    }
-
-    if(zero_vel_acc) {
-      for(unsigned int i=0; i < trajectory_out.joint_names.size(); ++i) {
-        for(unsigned int j=0; j < trajectory_out.points.size(); ++j) {
-          trajectory_out.points[j].velocities[i] = 0;
-          trajectory_out.points[j].accelerations[i] = 0;
-        }
-      }
-    }
-    return true;
-  }
-
 };
 
 
@@ -909,7 +779,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "move_arm_head_monitor");
 
-  ros::AsyncSpinner spinner(2); 
+  ros::AsyncSpinner spinner(3); 
   spinner.start();
 
   HeadMonitor head_monitor;
