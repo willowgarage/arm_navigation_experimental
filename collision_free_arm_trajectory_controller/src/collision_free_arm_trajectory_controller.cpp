@@ -35,14 +35,17 @@
 /** \author Sachin Chitta */
 
 #include <ros/ros.h>
-#include <actionlib/server/simple_action_server.h>
-#include <arm_navigation_msgs/GetRobotState.h>
-#include <arm_navigation_msgs/FilterJointTrajectory.h>
-#include <arm_navigation_msgs/GetJointTrajectoryValidity.h>
+#include <arm_navigation_msgs/FilterJointTrajectoryWithConstraints.h>
 #include <pr2_controllers_msgs/JointTrajectoryAction.h>
-#include <actionlib/client/action_client.h>
+#include <planning_environment/monitors/monitor_utils.h>
+#include <planning_environment/models/model_utils.h>
+#include <planning_environment/monitors/kinematic_model_state_monitor.h>
+#include <planning_environment/models/collision_models_interface.h>
 
-#include <arm_navigation_msgs/convert_messages.h>
+#include <actionlib/server/simple_action_server.h>
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/simple_client_goal_state.h>
+
 
 #include <boost/thread/condition.hpp>
 #include <boost/scoped_ptr.hpp>
@@ -52,11 +55,12 @@
 
 namespace collision_free_arm_trajectory_controller
 {
-static const std::string TRAJECTORY_FILTER = "filter_trajectory";
+static const std::string TRAJECTORY_FILTER = "/trajectory_filter_server/filter_trajectory_with_constraints";
+static const std::string TRAJECTORY_CONTROLLER = "/joint_trajectory_action";
 static const double MIN_DELTA = 0.01;
-typedef actionlib::ActionClient<pr2_controllers_msgs::JointTrajectoryAction> JointExecutorActionClient;
 
 enum ControllerState{
+  IDLE,
   START_CONTROL,
   MONITOR
 };
@@ -66,291 +70,181 @@ class CollisionFreeArmTrajectoryController
 {
 
 public:
-  CollisionFreeArmTrajectoryController(): private_handle_("~"), active_goal_(false)
+  CollisionFreeArmTrajectoryController(): private_handle_("~")
   {
-    traj_action_client_ = NULL;
-    ros::service::waitForService("get_execution_safety");
+    std::string robot_description_name = node_handle_.resolveName("robot_description", true);
+
+    collision_models_interface_ = new planning_environment::CollisionModelsInterface(robot_description_name);
+    kmsm_ = new planning_environment::KinematicModelStateMonitor(collision_models_interface_, &tf_);
+
+    kmsm_->addOnStateUpdateCallback(boost::bind(&CollisionFreeArmTrajectoryController::jointStateCallback, this, _1));
+
+    collision_models_interface_->addSetPlanningSceneCallback(boost::bind(&CollisionFreeArmTrajectoryController::setPlanningSceneCallback, this, _1));
+
     ros::service::waitForService("filter_trajectory");
-    ros::service::waitForService("get_robot_state");
 
-    check_trajectory_validity_client_ = node_handle_.serviceClient<arm_navigation_msgs::GetJointTrajectoryValidity>("get_execution_safety",true);
-    filter_trajectory_client_ = node_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectory>("filter_trajectory",true);      
-    get_state_client_ = node_handle_.serviceClient<arm_navigation_msgs::GetRobotState>("get_robot_state",true);
+    filter_trajectory_client_ = node_handle_.serviceClient<arm_navigation_msgs::FilterJointTrajectoryWithConstraints>("filter_trajectory",true);      
 
-    std::string traj_action_name, group_name;
-    private_handle_.param<std::string>("traj_action_name", traj_action_name, "action");
-    private_handle_.param<std::string>("group_name", group_name, "");
-    traj_action_client_ = new JointExecutorActionClient(traj_action_name);
-    action_server_.reset(new actionlib::SimpleActionServer<pr2_controllers_msgs::JointTrajectoryAction>(node_handle_, "collision_free_arm_trajectory_action_" + group_name, boost::bind(&CollisionFreeArmTrajectoryController::executeTrajectory, this, _1)));
-    state_ = START_CONTROL;
+    private_handle_.param<std::string>("group_name", group_name_, "");
+
+    traj_action_client_ = new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(TRAJECTORY_CONTROLLER, true);
+    while(ros::ok() && !traj_action_client_->waitForServer(ros::Duration(1.0))){
+      ROS_INFO("Waiting for the arm trajectory controller to come up");
+    }
+
+    action_server_.reset(new actionlib::SimpleActionServer<pr2_controllers_msgs::JointTrajectoryAction>(node_handle_, "collision_free_arm_trajectory_action_" + group_name_, false));
+
+    action_server_->registerGoalCallback(boost::bind(&CollisionFreeArmTrajectoryController::executeTrajectory, this));
+    action_server_->start();
+    state_ = IDLE;
   }
 
   ~CollisionFreeArmTrajectoryController()
   {
-    if(traj_action_client_) 
-      delete traj_action_client_;
+    delete traj_action_client_;
+    delete collision_models_interface_;
+    delete kmsm_;
   }
 
-
-  bool execute(pr2_controllers_msgs::JointTrajectoryGoal &goal)
-  {
-    switch(state_)
-    {
-    case START_CONTROL:
-      {
-        ROS_DEBUG("Starting control");
-        addCurrentState(goal);
-        if(isTrajectoryValid(goal.trajectory))
-        {
-          goal.trajectory.header.stamp = ros::Time::now();
-          sendGoalToController(goal);
-          state_ = MONITOR;
-        }
-        else
-        {
-          traj_action_client_->cancelAllGoals();
-          action_server_->setAborted();
-          ROS_INFO("Aborting since trajectory is unsafe");
-        }
-        break;
-      }
-    case MONITOR:
-      {
-        if(!isTrajectoryValid(goal.trajectory))
-        {
-          traj_action_client_->cancelAllGoals();
-          action_server_->setAborted();
-          ROS_INFO("Aborting since trajectory is unsafe");
-        }
-        break;
-      }
-    default:
-      {
-        ROS_ERROR("Should not be here");
-        break;
-      }
-    }
-    if(!action_server_->isActive())
-    {
-      ROS_DEBUG("Controller no longer has an active goal");
-      return true;
-    }
-    return false;
+  void setPlanningSceneCallback(const arm_navigation_msgs::PlanningScene& scene) {
+    collision_models_interface_->bodiesLock();
+    collision_models_interface_->disableCollisionsForNonUpdatedLinks(group_name_);
+    collision_models_interface_->bodiesUnlock();
   }
 
-  void executeTrajectory(const pr2_controllers_msgs::JointTrajectoryGoalConstPtr &goal_input)
-  {
-    ROS_INFO("Got trajectory with %d points and %d joints",(int)goal_input->trajectory.points.size(),(int)goal_input->trajectory.joint_names.size());
- 
-    //now we need to shove it into the action message
-    pr2_controllers_msgs::JointTrajectoryGoal goal = *goal_input;  
-    state_ = START_CONTROL;
-    while(node_handle_.ok())
-    {
-      if(action_server_->isPreemptRequested())
-      {
-        if(action_server_->isNewGoalAvailable())
-        {
-          action_server_->setAborted();
-          goal = *(action_server_->acceptNewGoal());
-          state_ = START_CONTROL;
-        }
-      }
-      bool done = execute(goal);
-      if(done)
-        return;
-      ros::Duration(0.01).sleep();
-    }
-    ROS_INFO("Node was aborted");
-    action_server_->setAborted();
-    return;
-  }
+  void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state) {
 
-
-  bool isTrajectoryValid(const trajectory_msgs::JointTrajectory &traj)
-  {
-    arm_navigation_msgs::GetJointTrajectoryValidity::Request req;
-    arm_navigation_msgs::GetJointTrajectoryValidity::Response res;
-        
-    ROS_DEBUG("Received trajectory has %d points with %d joints",(int) traj.points.size(),(int)traj.joint_names.size());
-    trajectory_msgs::JointTrajectory traj_discretized;
-    discretizeTrajectory(traj,traj_discretized);
-    req.trajectory = traj_discretized;
-    ROS_DEBUG("Got robot state");
-
-    getRobotState(req.robot_state);
-    req.check_path_constraints = true;
-    req.check_collisions =  true;
-
-    if(check_trajectory_validity_client_.call(req,res))
-    {
-      ROS_DEBUG("Service call to check plan validity succeeded");
-      if(res.error_code.val == res.error_code.SUCCESS)
-        return true;
-      else
-      {
-        ROS_ERROR("Trajectory invalid. Error code: %d",res.error_code.val);
-        return false;
-      }
-    }
-    else
-    {
-      ROS_ERROR("Service call to check trajectory validity failed on %s",check_trajectory_validity_client_.getService().c_str());
-      return false;
-    }
-  }
-
-  void sendGoalToController(const pr2_controllers_msgs::JointTrajectoryGoal &goal)
-  {
-    goal_handle_ = traj_action_client_->sendGoal(goal,boost::bind(&CollisionFreeArmTrajectoryController::transitionCallback, this, _1));
-  }
-
-  void transitionCallback(JointExecutorActionClient::GoalHandle gh) 
-  {
-    actionlib::CommState comm_state = gh.getCommState();
-    if(comm_state.state_ == actionlib::CommState::DONE)
-    {
-      switch(gh.getTerminalState().state_)
-      {
-      case actionlib::TerminalState::RECALLED:
-      case actionlib::TerminalState::REJECTED:
-      case actionlib::TerminalState::PREEMPTED:
-      case actionlib::TerminalState::ABORTED:
-      case actionlib::TerminalState::LOST:
-        ROS_DEBUG("Trajectory action did not succeed");
+    collision_models_interface_->bodiesLock();
+    if(!collision_models_interface_->getPlanningSceneState()) {
+      if(state_ == MONITOR) {
+        ROS_WARN("Should be monitoring, but no planning scene set");
+        traj_action_client_->cancelAllGoals();
         action_server_->setAborted();
-        return;
-      case actionlib::TerminalState::SUCCEEDED:
-        ROS_DEBUG("Reached goal");
-        action_server_->setSucceeded();
-        return;
-      default:
-        ROS_DEBUG("Unknown terminal state [%u]",gh.getTerminalState().state_);
+        state_ = IDLE;
+      }
+      collision_models_interface_->bodiesUnlock();
+      return;
+    } 
+    kmsm_->setStateValuesFromCurrentValues(*collision_models_interface_->getPlanningSceneState());
+    if(state_ != MONITOR || current_joint_trajectory_.points.size() == 0) {
+      collision_models_interface_->bodiesUnlock();
+      return;
+    }
+    trajectory_msgs::JointTrajectory joint_trajectory_subset;
+    planning_environment::removeCompletedTrajectory(collision_models_interface_->getParsedDescription(),
+                                                    current_joint_trajectory_,
+                                                    *joint_state,
+                                                    joint_trajectory_subset,
+                                                    false);
+    current_joint_trajectory_ = joint_trajectory_subset;
+    arm_navigation_msgs::Constraints emp;
+    arm_navigation_msgs::ArmNavigationErrorCodes error_code;
+    std::vector<arm_navigation_msgs::ArmNavigationErrorCodes> error_code_vec;
+    if(current_joint_trajectory_.points.size() > 0) {
+      if(!collision_models_interface_->isJointTrajectoryValid(*collision_models_interface_->getPlanningSceneState(),
+                                                              current_joint_trajectory_,
+                                                              emp, emp,
+                                                              error_code,
+                                                              error_code_vec,
+                                                              false)) {
+        ROS_WARN_STREAM("Collision at point " << error_code_vec.size() << " of remaining trajectory points " << current_joint_trajectory_.points.size());
+        traj_action_client_->cancelAllGoals();
+        action_server_->setAborted();
+        state_ = IDLE;
       }
     }
-    else
-      ROS_DEBUG("Unknown comm state");
-
+    collision_models_interface_->bodiesUnlock();
   }
 
-  void discretizeTrajectory(const trajectory_msgs::JointTrajectory &trajectory, trajectory_msgs::JointTrajectory &trajectory_out)
-  {    
-    trajectory_out.joint_names = trajectory.joint_names;
-    for(unsigned int i=1; i < trajectory.points.size(); i++)
-    {
-      double diff = 0.0;      
-      for(unsigned int j=0; j < trajectory.points[i].positions.size(); j++)
-      {
-        double start = trajectory.points[i-1].positions[j];
-        double end   = trajectory.points[i].positions[j];
-        if(fabs(end-start) > diff)
-          diff = fabs(end-start);        
-      }
-      int num_intervals =(int) (diff/MIN_DELTA+1.0);
-      
-      for(unsigned int k=0; k < (unsigned int) num_intervals; k++)
-      {
-        trajectory_msgs::JointTrajectoryPoint point;
-        for(unsigned int j=0; j < trajectory.points[i].positions.size(); j++)
-        {
-          double start = trajectory.points[i-1].positions[j];
-          double end   = trajectory.points[i].positions[j];
-          point.positions.push_back(start + (end-start)*k/num_intervals);
-        }
-        point.time_from_start = ros::Duration(trajectory.points[i].time_from_start.toSec() + k* (trajectory.points[i].time_from_start - trajectory.points[i-1].time_from_start).toSec()/num_intervals);
-        trajectory_out.points.push_back(point);
-      }
-    }
-    trajectory_out.points.push_back(trajectory.points.back());
-  }
-
-  bool filterTrajectory(trajectory_msgs::JointTrajectory &trajectory)
+  void executeTrajectory()
   {
-    arm_navigation_msgs::FilterJointTrajectory::Request  req;
-    arm_navigation_msgs::FilterJointTrajectory::Response res;
-    req.trajectory = trajectory;
+    if(state_ != IDLE) {
+      ROS_INFO_STREAM("Preempted, so stopping");
+      traj_action_client_->cancelAllGoals();
+    }
+    pr2_controllers_msgs::JointTrajectoryGoal goal(*(action_server_->acceptNewGoal()));
+
+    ROS_INFO("Got trajectory with %d points and %d joints",(int)goal.trajectory.points.size(),(int)goal.trajectory.joint_names.size());
+    
+    collision_models_interface_->bodiesLock();
+    if(!collision_models_interface_->isPlanningSceneSet()) {
+      ROS_WARN_STREAM("Can't execute safe trajectory control without planning scene");
+      action_server_->setAborted();
+      collision_models_interface_->bodiesUnlock();
+      return;
+    }
+    
+    arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request  req;
+    arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response res;
+    
+    planning_environment::convertKinematicStateToRobotState(*collision_models_interface_->getPlanningSceneState(),
+                                                            ros::Time::now(),
+                                                            collision_models_interface_->getWorldFrameId(),
+                                                            req.start_state);
+    std::map<std::string, double> current_values;
+    collision_models_interface_->getPlanningSceneState()->getKinematicStateValues(current_values);
+    req.trajectory = goal.trajectory;
+
+    trajectory_msgs::JointTrajectoryPoint jtp;
+    for(unsigned int i = 0; i < req.trajectory.joint_names.size(); i++) {
+      ROS_DEBUG_STREAM("Setting joint " << req.trajectory.joint_names[i] << " value " << current_values[req.trajectory.joint_names[i]]);
+      jtp.positions.push_back(current_values[req.trajectory.joint_names[i]]);
+    }
+    req.trajectory.points.insert(req.trajectory.points.begin(), jtp);
+    req.group_name = group_name_;
     if(filter_trajectory_client_.call(req,res))
     {
       if(res.error_code.val == res.error_code.SUCCESS)
       {
-        trajectory = res.trajectory;
-        return true;
+        current_joint_trajectory_ = res.trajectory;
+        pr2_controllers_msgs::JointTrajectoryGoal goal;  
+        goal.trajectory = current_joint_trajectory_;
+        goal.trajectory.header.stamp = ros::Time::now()+ros::Duration(0.2);
+        traj_action_client_->sendGoal(goal,boost::bind(&CollisionFreeArmTrajectoryController::controllerDoneCallback, this, _1, _2));
+        state_ = MONITOR;
+        return;
       }
       else
       {
-        ROS_ERROR("Trajectory filtering failed");
-        return false;
+        ROS_INFO_STREAM("Filter rejects trajectory based on current state");
+        action_server_->setAborted();
+        collision_models_interface_->bodiesUnlock();
+        return;
       }
+    } else {
+      ROS_WARN_STREAM("Filter trajectory call failed entirely");
+      action_server_->setAborted();
+      collision_models_interface_->bodiesUnlock();
+      return;
     }
-    else
-    {
-      ROS_ERROR("Service call to filter trajectory failed.");
-      return false;
-    }
-
   }
 
-  bool addCurrentState(pr2_controllers_msgs::JointTrajectoryGoal &goal)
-  {
-    // get the current state
-    double d = 0.0;
-    sensor_msgs::JointState current;// = state_monitor_.getJointState(goal.trajectory.joint_names);
-    for (unsigned int i = 0 ; i < current.position.size() ; ++i)
-    {
-      double dif = current.position[i] - goal.trajectory.points[0].positions[i];
-      d = std::max<double>(d,fabs(dif));
-    }	    
-    // decide whether we place the current state in front of the path
-    int include_first = (d > 0.1) ? 1 : 0;
-    if (include_first)
-    {
-      trajectory_msgs::JointTrajectory start_segment;
-      start_segment.points.resize(2);
-      start_segment.points[0].positions = arm_navigation_msgs::jointStateToJointTrajectoryPoint(current).positions;
-      start_segment.points[0].time_from_start = ros::Duration(0.0);
-      start_segment.points[1] = goal.trajectory.points[0];
-      start_segment.joint_names = goal.trajectory.joint_names;
-      if(!filterTrajectory(start_segment))
-        ROS_WARN("Could not filter trajectory");
 
-      trajectory_msgs::JointTrajectory traj;
-      traj.points = start_segment.points;
-      traj.joint_names = start_segment.joint_names;
-      for (unsigned int i = 1; i < goal.trajectory.points.size() ; ++i)
-      {
-        traj.points.push_back(goal.trajectory.points[i]);
-        traj.points.back().time_from_start = goal.trajectory.points[i].time_from_start + start_segment.points.back().time_from_start;
-      }
-      goal.trajectory = traj;
-    }
-    return true;
-  }
-
-  bool getRobotState(arm_navigation_msgs::RobotState &robot_state)
+  void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
+                              const pr2_controllers_msgs::JointTrajectoryResultConstPtr& result)
   {
-    arm_navigation_msgs::GetRobotState::Request req;
-    arm_navigation_msgs::GetRobotState::Response res;
-    if(get_state_client_.call(req,res))
-    {
-      robot_state = res.robot_state;
-      return true;
-    }
-    else
-    {
-      ROS_ERROR("Service call to get robot state failed on %s",get_state_client_.getService().c_str());
-      return false;
-    }
+    ROS_INFO_STREAM("Trajectory reported done with state " << state.toString());
+    state_ = IDLE;
+    action_server_->setSucceeded();
   }
 
 private:
   ros::NodeHandle node_handle_, private_handle_;
-  JointExecutorActionClient *traj_action_client_;
-  JointExecutorActionClient::GoalHandle goal_handle_;
+  
+  std::string group_name_;
+
+  planning_environment::CollisionModelsInterface* collision_models_interface_;
+  planning_environment::KinematicModelStateMonitor* kmsm_;
+
+  ros::ServiceClient filter_trajectory_client_;
+
+  tf::TransformListener tf_;
+
   boost::shared_ptr<actionlib::SimpleActionServer<pr2_controllers_msgs::JointTrajectoryAction> > action_server_;
-  ros::ServiceClient get_state_client_, check_trajectory_validity_client_, filter_trajectory_client_;
-  //planning_environment::JointStateMonitor state_monitor_;
-  bool active_goal_;
+  actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>* traj_action_client_;
+
   ControllerState state_;
+  trajectory_msgs::JointTrajectory current_joint_trajectory_;
 };
 }
 

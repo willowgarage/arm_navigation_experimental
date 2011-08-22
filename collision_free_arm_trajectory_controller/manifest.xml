@@ -13,8 +13,6 @@
   <depend package="trajectory_msgs"/>
   <depend package="pr2_controllers_msgs"/>
   <depend package="actionlib_msgs"/>
-  <depend package="filters"/>
-
 
   <platform os="ubuntu" version="9.04"/>
   <platform os="ubuntu" version="9.10"/>

@@ -31,5 +31,5 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 rosbuild_add_executable(collision_free_arm_trajectory_controller src/collision_free_arm_trajectory_controller.cpp)
 
-rosbuild_add_executable(test_controller tests/test_controller.cpp)
+#rosbuild_add_executable(test_controller tests/test_controller.cpp)
 
