@@ -206,10 +206,13 @@ class ParameterDialog: public QDialog
       use_robot_data_->setText("Use Robot Data");
       use_robot_data_->setChecked(false);
       layout->addRow("Use Data From Simulated/Real Robot?", use_robot_data_);
-
+      use_robot_data_->setToolTip("When this is checked, a robot state publisher will not be created. Instead, TF data\n\
+                                  will be taken from the robot's actual state.");
       sync_with_gazebo_ = new QCheckBox(groupBox);
       sync_with_gazebo_->setText("Sync With Gazebo");
       sync_with_gazebo_->setChecked(false);
+      sync_with_gazebo_->setToolTip("When this is checked, the warehouse viewer will attempt to set the robot state\n\
+                                     to the start state of any motion plan requests played.");
       layout->addRow("Synchronize Robot State With Gazebo?", sync_with_gazebo_);
 
       QPushButton* button = new QPushButton(groupBox);

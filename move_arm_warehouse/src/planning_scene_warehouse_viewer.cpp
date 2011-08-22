@@ -76,6 +76,7 @@ void WarehouseViewer::initQtWidgets()
 
   selected_request_label_ = new QLabel(motionPlanBox);
   selected_request_label_->setText("Selected Request: None");
+  selected_request_label_->setToolTip("Selected motion plan request. New trajectories will be planned for this request.");
 
   QGroupBox* trajectoryBox = new QGroupBox(this);
   trajectoryBox->setTitle("Trajectories");
@@ -87,6 +88,7 @@ void WarehouseViewer::initQtWidgets()
   QVBoxLayout* motionBoxLayout = new QVBoxLayout(motionPlanBox);
   motion_plan_tree_ = new QTreeWidget(motionPlanBox);
   motion_plan_tree_->setColumnCount(5);
+  motion_plan_tree_->setToolTip("Motion plan tree. Open a motion plan request to access its controls. Click to select a request.");
 
   QVBoxLayout* trajectoryBoxLayout = new QVBoxLayout(trajectoryBox);
   file_menu_ = menu_bar_->addMenu("File");
@@ -117,13 +119,17 @@ void WarehouseViewer::initQtWidgets()
 
   QLabel* modeLabel = new QLabel(trajectoryBox);
   modeLabel->setText("Selected Trajectory: ");
+  modeLabel->setToolTip("Selected trajectory.");
 
   play_button_ = new QPushButton(this);
   play_button_->setText("Play Trajectory");
   play_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  play_button_->setToolTip("Plays the currently selected trajectory in RVIZ. Makes the trajectory visible.");
+
   filter_button_ = new QPushButton(this);
   filter_button_->setText("Filter Trajectory");
   filter_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  filter_button_->setToolTip("Sends the currently selected trajectory to the trajectory filter, producing a new trajectory.");
 
   if(params_.trajectory_filter_service_name_ == "none")
   {
@@ -133,6 +139,7 @@ void WarehouseViewer::initQtWidgets()
   replan_button_ = new QPushButton(this);
   replan_button_->setText("Plan New Trajectory");
   replan_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  replan_button_->setToolTip("Plans a new trajectory between the start and goal states of the current motion plan request, producing a new trajectory.");
 
   if(params_.planner_service_name_ == "none")
   {
@@ -143,22 +150,26 @@ void WarehouseViewer::initQtWidgets()
   execute_button_->setText("Execute On Robot");
   execute_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   execute_button_->setEnabled(params_.use_robot_data_);
+  execute_button_->setToolTip("Sends the currently selected trajectory to the robot's controllers. (Only works if using robot data). Produces a new trajectory.");
 
   trajectory_point_edit_ = new QSpinBox(this);
   trajectory_point_edit_->setRange(0, 100);
   trajectory_point_edit_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  trajectory_point_edit_->setToolTip("Currently displayed trajectory point. Drag to change.");
 
   selected_trajectory_label_ = new QLabel(this);
   selected_trajectory_label_->setText("None");
+  selected_trajectory_label_->setToolTip("Currently selected trajectory.");
 
   QPushButton* deleteMPRButton = new QPushButton(motionPlanBox);
   deleteMPRButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   deleteMPRButton->setText("Delete Motion Plan Request");
+  deleteMPRButton->setToolTip("Deletes the currently selected motion plan request.");
 
   QPushButton* deleteTrajectoryButton = new QPushButton(trajectoryBox);
   deleteTrajectoryButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   deleteTrajectoryButton->setText("Delete Trajectory");
-
+  deleteTrajectoryButton->setToolTip("Deletes the currently selected trajectory.");
 
   motionBoxLayout->addWidget(motion_plan_tree_);
   motionBoxLayout->addWidget(selected_request_label_);
@@ -1561,7 +1572,6 @@ void WarehouseViewer::filterCallback(arm_navigation_msgs::ArmNavigationErrorCode
     emit filterFailure(errorCode.val);
   }
 }
-
 
 void WarehouseViewer::popupPlannerFailure(int value)
 {
