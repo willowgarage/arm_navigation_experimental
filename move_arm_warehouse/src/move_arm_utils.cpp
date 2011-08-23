@@ -683,6 +683,17 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   registerMenuEntry("Collision Object Selection", "Select", collision_object_selection_feedback_ptr_);
   registerMenuEntry("Collision Object", "Delete", collision_object_movement_feedback_ptr_);
   registerMenuEntry("Collision Object", "Deselect", collision_object_movement_feedback_ptr_);
+  MenuHandler::EntryHandle resize_mode_entry = registerMenuEntry("Collision Object", "Resize Mode", collision_object_movement_feedback_ptr_);
+  MenuHandler::EntryHandle off = menu_handler_map_["Collision Object"].insert(resize_mode_entry, "Off", collision_object_movement_feedback_ptr_);
+  menu_entry_maps_["Collision Object"]["Off"] = off;
+  menu_handler_map_["Collision Object"].setCheckState(off, MenuHandler::CHECKED);
+  last_resize_handle_ = off;
+  MenuHandler::EntryHandle grow = menu_handler_map_["Collision Object"].insert(resize_mode_entry, "Grow", collision_object_movement_feedback_ptr_);
+  menu_entry_maps_["Collision Object"]["Grow"] = grow;
+  menu_handler_map_["Collision Object"].setCheckState(grow, MenuHandler::UNCHECKED);
+  MenuHandler::EntryHandle shrink = menu_handler_map_["Collision Object"].insert(resize_mode_entry, "Shrink", collision_object_movement_feedback_ptr_);
+  menu_handler_map_["Collision Object"].setCheckState(shrink, MenuHandler::UNCHECKED);
+  menu_entry_maps_["Collision Object"]["Shrink"] = shrink;
   registerMenuEntry("IK Control", "Go To Last Good State", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Randomly Perturb", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
@@ -766,19 +777,20 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
   /////
   /// Get rid of old interactive markers.
   //////
-  for(map<string, SelectableObject>::iterator it = (*selectable_objects_).begin(); it != (*selectable_objects_).end(); it++)
+  for(map<string, SelectableObject>::iterator it = selectable_objects_->begin(); it != selectable_objects_->end(); it++)
   {
     interactive_marker_server_->erase(it->second.selection_marker_.name);
     interactive_marker_server_->erase(it->second.control_marker_.name);
   }
 
-  (*selectable_objects_).clear();
+  selectable_objects_->clear();
 
   for(map<string, IKController>::iterator it = (*ik_controllers_).begin(); it != (*ik_controllers_).end(); it++)
   {
     interactive_marker_server_->erase(it->second.end_controller_.name);
     interactive_marker_server_->erase(it->second.start_controller_.name);
   }
+  interactive_marker_server_->applyChanges();
 
   (*ik_controllers_).clear();
 
@@ -832,15 +844,12 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
     /////
     for(size_t i = 0; i < scene.getPlanningScene().collision_objects.size(); i++)
     {
-      std::stringstream ss;
-      ss << "collision_object_";
-      ss << i;
       std_msgs::ColorRGBA color;
       color.r = 0.5;
       color.g = 0.5;
       color.b = 0.5;
       color.a = 1.0;
-      createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], ss.str(), "", color);
+      createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], scene.getPlanningScene().collision_objects[i].id, "", color);
     }
 
     /////
@@ -1597,7 +1606,7 @@ void PlanningSceneEditor::loadAllWarehouseData()
     // Load it
     loadPlanningScene(time, ID);
 
-    ROS_INFO("Got planning scene %s from warehouse.", ID.c_str());
+    ROS_DEBUG("Got planning scene %s from warehouse.", ID.c_str());
     PlanningSceneData& data = (*planning_scene_map_)[ID];
     data.getPipelineStages().clear();
     data.getErrorCodes().clear();
@@ -2034,7 +2043,7 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   selectable.color_ = color;
 
   InteractiveMarkerControl button;
-  button.name = name;
+  button.name = "button";
   button.interaction_mode = InteractiveMarkerControl::BUTTON;
   button.description = description;
   float maxScale = 0.0f;
@@ -2092,7 +2101,7 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
       maxScale = mark.scale.z * 1.05f;
     }
   }
-
+  
   selectable.selection_marker_.controls.push_back(button);
 
   InteractiveMarkerControl sixDof;
@@ -2130,8 +2139,8 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   selectable.selection_marker_.name = name + "_selection";
 
   selectable.control_marker_.scale = maxScale;
-  interactive_marker_server_->insert(selectable.selection_marker_, collision_object_selection_feedback_ptr_);
   (*selectable_objects_)[name] = selectable;
+  interactive_marker_server_->insert(selectable.selection_marker_, collision_object_selection_feedback_ptr_);
 
   menu_handler_map_["Collision Object Selection"].apply(*interactive_marker_server_, selectable.selection_marker_.name);
 
@@ -2429,16 +2438,16 @@ void PlanningSceneEditor::deleteCollisionObject(std::string& name)
 
 void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMarkerFeedbackConstPtr &feedback)
 {
-  if(feedback->marker_name.rfind("collision_object") == string::npos)
-  {
-    return;
-  }
   std::string name = feedback->marker_name.substr(0, feedback->marker_name.rfind("_selection"));
-  bool shouldSelect = false;
+  bool should_select = false;
   switch (feedback->event_type)
   {
     case InteractiveMarkerFeedback::BUTTON_CLICK:
-      shouldSelect = true;
+      {
+        visualization_msgs::InteractiveMarker mark;
+        ROS_INFO_STREAM("Got button click for " << name);
+        should_select = true;
+      }
       break;
     case InteractiveMarkerFeedback::MENU_SELECT:
       if(feedback->menu_entry_id == menu_entry_maps_["Collision Object Selection"]["Delete"])
@@ -2447,13 +2456,12 @@ void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMark
       }
       else if(feedback->menu_entry_id == menu_entry_maps_["Collision Object Selection"]["Select"])
       {
-        shouldSelect = true;
+        should_select = true;
       }
-
       break;
   }
 
-  if(shouldSelect)
+  if(should_select)
   {
     interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
     (*selectable_objects_)[name].control_marker_.pose = feedback->pose;
@@ -2471,22 +2479,96 @@ void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMark
 
 void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarkerFeedbackConstPtr &feedback)
 {
-  if(feedback->marker_name.rfind("collision_object") == string::npos)
-  {
-    return;
-  }
   std::string name = feedback->marker_name.substr(0, feedback->marker_name.rfind("_control"));
 
   switch (feedback->event_type)
   {
     case InteractiveMarkerFeedback::MOUSE_UP:
-      for(size_t i = 0; i < (*selectable_objects_)[name].collision_object_.poses.size(); i++)
-      {
-        (*selectable_objects_)[name].collision_object_.poses[i] = feedback->pose;
+      if(feedback->control_name == "button") return;
+      if(last_resize_handle_ == menu_entry_maps_["Collision Object"]["Off"]) {
+        for(size_t i = 0; i < (*selectable_objects_)[name].collision_object_.poses.size(); i++)
+        {
+          (*selectable_objects_)[name].collision_object_.poses[i] = feedback->pose;
+        }
+        sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+      } else {
+        CollisionObject coll = (*selectable_objects_)[name].collision_object_;
+        btTransform orig, cur;
+        tf::poseMsgToTF(coll.poses[0], orig);
+        tf::poseMsgToTF(feedback->pose, cur);
+        btTransform nt = orig.inverse()*cur;
+        if(last_resize_handle_ == menu_entry_maps_["Collision Object"]["Grow"]) {
+          if(coll.shapes[0].type == arm_navigation_msgs::Shape::BOX) {
+            coll.shapes[0].dimensions[0] += fabs(nt.getOrigin().x());
+            coll.shapes[0].dimensions[1] += fabs(nt.getOrigin().y());
+            coll.shapes[0].dimensions[2] += fabs(nt.getOrigin().z());
+          } else if(coll.shapes[0].type == arm_navigation_msgs::Shape::CYLINDER) {
+            coll.shapes[0].dimensions[0] += fmax(fabs(nt.getOrigin().x()), fabs(nt.getOrigin().y()));
+            coll.shapes[0].dimensions[1] += fabs(nt.getOrigin().z());
+          } else if(coll.shapes[0].type == arm_navigation_msgs::Shape::SPHERE) {
+            coll.shapes[0].dimensions[0] += fmax(fmax(fabs(nt.getOrigin().x()), fabs(nt.getOrigin().y())), fabs(nt.getOrigin().z()));
+          }
+        } else {
+          //shrinking
+          if(nt.getOrigin().x() > 0) {
+            nt.getOrigin().setX(-nt.getOrigin().x());
+          }
+          if(nt.getOrigin().y() > 0) {
+            nt.getOrigin().setY(-nt.getOrigin().y());
+          }
+          if(nt.getOrigin().z() > 0) {
+            nt.getOrigin().setZ(-nt.getOrigin().z());
+          }
+          //can't be bigger than the current dimensions
+          if(coll.shapes[0].type == arm_navigation_msgs::Shape::BOX) {
+            nt.getOrigin().setX(fmax(nt.getOrigin().x(), -coll.shapes[0].dimensions[0]+.01));
+            nt.getOrigin().setY(fmax(nt.getOrigin().y(), -coll.shapes[0].dimensions[1]+.01));
+            nt.getOrigin().setZ(fmax(nt.getOrigin().z(), -coll.shapes[0].dimensions[2]+.01));
+            coll.shapes[0].dimensions[0] += nt.getOrigin().x();
+            coll.shapes[0].dimensions[1] += nt.getOrigin().y();
+            coll.shapes[0].dimensions[2] += nt.getOrigin().z();
+          } else if(coll.shapes[0].type == arm_navigation_msgs::Shape::CYLINDER) {
+            nt.getOrigin().setX(fmax(nt.getOrigin().x(), -coll.shapes[0].dimensions[0]+.01));
+            nt.getOrigin().setY(fmax(nt.getOrigin().y(), -coll.shapes[0].dimensions[0]+.01));
+            nt.getOrigin().setZ(fmax(nt.getOrigin().z(), -coll.shapes[0].dimensions[1]+.01));
+            coll.shapes[0].dimensions[0] += fmin(nt.getOrigin().x(), nt.getOrigin().y());
+            coll.shapes[0].dimensions[1] += nt.getOrigin().z();
+          } else if(coll.shapes[0].type == arm_navigation_msgs::Shape::SPHERE) {
+            nt.getOrigin().setX(fmax(nt.getOrigin().x(), -coll.shapes[0].dimensions[0]+.01));
+            nt.getOrigin().setY(fmax(nt.getOrigin().y(), -coll.shapes[0].dimensions[0]+.01));
+            nt.getOrigin().setZ(fmax(nt.getOrigin().z(), -coll.shapes[0].dimensions[0]+.01));
+            coll.shapes[0].dimensions[0] += fmin(fmin(nt.getOrigin().x(), nt.getOrigin().y()), nt.getOrigin().z());
+          }
+        }
+        nt.setOrigin(nt.getOrigin()*.5);
+        tf::poseTFToMsg(orig*nt, coll.poses[0]);
+        
+        interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
+        interactive_marker_server_->erase((*selectable_objects_)[name].control_marker_.name);
+        interactive_marker_server_->applyChanges();
+        createSelectableMarkerFromCollisionObject(coll, coll.id, "", (*selectable_objects_)[name].color_);
+        interactive_marker_server_->erase((*selectable_objects_)[name].selection_marker_.name);
+        (*selectable_objects_)[name].control_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
+        
+        interactive_marker_server_->insert((*selectable_objects_)[name].control_marker_,
+                                           collision_object_movement_feedback_ptr_);
+        
+        menu_handler_map_["Collision Object"].apply(*interactive_marker_server_,
+                                                    (*selectable_objects_)[name].control_marker_.name);
+        sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
       }
-      sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
       break;
-
+    case InteractiveMarkerFeedback::MOUSE_DOWN:
+      if(feedback->control_name == "button") {
+        interactive_marker_server_->erase((*selectable_objects_)[name].control_marker_.name);
+        (*selectable_objects_)[name].selection_marker_.pose = feedback->pose;
+        (*selectable_objects_)[name].selection_marker_.header.stamp = ros::Time(ros::WallTime::now().toSec());
+        interactive_marker_server_->insert((*selectable_objects_)[name].selection_marker_,
+                                           collision_object_selection_feedback_ptr_);
+        menu_handler_map_["Collision Object Selection"].apply(*interactive_marker_server_,
+                                                              (*selectable_objects_)[name].selection_marker_.name);
+      }
+      break;
     case InteractiveMarkerFeedback::MENU_SELECT:
       if(feedback->menu_entry_id == menu_entry_maps_["Collision Object"]["Delete"])
       {
@@ -2505,6 +2587,13 @@ void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarke
         menu_handler_map_["Collision Object Selection"].apply(*interactive_marker_server_,
                                                               (*selectable_objects_)[name].selection_marker_.name);
 
+      } else if(feedback->menu_entry_id == menu_entry_maps_["Collision Object"]["Off"] || 
+                feedback->menu_entry_id == menu_entry_maps_["Collision Object"]["Grow"] ||
+                feedback->menu_entry_id == menu_entry_maps_["Collision Object"]["Shrink"]) {  
+        menu_handler_map_["Collision Object"].setCheckState(last_resize_handle_, MenuHandler::UNCHECKED);
+        last_resize_handle_ = feedback->menu_entry_id;
+        menu_handler_map_["Collision Object"].setCheckState(last_resize_handle_, MenuHandler::CHECKED);
+        menu_handler_map_["Collision Object"].reApply(*interactive_marker_server_);
       }
       break;
 

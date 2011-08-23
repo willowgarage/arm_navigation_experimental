@@ -39,7 +39,7 @@
      <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
      <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
    </node>
-  <node name="collision_proximity_server_test" pkg="collision_proximity" type="collision_proximity_server_test" output="screen" respawn="false" launch-prefix="xterm -e gdb --args" />
+  <node name="collision_proximity_server_test" pkg="collision_proximity" type="collision_proximity_server_test" output="screen" respawn="false" />
   <node name="collision_proximity_planner" pkg="collision_proximity_planner" type="collision_proximity_planner" output="screen" respawn="false" />
 
   <node name="mongo" type="wrapper.py" pkg="mongodb">

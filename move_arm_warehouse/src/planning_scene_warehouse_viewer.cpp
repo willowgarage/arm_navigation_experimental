@@ -100,6 +100,7 @@ void WarehouseViewer::initQtWidgets()
   new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
   refresh_action_ = planning_scene_menu_->addAction("Refresh Planning Scene...");
   view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
+  alter_link_padding_action_ = planning_scene_menu_->addAction("Alter Link Padding ...");
   quit_action_ = file_menu_->addAction("Quit");
 
   collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
@@ -207,6 +208,7 @@ void WarehouseViewer::initQtWidgets()
   connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
   connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
   connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
+  connect(alter_link_padding_action_, SIGNAL(triggered()), this, SLOT(alterLinkPaddingPressed()));
   connect(this, SIGNAL(plannerFailure(int)),this, SLOT(popupPlannerFailure(int)));
   connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
   load_planning_scene_dialog_ = new QDialog(this);
@@ -331,6 +333,77 @@ void WarehouseViewer::viewOutcomesPressed()
   createOutcomeDialog();
   outcome_dialog_->exec();
   delete outcome_dialog_;
+}
+
+void WarehouseViewer::createAlterLinkPaddingDialog()
+{
+  if(current_planning_scene_ID_ == "") {
+    return;
+  }
+
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+
+  if(planning_scene.link_padding.size() == 0) {
+    planning_environment::convertFromLinkPaddingMapToLinkPaddingVector(cm_->getDefaultLinkPaddingMap(), planning_scene.link_padding);
+    (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  }
+
+  alter_link_padding_dialog_ = new QDialog(this);
+  alter_link_padding_dialog_->setWindowTitle("Alter Link Padding");
+  QVBoxLayout* layout = new QVBoxLayout(alter_link_padding_dialog_);
+  
+  alter_link_padding_table_ = new QTableWidget(alter_link_padding_dialog_);
+  QStringList alter_headers;
+  alter_headers.append("Link name");
+  alter_headers.append("Padding (m)");
+  
+  alter_link_padding_table_->setColumnCount(2);
+  alter_link_padding_table_->setRowCount((int)planning_scene.link_padding.size());
+  
+  alter_link_padding_table_->setHorizontalHeaderLabels(alter_headers);
+  alter_link_padding_table_->setColumnWidth(0, 300);
+  alter_link_padding_table_->setColumnWidth(1, 150);
+  alter_link_padding_table_->setMinimumWidth(500);
+
+  for(unsigned int i = 0; i < planning_scene.link_padding.size(); i++) {
+    QTableWidgetItem* link_item = new QTableWidgetItem(QString::fromStdString(planning_scene.link_padding[i].link_name));
+    link_item->setFlags(Qt::ItemIsEnabled);
+    alter_link_padding_table_->setItem(i, 0, link_item);
+
+    QDoubleSpinBox* padding_spin_box = new QDoubleSpinBox(alter_link_padding_table_);
+    padding_spin_box->setMinimum(0.0);
+    padding_spin_box->setDecimals(3);
+    padding_spin_box->setSingleStep(.005);
+    padding_spin_box->setValue(planning_scene.link_padding[i].padding);
+    connect(padding_spin_box, SIGNAL(valueChanged(double)), this, SLOT(alteredLinkPaddingValueChanged(double)));
+
+    alter_link_padding_table_->setCellWidget(i, 1, padding_spin_box);
+  }
+  layout->addWidget(alter_link_padding_table_);
+  alter_link_padding_dialog_->setLayout(layout);
+}
+
+void WarehouseViewer::alterLinkPaddingPressed()
+{
+  createAlterLinkPaddingDialog();
+  alter_link_padding_dialog_->exec();
+  delete alter_link_padding_dialog_;
+}
+
+void WarehouseViewer::alteredLinkPaddingValueChanged(double d)
+{
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  planning_scene.link_padding.clear();
+
+  for(int i = 0; i < alter_link_padding_table_->rowCount(); i++)
+  {
+    arm_navigation_msgs::LinkPadding lp;
+    lp.link_name = alter_link_padding_table_->item(i,0)->text().toStdString();
+    lp.padding = dynamic_cast<QDoubleSpinBox*>(alter_link_padding_table_->cellWidget(i,1))->value();
+    planning_scene.link_padding.push_back(lp);
+  }
+  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
 }
 
 void WarehouseViewer::refreshSceneButtonPressed()

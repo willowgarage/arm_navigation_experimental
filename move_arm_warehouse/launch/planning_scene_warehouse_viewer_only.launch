@@ -3,7 +3,7 @@
         <param name="warehouse_port" value="27019"/>
 
 
-	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer" launch-prefix="xterm -e gdb --args"/>
+	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
 
 	<!-- Called when left arm executes trajectory using controllers -->
 	<param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />

@@ -106,178 +106,178 @@ static const std::string SET_PLANNING_SCENE_DIFF_NAME = "environment_server/set_
 /////
 class ParameterDialog: public QDialog
 {
-  public:
-    planning_scene_utils::PlanningSceneParameters params_;
-    ParameterDialog(planning_scene_utils::PlanningSceneParameters params, QWidget* parent = NULL) :
-      QDialog(parent)
-    {
-      params_ = params;
-      setMinimumWidth(640);
-      setup();
-    }
+public:
+  planning_scene_utils::PlanningSceneParameters params_;
+  ParameterDialog(planning_scene_utils::PlanningSceneParameters params, QWidget* parent = NULL) :
+    QDialog(parent)
+  {
+    params_ = params;
+    setMinimumWidth(640);
+    setup();
+  }
 
-    /////
-    /// @brief Creates all the Qt Widgets
-    /////
-    void setup()
-    {
-      QGroupBox* groupBox = new QGroupBox(this);
-      groupBox->setTitle("Planning Scene Editor Parameters");
-      QVBoxLayout* boxLayout = new QVBoxLayout(this);
+  /////
+  /// @brief Creates all the Qt Widgets
+  /////
+  void setup()
+  {
+    QGroupBox* groupBox = new QGroupBox(this);
+    groupBox->setTitle("Planning Scene Editor Parameters");
+    QVBoxLayout* boxLayout = new QVBoxLayout(this);
 
-      layout = new QFormLayout(groupBox);
-      left_ik_name_ = new QLineEdit(groupBox);
-      layout->addRow("Left IK Service", left_ik_name_);
-      left_ik_name_->setText(QString::fromStdString(params_.left_ik_name_));
+    layout = new QFormLayout(groupBox);
+    left_ik_name_ = new QLineEdit(groupBox);
+    layout->addRow("Left IK Service", left_ik_name_);
+    left_ik_name_->setText(QString::fromStdString(params_.left_ik_name_));
 
-      right_ik_name_ = new QLineEdit(groupBox);
-      layout->addRow("Right IK Service", right_ik_name_);
-      right_ik_name_->setText(QString::fromStdString(params_.right_ik_name_));
+    right_ik_name_ = new QLineEdit(groupBox);
+    layout->addRow("Right IK Service", right_ik_name_);
+    right_ik_name_->setText(QString::fromStdString(params_.right_ik_name_));
 
-      non_coll_left_ik_name_ = new QLineEdit(groupBox);
-      layout->addRow("Non Collision-Aware Left IK Service", non_coll_left_ik_name_);
-      non_coll_left_ik_name_->setText(QString::fromStdString(params_.non_coll_left_ik_name_));
+    non_coll_left_ik_name_ = new QLineEdit(groupBox);
+    layout->addRow("Non Collision-Aware Left IK Service", non_coll_left_ik_name_);
+    non_coll_left_ik_name_->setText(QString::fromStdString(params_.non_coll_left_ik_name_));
 
-      non_coll_right_ik_name_ = new QLineEdit(groupBox);
-      layout->addRow("Non Collision-Aware Right IK Service", non_coll_right_ik_name_);
-      non_coll_right_ik_name_->setText(QString::fromStdString(params_.non_coll_right_ik_name_));
+    non_coll_right_ik_name_ = new QLineEdit(groupBox);
+    layout->addRow("Non Collision-Aware Right IK Service", non_coll_right_ik_name_);
+    non_coll_right_ik_name_->setText(QString::fromStdString(params_.non_coll_right_ik_name_));
 
-      right_arm_group_ = new QLineEdit(groupBox);
-      layout->addRow("Right Arm Group", right_arm_group_);
-      right_arm_group_->setText(QString::fromStdString(params_.right_arm_group_));
+    right_arm_group_ = new QLineEdit(groupBox);
+    layout->addRow("Right Arm Group", right_arm_group_);
+    right_arm_group_->setText(QString::fromStdString(params_.right_arm_group_));
 
-      left_arm_group_ = new QLineEdit(groupBox);
-      layout->addRow("Left Arm Group", left_arm_group_);
-      left_arm_group_->setText(QString::fromStdString(params_.left_arm_group_));
+    left_arm_group_ = new QLineEdit(groupBox);
+    layout->addRow("Left Arm Group", left_arm_group_);
+    left_arm_group_->setText(QString::fromStdString(params_.left_arm_group_));
 
-      right_arm_redundancy_ = new QLineEdit(groupBox);
-      layout->addRow("Right Arm Redundancy DOF", right_arm_redundancy_);
-      right_arm_redundancy_->setText(QString::fromStdString(params_.right_redundancy_));
+    right_arm_redundancy_ = new QLineEdit(groupBox);
+    layout->addRow("Right Arm Redundancy DOF", right_arm_redundancy_);
+    right_arm_redundancy_->setText(QString::fromStdString(params_.right_redundancy_));
 
-      left_arm_redundancy_ = new QLineEdit(groupBox);
-      layout->addRow("Left Arm Redundancy DOF", left_arm_redundancy_);
-      left_arm_redundancy_->setText(QString::fromStdString(params_.left_redundancy_));
+    left_arm_redundancy_ = new QLineEdit(groupBox);
+    layout->addRow("Left Arm Redundancy DOF", left_arm_redundancy_);
+    left_arm_redundancy_->setText(QString::fromStdString(params_.left_redundancy_));
 
-      left_ik_link_ = new QLineEdit(groupBox);
-      layout->addRow("Left IK Link", left_ik_link_);
-      left_ik_link_ ->setText(QString::fromStdString(params_.left_ik_link_));
+    left_ik_link_ = new QLineEdit(groupBox);
+    layout->addRow("Left IK Link", left_ik_link_);
+    left_ik_link_ ->setText(QString::fromStdString(params_.left_ik_link_));
 
-      right_ik_link_ = new QLineEdit(groupBox);
-      layout->addRow("Right IK Link", right_ik_link_);
-      right_ik_link_->setText(QString::fromStdString(params_.right_ik_link_));
+    right_ik_link_ = new QLineEdit(groupBox);
+    layout->addRow("Right IK Link", right_ik_link_);
+    right_ik_link_->setText(QString::fromStdString(params_.right_ik_link_));
 
-      planner_service_name_ = new QLineEdit(groupBox);
-      layout->addRow("Planner Service", planner_service_name_);
-      planner_service_name_->setText(QString::fromStdString(params_.planner_service_name_));
+    planner_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Planner Service", planner_service_name_);
+    planner_service_name_->setText(QString::fromStdString(params_.planner_service_name_));
 
-      left_interpolate_service_name_ = new QLineEdit(groupBox);
-      layout->addRow("Left Interpolation Service", left_interpolate_service_name_);
-      left_interpolate_service_name_->setText(QString::fromStdString(params_.left_interpolate_service_name_));
+    left_interpolate_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Left Interpolation Service", left_interpolate_service_name_);
+    left_interpolate_service_name_->setText(QString::fromStdString(params_.left_interpolate_service_name_));
 
-      right_interpolate_service_name_ = new QLineEdit(groupBox);
-      layout->addRow("Right Interpolation Service", right_interpolate_service_name_);
-      right_interpolate_service_name_->setText(QString::fromStdString(params_.right_interpolate_service_name_));
+    right_interpolate_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Right Interpolation Service", right_interpolate_service_name_);
+    right_interpolate_service_name_->setText(QString::fromStdString(params_.right_interpolate_service_name_));
 
-      trajectory_filter_service_name_ = new QLineEdit(groupBox);
-      layout->addRow("Trajectory Filter Service", trajectory_filter_service_name_);
-      trajectory_filter_service_name_ ->setText(QString::fromStdString(params_.trajectory_filter_service_name_));
+    trajectory_filter_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Trajectory Filter Service", trajectory_filter_service_name_);
+    trajectory_filter_service_name_ ->setText(QString::fromStdString(params_.trajectory_filter_service_name_));
 
-      proximity_space_service_name_ = new QLineEdit(groupBox);
-      layout->addRow("Proximity Space Service", proximity_space_service_name_);
-      proximity_space_service_name_ ->setText(QString::fromStdString(params_.proximity_space_service_name_));
+    proximity_space_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Proximity Space Service", proximity_space_service_name_);
+    proximity_space_service_name_ ->setText(QString::fromStdString(params_.proximity_space_service_name_));
 
-      proximity_space_validity_name_ = new QLineEdit(groupBox);
-      layout->addRow("Proximity Space Validity Service", proximity_space_validity_name_);
-      proximity_space_validity_name_ ->setText(QString::fromStdString(params_.proximity_space_validity_name_));
+    proximity_space_validity_name_ = new QLineEdit(groupBox);
+    layout->addRow("Proximity Space Validity Service", proximity_space_validity_name_);
+    proximity_space_validity_name_ ->setText(QString::fromStdString(params_.proximity_space_validity_name_));
 
-      proximity_space_planner_name_ = new QLineEdit(groupBox);
-      layout->addRow("Proximity Space Planner", proximity_space_planner_name_);
-      proximity_space_planner_name_ ->setText(QString::fromStdString(params_.proximity_space_planner_name_));
+    proximity_space_planner_name_ = new QLineEdit(groupBox);
+    layout->addRow("Proximity Space Planner", proximity_space_planner_name_);
+    proximity_space_planner_name_ ->setText(QString::fromStdString(params_.proximity_space_planner_name_));
 
-      execute_left_trajectory_ = new QLineEdit(groupBox);
-      layout->addRow("Execute Left Trajectory", execute_left_trajectory_);
-      execute_left_trajectory_ ->setText(QString::fromStdString(params_.execute_left_trajectory_));
+    execute_left_trajectory_ = new QLineEdit(groupBox);
+    layout->addRow("Execute Left Trajectory", execute_left_trajectory_);
+    execute_left_trajectory_ ->setText(QString::fromStdString(params_.execute_left_trajectory_));
 
-      execute_right_trajectory_ = new QLineEdit(groupBox);
-      layout->addRow("Execute Right Trajectory", execute_right_trajectory_);
-      execute_right_trajectory_ ->setText(QString::fromStdString(params_.execute_right_trajectory_));
+    execute_right_trajectory_ = new QLineEdit(groupBox);
+    layout->addRow("Execute Right Trajectory", execute_right_trajectory_);
+    execute_right_trajectory_ ->setText(QString::fromStdString(params_.execute_right_trajectory_));
 
-      use_robot_data_ = new QCheckBox(groupBox);
-      use_robot_data_->setText("Use Robot Data");
-      use_robot_data_->setChecked(false);
-      layout->addRow("Use Data From Simulated/Real Robot?", use_robot_data_);
-      use_robot_data_->setToolTip("When this is checked, a robot state publisher will not be created. Instead, TF data\n\
+    use_robot_data_ = new QCheckBox(groupBox);
+    use_robot_data_->setText("Use Robot Data");
+    use_robot_data_->setChecked(false);
+    layout->addRow("Use Data From Simulated/Real Robot?", use_robot_data_);
+    use_robot_data_->setToolTip("When this is checked, a robot state publisher will not be created. Instead, TF data\n\
                                   will be taken from the robot's actual state.");
-      sync_with_gazebo_ = new QCheckBox(groupBox);
-      sync_with_gazebo_->setText("Sync With Gazebo");
-      sync_with_gazebo_->setChecked(false);
-      sync_with_gazebo_->setToolTip("When this is checked, the warehouse viewer will attempt to set the robot state\n\
+    sync_with_gazebo_ = new QCheckBox(groupBox);
+    sync_with_gazebo_->setText("Sync With Gazebo");
+    sync_with_gazebo_->setChecked(false);
+    sync_with_gazebo_->setToolTip("When this is checked, the warehouse viewer will attempt to set the robot state\n\
                                      to the start state of any motion plan requests played.");
-      layout->addRow("Synchronize Robot State With Gazebo?", sync_with_gazebo_);
+    layout->addRow("Synchronize Robot State With Gazebo?", sync_with_gazebo_);
 
-      QPushButton* button = new QPushButton(groupBox);
-      button->setText("Accept");
-      button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-      connect(button, SIGNAL(clicked()), this, SLOT(accept()));
+    QPushButton* button = new QPushButton(groupBox);
+    button->setText("Accept");
+    button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+    connect(button, SIGNAL(clicked()), this, SLOT(accept()));
 
-      boxLayout->addWidget(groupBox);
-      boxLayout->addWidget(button);
-      groupBox->setLayout(layout);
-      setLayout(boxLayout);
+    boxLayout->addWidget(groupBox);
+    boxLayout->addWidget(button);
+    groupBox->setLayout(layout);
+    setLayout(boxLayout);
 
-    }
+  }
 
-    /////
-    /// @brief Sets the params_ struct to use data from the Qt widgets.
-    /////
-    void updateParams()
-    {
-      params_.left_ik_name_ = left_ik_name_->text().toStdString();
-      params_.right_ik_name_ = right_ik_name_->text().toStdString();
-      params_.non_coll_left_ik_name_ = non_coll_left_ik_name_ ->text().toStdString();
-      params_.non_coll_right_ik_name_ = non_coll_right_ik_name_ ->text().toStdString();
-      params_.right_arm_group_ = right_arm_group_->text().toStdString();
-      params_.left_arm_group_ = left_arm_group_ ->text().toStdString();
-      params_.right_redundancy_ = right_arm_redundancy_->text().toStdString();
-      params_.left_redundancy_ = left_arm_redundancy_->text().toStdString();
-      params_.left_ik_link_ = left_ik_link_->text().toStdString();
-      params_.right_ik_link_ = right_ik_link_->text().toStdString();
-      params_.planner_service_name_ = planner_service_name_->text().toStdString();
-      params_.left_interpolate_service_name_ = left_interpolate_service_name_->text().toStdString();
-      params_.right_interpolate_service_name_ = right_interpolate_service_name_->text().toStdString();
-      params_.trajectory_filter_service_name_ = trajectory_filter_service_name_->text().toStdString();
-      params_.proximity_space_service_name_ = proximity_space_service_name_->text().toStdString();
-      params_.proximity_space_validity_name_ = proximity_space_validity_name_->text().toStdString();
-      params_.proximity_space_planner_name_ = proximity_space_planner_name_->text().toStdString();
-      params_.execute_left_trajectory_ = execute_left_trajectory_->text().toStdString();
-      params_.execute_right_trajectory_ = execute_right_trajectory_->text().toStdString();
-      params_.use_robot_data_ = use_robot_data_->isChecked();
-      params_.sync_robot_state_with_gazebo_ = sync_with_gazebo_->isChecked();
-    }
+  /////
+  /// @brief Sets the params_ struct to use data from the Qt widgets.
+  /////
+  void updateParams()
+  {
+    params_.left_ik_name_ = left_ik_name_->text().toStdString();
+    params_.right_ik_name_ = right_ik_name_->text().toStdString();
+    params_.non_coll_left_ik_name_ = non_coll_left_ik_name_ ->text().toStdString();
+    params_.non_coll_right_ik_name_ = non_coll_right_ik_name_ ->text().toStdString();
+    params_.right_arm_group_ = right_arm_group_->text().toStdString();
+    params_.left_arm_group_ = left_arm_group_ ->text().toStdString();
+    params_.right_redundancy_ = right_arm_redundancy_->text().toStdString();
+    params_.left_redundancy_ = left_arm_redundancy_->text().toStdString();
+    params_.left_ik_link_ = left_ik_link_->text().toStdString();
+    params_.right_ik_link_ = right_ik_link_->text().toStdString();
+    params_.planner_service_name_ = planner_service_name_->text().toStdString();
+    params_.left_interpolate_service_name_ = left_interpolate_service_name_->text().toStdString();
+    params_.right_interpolate_service_name_ = right_interpolate_service_name_->text().toStdString();
+    params_.trajectory_filter_service_name_ = trajectory_filter_service_name_->text().toStdString();
+    params_.proximity_space_service_name_ = proximity_space_service_name_->text().toStdString();
+    params_.proximity_space_validity_name_ = proximity_space_validity_name_->text().toStdString();
+    params_.proximity_space_planner_name_ = proximity_space_planner_name_->text().toStdString();
+    params_.execute_left_trajectory_ = execute_left_trajectory_->text().toStdString();
+    params_.execute_right_trajectory_ = execute_right_trajectory_->text().toStdString();
+    params_.use_robot_data_ = use_robot_data_->isChecked();
+    params_.sync_robot_state_with_gazebo_ = sync_with_gazebo_->isChecked();
+  }
 
-  private:
-    QFormLayout* layout;
-    QLineEdit* left_ik_name_;
-    QLineEdit* right_ik_name_;
-    QLineEdit* non_coll_left_ik_name_;
-    QLineEdit* non_coll_right_ik_name_;
-    QLineEdit* right_arm_group_;
-    QLineEdit* left_arm_group_;
-    QLineEdit* right_arm_redundancy_;
-    QLineEdit* left_arm_redundancy_;
-    QLineEdit* left_ik_link_;
-    QLineEdit* right_ik_link_;
-    QLineEdit* planner_service_name_;
-    QLineEdit* left_interpolate_service_name_;
-    QLineEdit* right_interpolate_service_name_;
-    QLineEdit* trajectory_filter_service_name_;
-    QLineEdit* proximity_space_service_name_;
-    QLineEdit* proximity_space_validity_name_;
-    QLineEdit* proximity_space_planner_name_;
-    QLineEdit* execute_left_trajectory_;
-    QLineEdit* execute_right_trajectory_;
-    QCheckBox* use_robot_data_;
-    QCheckBox* sync_with_gazebo_;
+private:
+  QFormLayout* layout;
+  QLineEdit* left_ik_name_;
+  QLineEdit* right_ik_name_;
+  QLineEdit* non_coll_left_ik_name_;
+  QLineEdit* non_coll_right_ik_name_;
+  QLineEdit* right_arm_group_;
+  QLineEdit* left_arm_group_;
+  QLineEdit* right_arm_redundancy_;
+  QLineEdit* left_arm_redundancy_;
+  QLineEdit* left_ik_link_;
+  QLineEdit* right_ik_link_;
+  QLineEdit* planner_service_name_;
+  QLineEdit* left_interpolate_service_name_;
+  QLineEdit* right_interpolate_service_name_;
+  QLineEdit* trajectory_filter_service_name_;
+  QLineEdit* proximity_space_service_name_;
+  QLineEdit* proximity_space_validity_name_;
+  QLineEdit* proximity_space_planner_name_;
+  QLineEdit* execute_left_trajectory_;
+  QLineEdit* execute_right_trajectory_;
+  QCheckBox* use_robot_data_;
+  QCheckBox* sync_with_gazebo_;
 
 };
 
@@ -288,204 +288,213 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
 {
   Q_OBJECT
   public:
-    /// @brief flag for causing the spin thread and marker thread to stop.
-    bool quit_threads_;
+  /// @brief flag for causing the spin thread and marker thread to stop.
+  bool quit_threads_;
 
-    /////
-    /// @brief Thread that loads all warehouse data and creates a table from it.
-    /////
-    class TableLoadThread: public QThread
+  /////
+  /// @brief Thread that loads all warehouse data and creates a table from it.
+  /////
+  class TableLoadThread: public QThread
+  {
+  public:
+    WarehouseViewer* visualizer_;
+    TableLoadThread(WarehouseViewer* visualizer) :
+      QThread(visualizer), visualizer_(visualizer)
     {
-      public:
-        WarehouseViewer* visualizer_;
-        TableLoadThread(WarehouseViewer* visualizer) :
-          QThread(visualizer), visualizer_(visualizer)
-        {
-        }
-
-        void run()
-        {
-          visualizer_->createPlanningSceneTable();
-        }
-    };
-
-    WarehouseViewer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params);
-    ~WarehouseViewer();
-
-    /// @brief Creates all of the Qt objects associated with the viewer
-    void initQtWidgets();
-    /// @brief Creates the load planning scenes dialog.
-    void setupPlanningSceneDialog();
-    /// @brief Creates the table in the planning scenes dialog.
-    void createPlanningSceneTable();
-    /// @brief Creates the trajectory tree
-    void createTrajectoryTable();
-    /// @brief Creates the motion plan request tree
-    void createMotionPlanTable();
-    /// @brief Creates the "new collision object" dialog
-    void createNewObjectDialog();
-    /// @brief Creates the "new motion plan request" dialog
-    void createRequestDialog();
-
-    /// @brief resets the trajectory and motion plan tables.
-    void updateState();
-    /// @brief callback that occurs when a planning scene is loaded from the warehouse
-    void onPlanningSceneLoaded(int scene, int numScenes);
-    void createOutcomeDialog();
-
-    void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
-    void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
-
-  signals:
-    /// @brief Changes the progress bar of the load planning scene dialog.
-    void changeProgress(int progress);
-    /// @brief Updates the trajectory and motion plan tables.
-    void updateTables();
-
-    void plannerFailure(int value);
-    void filterFailure(int value);
-
-  public slots:
-
-    void popupPlannerFailure(int value);
-    void popupFilterFailure(int value);
-
-    /// @brief closes the window and deconstructs.
-    void quit();
-    /// @brief Opens the planning scene load dialog.
-    void popupLoadPlanningScenes();
-    /// @brief Changes the loading bar value to that given, out of 100
-    void progressChanged(int progress)
-    {
-      load_scene_progress_->setValue(progress);
     }
-    /// @brief Called when the load planning scene button is pressed
-    void loadButtonPressed();
-    /// @brief Called when the refresh planning scene action is triggered
-    void refreshButtonPressed();
-    /// @brief Called when the user clicks on an item in the trajectory tree
-    void trajectoryTableSelection();
-    /// @brief Called when the user clicks on an item in the motion plan tree
-    void motionPlanTableSelection();
-    /// @brief Called when the user plays a trajectory.
-    void playButtonPressed();
-    /// @brief Called when the user presses the "filter trajectory" button.
-    void filterButtonPressed();
-    /// @brief Called when the user drags the trajectory slider.
-    void sliderDragged();
-    /// @brief Called when the user presses the "Plan New Trajectory" button.
-    void replanButtonPressed();
-    /// @brief Called when the user changes the box displaying the current trajectory point.
-    void trajectoryEditChanged();
-    /// @brief Called when the "Create New Planning Scene ..." action is triggered.
-    void createNewPlanningScenePressed();
-    /// @brief Called when the "Save Current Planning Scene ..." action is triggered.
-    void saveCurrentPlanningScene();
-    /// @brief Creates a new motion plan request for the given group and end effector link.
-    void createNewMotionPlanRequest(std::string group_name, std::string end_effector_name);
-    /// @brief Called when the start position color button is pressed for a particular motion plan request.
-    void motionPlanStartColorButtonClicked();
-    /// @brief Called when the end position color button is pressed for a particular motion plan request.
-    void motionPlanEndColorButtonClicked();
-    /// @brief Called when the start position visible check box is pressed.
-    void motionPlanStartVisibleButtonClicked(bool checked);
-    /// @brief Called when the end position visible check box is pressed.
-    void motionPlanEndVisibleButtonClicked(bool checked);
-    /// @brief Called when the change color button for a particular trajectory is pressed.
-    void trajectoryColorButtonClicked();
-    /// @brief Called when the visible check box for a particular trajectory is clicked.
-    void trajectoryVisibleButtonClicked(bool checked);
-    /// @brief Called when the "Create New Motion Plan Request ..." action is triggered.
-    void createNewMotionPlanPressed();
-    /// @brief Called when the "Create New Collision Object ..." action is triggered.
-    void createNewObjectPressed();
-    /// @brief Called when the "Create..." button in the collision object dialog is pressed.
-    void createObjectConfirmedPressed();
-    /// @brief Called when the "Create..." button in the motion plan dialog is pressed.
-    void createRequestPressed();
-    /// @brief Called when the user checks the "collisions visible" check box for a particular motion plan request.
-    void motionPlanCollisionVisibleButtonClicked(bool checked);
-    /// @brief Called when the user checks the "collisions visible" check box for a particular trajectory.
-    void trajectoryCollisionsVisibleButtonClicked(bool checked);
-    /// @brief Called when the user checks the "joint controls active" check box for a particular motion plan request.
-    void motionPlanJointControlsActiveButtonClicked(bool checked);
-    /// @brief Sets the currently selected motion plan request to the given ID.
-    void selectMotionPlan(std::string ID);
-    /// @brief Sets the currently selected trajectory to the given ID.
-    void selectTrajectory(std::string ID);
-    /// @brief Removes the selected motion plan request and its associated trajectories.
-    void deleteSelectedMotionPlan();
-    /// @brief Removes the selected trajectory and sets the selected trajectory to ""
-    void deleteSelectedTrajectory();
-    /// @brief Callback when a selected trajectory or motion plan request is changed.
-    void updateStateTriggered();
-    /// @brief Called when the user presses the "Execute Trajectory" button.
-    void executeButtonPressed();
-    /// @brief Called when the user triggers the "Refresh planning scene..." action.
-    void refreshSceneButtonPressed();
-    /// @brief Called when the user triggers the "View planning scene outcomes ..." action.
-    void viewOutcomesPressed();
-    /// @brief Called when the user changes the render type of a trajectory.
-    void trajectoryRenderTypeChanged(const QString& type);
-    /// @brief Called when the user changes the render type of a motion plan request.
-    void motionPlanRenderTypeChanged(const QString& type);
-    /// @brief Called when the user presses the change color button of a collision object.
-    void objectColorButtonPressed();
 
-  protected:
-    bool warehouse_data_loaded_once_;
-    QLabel* selected_trajectory_label_;
-    QLabel* selected_request_label_;
-    QMenuBar* menu_bar_;
-    QMenu* file_menu_;
-    QMenu* planning_scene_menu_;
-    QMenu* collision_object_menu_;
-    QAction* new_object_action_;
-    QAction* refresh_action_;
-    QAction* view_outcomes_action_;
-    QDialog* load_planning_scene_dialog_;
-    QDialog* new_object_dialog_;
-    QDialog* new_request_dialog_;
-    QDialog* outcome_dialog_;
-    QTableWidget* stage_outcome_table_;
-    QTableWidget* trajectory_outcome_table_;
-    QProgressBar* load_scene_progress_;
-    QAction* new_planning_scene_action_;
-    QAction* new_motion_plan_action_;
-    QAction* load_planning_scene_action_;
-    QAction* save_planning_scene_action_;
-    QAction* quit_action_;
-    QTableWidget* planning_scene_table_;
-    QTreeWidget* motion_plan_tree_;
-    QTreeWidget* trajectory_tree_;
-    QSlider* trajectory_slider_;
-    QPushButton* play_button_;
-    QPushButton* filter_button_;
-    QPushButton* replan_button_;
-    QPushButton* execute_button_;
+    void run()
+    {
+      visualizer_->createPlanningSceneTable();
+    }
+  };
 
-    QPushButton* load_planning_scene_button_;
-    QPushButton* refresh_planning_scene_button_;
-    QPushButton* object_color_button_;
-    QComboBox* collision_display_box_;
+  WarehouseViewer(QWidget* parent, planning_scene_utils::PlanningSceneParameters& params);
+  ~WarehouseViewer();
 
-    QSpinBox* trajectory_point_edit_;
+  /// @brief Creates all of the Qt objects associated with the viewer
+  void initQtWidgets();
+  /// @brief Creates the load planning scenes dialog.
+  void setupPlanningSceneDialog();
+  /// @brief Creates the table in the planning scenes dialog.
+  void createPlanningSceneTable();
+  /// @brief Creates the trajectory tree
+  void createTrajectoryTable();
+  /// @brief Creates the motion plan request tree
+  void createMotionPlanTable();
+  /// @brief Creates the "new collision object" dialog
+  void createNewObjectDialog();
+  /// @brief Creates the "new motion plan request" dialog
+  void createRequestDialog();
 
-    TableLoadThread* table_load_thread_;
+  /// @brief resets the trajectory and motion plan tables.
+  void updateState();
+  /// @brief callback that occurs when a planning scene is loaded from the warehouse
+  void onPlanningSceneLoaded(int scene, int numScenes);
+  void createOutcomeDialog();
+  void createAlterLinkPaddingDialog();
+  
 
-    QComboBox* collision_object_type_box_;
-    QComboBox* request_group_name_box_;
-    QSpinBox* collision_object_scale_x_box_;
-    QSpinBox* collision_object_scale_y_box_;
-    QSpinBox* collision_object_scale_z_box_;
-    QSpinBox* collision_object_pos_x_box_;
-    QSpinBox* collision_object_pos_y_box_;
-    QSpinBox* collision_object_pos_z_box_;
-    QPushButton* make_object_button_;
+  void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+  void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
 
-    QCheckBox* load_motion_plan_requests_box_;
-    QCheckBox* load_trajectories_box_;
-    QCheckBox* create_request_from_robot_box_;
+signals:
+  /// @brief Changes the progress bar of the load planning scene dialog.
+  void changeProgress(int progress);
+  /// @brief Updates the trajectory and motion plan tables.
+  void updateTables();
+
+  void plannerFailure(int value);
+  void filterFailure(int value);
+
+public slots:
+
+  void popupPlannerFailure(int value);
+  void popupFilterFailure(int value);
+
+  /// @brief closes the window and deconstructs.
+  void quit();
+  /// @brief Opens the planning scene load dialog.
+  void popupLoadPlanningScenes();
+  /// @brief Changes the loading bar value to that given, out of 100
+  void progressChanged(int progress)
+  {
+    load_scene_progress_->setValue(progress);
+  }
+  /// @brief Called when the load planning scene button is pressed
+  void loadButtonPressed();
+  /// @brief Called when the refresh planning scene action is triggered
+  void refreshButtonPressed();
+  /// @brief Called when the user clicks on an item in the trajectory tree
+  void trajectoryTableSelection();
+  /// @brief Called when the user clicks on an item in the motion plan tree
+  void motionPlanTableSelection();
+  /// @brief Called when the user plays a trajectory.
+  void playButtonPressed();
+  /// @brief Called when the user presses the "filter trajectory" button.
+  void filterButtonPressed();
+  /// @brief Called when the user drags the trajectory slider.
+  void sliderDragged();
+  /// @brief Called when the user presses the "Plan New Trajectory" button.
+  void replanButtonPressed();
+  /// @brief Called when the user changes the box displaying the current trajectory point.
+  void trajectoryEditChanged();
+  /// @brief Called when the "Create New Planning Scene ..." action is triggered.
+  void createNewPlanningScenePressed();
+  /// @brief Called when the "Save Current Planning Scene ..." action is triggered.
+  void saveCurrentPlanningScene();
+  /// @brief Creates a new motion plan request for the given group and end effector link.
+  void createNewMotionPlanRequest(std::string group_name, std::string end_effector_name);
+  /// @brief Called when the start position color button is pressed for a particular motion plan request.
+  void motionPlanStartColorButtonClicked();
+  /// @brief Called when the end position color button is pressed for a particular motion plan request.
+  void motionPlanEndColorButtonClicked();
+  /// @brief Called when the start position visible check box is pressed.
+  void motionPlanStartVisibleButtonClicked(bool checked);
+  /// @brief Called when the end position visible check box is pressed.
+  void motionPlanEndVisibleButtonClicked(bool checked);
+  /// @brief Called when the change color button for a particular trajectory is pressed.
+  void trajectoryColorButtonClicked();
+  /// @brief Called when the visible check box for a particular trajectory is clicked.
+  void trajectoryVisibleButtonClicked(bool checked);
+  /// @brief Called when the "Create New Motion Plan Request ..." action is triggered.
+  void createNewMotionPlanPressed();
+  /// @brief Called when the "Create New Collision Object ..." action is triggered.
+  void createNewObjectPressed();
+  /// @brief Called when the "Create..." button in the collision object dialog is pressed.
+  void createObjectConfirmedPressed();
+  /// @brief Called when the "Create..." button in the motion plan dialog is pressed.
+  void createRequestPressed();
+  /// @brief Called when the user checks the "collisions visible" check box for a particular motion plan request.
+  void motionPlanCollisionVisibleButtonClicked(bool checked);
+  /// @brief Called when the user checks the "collisions visible" check box for a particular trajectory.
+  void trajectoryCollisionsVisibleButtonClicked(bool checked);
+  /// @brief Called when the user checks the "joint controls active" check box for a particular motion plan request.
+  void motionPlanJointControlsActiveButtonClicked(bool checked);
+  /// @brief Sets the currently selected motion plan request to the given ID.
+  void selectMotionPlan(std::string ID);
+  /// @brief Sets the currently selected trajectory to the given ID.
+  void selectTrajectory(std::string ID);
+  /// @brief Removes the selected motion plan request and its associated trajectories.
+  void deleteSelectedMotionPlan();
+  /// @brief Removes the selected trajectory and sets the selected trajectory to ""
+  void deleteSelectedTrajectory();
+  /// @brief Callback when a selected trajectory or motion plan request is changed.
+  void updateStateTriggered();
+  /// @brief Called when the user presses the "Execute Trajectory" button.
+  void executeButtonPressed();
+  /// @brief Called when the user triggers the "Refresh planning scene..." action.
+  void refreshSceneButtonPressed();
+  /// @brief Called when the user triggers the "View planning scene outcomes ..." action.
+  void viewOutcomesPressed();
+  /// @brief Called when the user triggers the "Alter link padding ..." action.
+  void alterLinkPaddingPressed();
+  /// @brief Called when the user changes the render type of a trajectory.
+  void trajectoryRenderTypeChanged(const QString& type);
+  /// @brief Called when the user changes the render type of a motion plan request.
+  void motionPlanRenderTypeChanged(const QString& type);
+  /// @brief Called when the user presses the change color button of a collision object.
+  void objectColorButtonPressed();
+  /// @brief Called when the user changes a link padding
+  void alteredLinkPaddingValueChanged(double d);
+
+protected:
+  bool warehouse_data_loaded_once_;
+  QLabel* selected_trajectory_label_;
+  QLabel* selected_request_label_;
+  QMenuBar* menu_bar_;
+  QMenu* file_menu_;
+  QMenu* planning_scene_menu_;
+  QMenu* collision_object_menu_;
+  QAction* new_object_action_;
+  QAction* refresh_action_;
+  QAction* view_outcomes_action_;
+  QAction* alter_link_padding_action_;
+  QDialog* alter_link_padding_dialog_;
+  QTableWidget* alter_link_padding_table_;
+  QDialog* load_planning_scene_dialog_;
+  QDialog* new_object_dialog_;
+  QDialog* new_request_dialog_;
+  QDialog* outcome_dialog_;
+  QTableWidget* stage_outcome_table_;
+  QTableWidget* trajectory_outcome_table_;
+  QProgressBar* load_scene_progress_;
+  QAction* new_planning_scene_action_;
+  QAction* new_motion_plan_action_;
+  QAction* load_planning_scene_action_;
+  QAction* save_planning_scene_action_;
+  QAction* quit_action_;
+  QTableWidget* planning_scene_table_;
+  QTreeWidget* motion_plan_tree_;
+  QTreeWidget* trajectory_tree_;
+  QSlider* trajectory_slider_;
+  QPushButton* play_button_;
+  QPushButton* filter_button_;
+  QPushButton* replan_button_;
+  QPushButton* execute_button_;
+
+  QPushButton* load_planning_scene_button_;
+  QPushButton* refresh_planning_scene_button_;
+  QPushButton* object_color_button_;
+  QComboBox* collision_display_box_;
+
+  QSpinBox* trajectory_point_edit_;
+
+  TableLoadThread* table_load_thread_;
+
+  QComboBox* collision_object_type_box_;
+  QComboBox* request_group_name_box_;
+  QSpinBox* collision_object_scale_x_box_;
+  QSpinBox* collision_object_scale_y_box_;
+  QSpinBox* collision_object_scale_z_box_;
+  QSpinBox* collision_object_pos_x_box_;
+  QSpinBox* collision_object_pos_y_box_;
+  QSpinBox* collision_object_pos_z_box_;
+  QPushButton* make_object_button_;
+
+  QCheckBox* load_motion_plan_requests_box_;
+  QCheckBox* load_trajectories_box_;
+  QCheckBox* create_request_from_robot_box_;
 
 };
 #endif
