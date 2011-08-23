@@ -161,6 +161,7 @@ protected:
 
   void setupForRandomConfigurations()
   {
+    srand ( time(NULL) ); // initialize random seed: 
     std::vector<std::string> links;
     kinematic_model_->getLinkModelNames(links);
     std::map<std::string, double> link_padding_map;
