@@ -65,8 +65,10 @@
 #include <qt4/QtGui/qpalette.h>
 #include <qt4/QtGui/qformlayout.h>
 #include <qt4/QtGui/qlineedit.h>
+#include <qt4/QtGui/qfiledialog.h>
 #include <qt4/QtGui/qmessagebox.h>
 #include <qt4/QtGui/qmainwindow.h>
+#include <qt4/QtGui/qlistwidget.h>
 #include <QDateTime>
 
 static const std::string VIS_TOPIC_NAME = "planning_scene_visualizer_markers";
@@ -322,8 +324,10 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   void createTrajectoryTable();
   /// @brief Creates the motion plan request tree
   void createMotionPlanTable();
-  /// @brief Creates the "new collision object" dialog
+  /// @brief Creates the "new primitive collision object" dialog
   void createNewObjectDialog();
+  /// @brief Creates the "new mesh collision object" dialog
+  void createNewMeshDialog();
   /// @brief Creates the "new motion plan request" dialog
   void createRequestDialog();
 
@@ -333,10 +337,12 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   void onPlanningSceneLoaded(int scene, int numScenes);
   void createOutcomeDialog();
   void createAlterLinkPaddingDialog();
+  void createAlterAllowedCollisionDialog();
   
 
   void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
   void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+  void setEnabledDisabledDisplay(const QString& qs1, const QString& qs2);
 
 signals:
   /// @brief Changes the progress bar of the load planning scene dialog.
@@ -403,6 +409,10 @@ public slots:
   void createNewObjectPressed();
   /// @brief Called when the "Create..." button in the collision object dialog is pressed.
   void createObjectConfirmedPressed();
+  /// @brief Called when the "Create..." button in the collision object dialog is pressed.
+  void createMeshConfirmedPressed();
+  /// @brief Called when the "Create New Mesh Collision Object ..." action is triggered.
+  void createNewMeshPressed();
   /// @brief Called when the "Create..." button in the motion plan dialog is pressed.
   void createRequestPressed();
   /// @brief Called when the user checks the "collisions visible" check box for a particular motion plan request.
@@ -429,14 +439,26 @@ public slots:
   void viewOutcomesPressed();
   /// @brief Called when the user triggers the "Alter link padding ..." action.
   void alterLinkPaddingPressed();
+  /// @brief Called when the user triggers the "Alter allowed collision ..." action.
+  void alterAllowedCollisionPressed();
   /// @brief Called when the user changes the render type of a trajectory.
   void trajectoryRenderTypeChanged(const QString& type);
   /// @brief Called when the user changes the render type of a motion plan request.
   void motionPlanRenderTypeChanged(const QString& type);
   /// @brief Called when the user presses the change color button of a collision object.
   void objectColorButtonPressed();
+  void meshColorButtonPressed();
+
   /// @brief Called when the user changes a link padding
   void alteredLinkPaddingValueChanged(double d);
+
+  void firstEntityListSelected();
+  void secondEntityListSelected();
+  void entityListsEdited();
+  void disableCollisionClicked();
+  void enableCollisionClicked();
+
+  void meshFileSelected(const QString& s);
 
 protected:
   bool warehouse_data_loaded_once_;
@@ -447,13 +469,25 @@ protected:
   QMenu* planning_scene_menu_;
   QMenu* collision_object_menu_;
   QAction* new_object_action_;
+  QAction* new_mesh_action_;
   QAction* refresh_action_;
   QAction* view_outcomes_action_;
+  
   QAction* alter_link_padding_action_;
   QDialog* alter_link_padding_dialog_;
   QTableWidget* alter_link_padding_table_;
+
+  QAction* alter_allowed_collision_action_;
+  QDialog* alter_allowed_collision_dialog_;
+  QLineEdit* first_allowed_collision_line_edit_;
+  QLineEdit* second_allowed_collision_line_edit_;
+  QLineEdit* allowed_status_line_edit_;
+  QListWidget* first_allowed_collision_list_;
+  QListWidget* second_allowed_collision_list_;
+  
   QDialog* load_planning_scene_dialog_;
   QDialog* new_object_dialog_;
+  QDialog* new_mesh_dialog_;
   QDialog* new_request_dialog_;
   QDialog* outcome_dialog_;
   QTableWidget* stage_outcome_table_;
@@ -492,9 +526,18 @@ protected:
   QSpinBox* collision_object_pos_z_box_;
   QPushButton* make_object_button_;
 
+  QSpinBox* mesh_object_pos_x_box_;
+  QSpinBox* mesh_object_pos_y_box_;
+  QSpinBox* mesh_object_pos_z_box_;
+  QPushButton* mesh_color_button_;
+  QPushButton* make_mesh_button_;
+
   QCheckBox* load_motion_plan_requests_box_;
   QCheckBox* load_trajectories_box_;
   QCheckBox* create_request_from_robot_box_;
+
+  QFileDialog* file_selector_;
+  QLineEdit* mesh_filename_field_;
 
 };
 #endif

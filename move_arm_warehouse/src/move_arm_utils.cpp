@@ -38,6 +38,8 @@
 
 #include <move_arm_warehouse/move_arm_utils.h>
 #include <assert.h>
+#include <geometric_shapes/shape_operations.h>
+#include <planning_environment/util/construct_object.h>
 
 using namespace std;
 using namespace arm_navigation_msgs;
@@ -488,6 +490,10 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   last_collision_object_color_.g = 0.7;
   last_collision_object_color_.b = 0.7;
   last_collision_object_color_.a = 1.0;
+  last_mesh_object_color_.r = 0.7;
+  last_mesh_object_color_.g = 0.7;
+  last_mesh_object_color_.b = 0.7;
+  last_mesh_object_color_.a = 1.0;
 
   planning_scene_map_ = new map<string, PlanningSceneData> ();
   trajectory_map_ = new map<string, TrajectoryData> ();
@@ -2026,8 +2032,10 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
   return true;
 }
 
-void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObject& object, string name,
-                                                                    string description, std_msgs::ColorRGBA color)
+void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObject& object, 
+                                                                    string name,
+                                                                    string description, 
+                                                                    std_msgs::ColorRGBA color)
 {
   SelectableObject selectable;
   selectable.ID_ = name;
@@ -2046,60 +2054,49 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   button.name = "button";
   button.interaction_mode = InteractiveMarkerControl::BUTTON;
   button.description = description;
-  float maxScale = 0.0f;
+
+  //min scale initialized
+  double scale_to_use = .2f;
 
   for(size_t i = 0; i < object.shapes.size(); i++)
   {
     arm_navigation_msgs::Shape& shape = object.shapes[i];
     Marker mark;
     mark.color = color;
-    //mark.pose = object.poses[i];
+    planning_environment::setMarkerShapeFromShape(shape, mark);
 
+    shapes::Shape* s = planning_environment::constructObject(shape);
+    bodies::Body* b = bodies::createBodyFromShape(s);
+    
+    bodies::BoundingSphere bs;
+    b->computeBoundingSphere(bs);
 
-    switch (shape.type)
-    {
-      case arm_navigation_msgs::Shape::BOX:
-        mark.type = Marker::CUBE;
-        mark.scale.x = shape.dimensions[0] * 1.01f;
-        mark.scale.y = shape.dimensions[1] * 1.01f;
-        mark.scale.z = shape.dimensions[2] * 1.01f;
-        break;
+    delete b;
+    delete s;
 
-      case arm_navigation_msgs::Shape::CYLINDER:
-        mark.type = Marker::CYLINDER;
-        mark.scale.x = shape.dimensions[0] * 2.01f;
-        mark.scale.y = shape.dimensions[0] * 2.01f;
-        mark.scale.z = shape.dimensions[1] * 1.01f;
-        break;
+    if(bs.radius * 2.0 > scale_to_use) {
+      scale_to_use = bs.radius*2.0;
+    }
 
-      case arm_navigation_msgs::Shape::SPHERE:
-        mark.type = Marker::SPHERE;
-        mark.scale.x = shape.dimensions[0] * 2.01f;
-        mark.scale.y = shape.dimensions[0] * 2.01f;
-        mark.scale.z = shape.dimensions[0] * 2.01f;
-        break;
-      case arm_navigation_msgs::Shape::MESH:
-        mark.type = Marker::CUBE;
-        ROS_WARN("Attempting to get selectable marker as mesh resource, but mesh resources are not supported!");
-        break;
+    //need to make slightly larger
+    mark.scale.x = mark.scale.x * 1.01f;
+    mark.scale.y = mark.scale.y * 1.01f;
+    mark.scale.z = mark.scale.z * 1.01f;
+    
+    if(mark.type == Marker::LINE_LIST) {
+      mark.points.clear();
+      mark.type = Marker::TRIANGLE_LIST;
+      mark.scale.x = 1.01;
+      mark.scale.y = 1.01;
+      mark.scale.z = 1.01;
+      for(unsigned int i = 0; i < shape.triangles.size(); i += 3) { 
+        mark.points.push_back(shape.vertices[shape.triangles[i]]);
+        mark.points.push_back(shape.vertices[shape.triangles[i+1]]);
+        mark.points.push_back(shape.vertices[shape.triangles[i+2]]);
+      }
     }
 
     button.markers.push_back(mark);
-
-    if(mark.scale.x > maxScale)
-    {
-      maxScale = mark.scale.x * 1.05f;
-    }
-
-    if(mark.scale.y > maxScale)
-    {
-      maxScale = mark.scale.y * 1.05f;
-    }
-
-    if(mark.scale.z > maxScale)
-    {
-      maxScale = mark.scale.z * 1.05f;
-    }
   }
   
   selectable.selection_marker_.controls.push_back(button);
@@ -2138,7 +2135,7 @@ void PlanningSceneEditor::createSelectableMarkerFromCollisionObject(CollisionObj
   selectable.control_marker_.name = name + "_control";
   selectable.selection_marker_.name = name + "_selection";
 
-  selectable.control_marker_.scale = maxScale;
+  selectable.control_marker_.scale = scale_to_use;
   (*selectable_objects_)[name] = selectable;
   interactive_marker_server_->insert(selectable.selection_marker_, collision_object_selection_feedback_ptr_);
 
@@ -2445,7 +2442,6 @@ void PlanningSceneEditor::collisionObjectSelectionCallback(const InteractiveMark
     case InteractiveMarkerFeedback::BUTTON_CLICK:
       {
         visualization_msgs::InteractiveMarker mark;
-        ROS_INFO_STREAM("Got button click for " << name);
         should_select = true;
       }
       break;
@@ -2604,6 +2600,40 @@ void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarke
   interactive_marker_server_->applyChanges();
 }
 
+std::string PlanningSceneEditor::createMeshObject(geometry_msgs::Pose pose,
+                                                  const std::string& filename,
+                                                  std_msgs::ColorRGBA color)
+{
+  shapes::Mesh* mesh = shapes::createMeshFromFilename(filename);
+  if(mesh == NULL) {
+    return "";
+  }
+  arm_navigation_msgs::Shape object;
+  if(!planning_environment::constructObjectMsg(mesh, object)) {
+    ROS_WARN_STREAM("Object construction fails");
+    return "";
+  }
+  delete mesh;
+  arm_navigation_msgs::CollisionObject collision_object;
+  collision_object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+  collision_object.header.stamp = ros::Time(ros::WallTime::now().toSec());
+  collision_object.header.frame_id = cm_->getWorldFrameId();
+  collision_object.id = generateNewCollisionObjectID();
+  collision_object.shapes.push_back(object);
+  collision_object.poses.push_back(pose);
+
+  lockScene();
+  createSelectableMarkerFromCollisionObject(collision_object, collision_object.id, "", color);
+
+  ROS_INFO("Created collision object.");
+  ROS_INFO("Sending planning scene %s", current_planning_scene_ID_.c_str());
+
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+
+  unlockScene();
+  return collision_object.id;
+}
+
 std::string PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose, PlanningSceneEditor::GeneratedShape shape,
                                                 float scaleX, float scaleY, float scaleZ, std_msgs::ColorRGBA color)
 {
@@ -2644,8 +2674,6 @@ std::string PlanningSceneEditor::createCollisionObject(geometry_msgs::Pose pose,
 
   collision_object.shapes.push_back(object);
   collision_object.poses.push_back(pose);
-
-  btTransform cur = toBulletTransform(pose);
 
   createSelectableMarkerFromCollisionObject(collision_object, collision_object.id, "", color);
 

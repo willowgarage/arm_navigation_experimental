@@ -1265,7 +1265,9 @@ protected:
   std::vector<StateRegistry> states_;
 
   interactive_markers::MenuHandler::EntryHandle last_resize_handle_;
+
   std_msgs::ColorRGBA last_collision_object_color_;
+  std_msgs::ColorRGBA last_mesh_object_color_;
 
   MonitorStatus monitor_status_;
 
@@ -1532,6 +1534,9 @@ public:
   std::string createCollisionObject(geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY,
                                     float scaleZ, std_msgs::ColorRGBA color);
 
+  std::string createMeshObject(geometry_msgs::Pose pose,
+                               const std::string& filename,
+                               std_msgs::ColorRGBA color);
   //////
   /// @brief creates a 6DOF control over the end effector of either the start or goal position of the given request.
   /// @param data the motion plan request to create a 6DOF control over
