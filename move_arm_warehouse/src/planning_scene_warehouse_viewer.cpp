@@ -100,10 +100,13 @@ void WarehouseViewer::initQtWidgets()
   new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
   refresh_action_ = planning_scene_menu_->addAction("Refresh Planning Scene...");
   view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
+  alter_link_padding_action_ = planning_scene_menu_->addAction("Alter Link Padding ...");
+  alter_allowed_collision_action_ = planning_scene_menu_->addAction("Alter Allowed Collision Operations ...");
   quit_action_ = file_menu_->addAction("Quit");
 
   collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
-  new_object_action_ = collision_object_menu_->addAction("New Collision Object ...");
+  new_object_action_ = collision_object_menu_->addAction("New Primitive Collision Object ...");
+  new_mesh_action_ = collision_object_menu_->addAction("New Mesh Collision Object ...");
 
   trajectory_tree_ = new QTreeWidget(trajectoryBox);
   trajectory_tree_->setColumnCount(8);
@@ -193,6 +196,7 @@ void WarehouseViewer::initQtWidgets()
   connect(new_planning_scene_action_, SIGNAL(triggered()), this, SLOT(createNewPlanningScenePressed()));
   connect(new_motion_plan_action_, SIGNAL(triggered()), this, SLOT(createNewMotionPlanPressed()));
   connect(new_object_action_, SIGNAL(triggered()), this, SLOT(createNewObjectPressed()));
+  connect(new_mesh_action_, SIGNAL(triggered()), this, SLOT(createNewMeshPressed()));
   connect(save_planning_scene_action_, SIGNAL(triggered()), this, SLOT(saveCurrentPlanningScene()));
   connect(load_planning_scene_action_, SIGNAL(triggered()), this, SLOT(popupLoadPlanningScenes()));
   connect(quit_action_, SIGNAL(triggered()), this, SLOT(quit()));
@@ -207,6 +211,8 @@ void WarehouseViewer::initQtWidgets()
   connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
   connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
   connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
+  connect(alter_link_padding_action_, SIGNAL(triggered()), this, SLOT(alterLinkPaddingPressed()));
+  connect(alter_allowed_collision_action_, SIGNAL(triggered()), this, SLOT(alterAllowedCollisionPressed()));
   connect(this, SIGNAL(plannerFailure(int)),this, SLOT(popupPlannerFailure(int)));
   connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
   load_planning_scene_dialog_ = new QDialog(this);
@@ -220,6 +226,7 @@ void WarehouseViewer::initQtWidgets()
   centralWidget->setLayout(layout);
 
   createNewObjectDialog();
+  createNewMeshDialog();
   createRequestDialog();
 
   setCurrentPlanningScene(createNewPlanningScene(), false, false);
@@ -331,6 +338,233 @@ void WarehouseViewer::viewOutcomesPressed()
   createOutcomeDialog();
   outcome_dialog_->exec();
   delete outcome_dialog_;
+}
+
+void WarehouseViewer::createAlterLinkPaddingDialog()
+{
+  if(current_planning_scene_ID_ == "") {
+    return;
+  }
+
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+
+  if(planning_scene.link_padding.size() == 0) {
+    planning_environment::convertFromLinkPaddingMapToLinkPaddingVector(cm_->getDefaultLinkPaddingMap(), planning_scene.link_padding);
+    (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  }
+
+  alter_link_padding_dialog_ = new QDialog(this);
+  alter_link_padding_dialog_->setWindowTitle("Alter Link Padding");
+  QVBoxLayout* layout = new QVBoxLayout(alter_link_padding_dialog_);
+  
+  alter_link_padding_table_ = new QTableWidget(alter_link_padding_dialog_);
+  QStringList alter_headers;
+  alter_headers.append("Link name");
+  alter_headers.append("Padding (m)");
+  
+  alter_link_padding_table_->setColumnCount(2);
+  alter_link_padding_table_->setRowCount((int)planning_scene.link_padding.size());
+  
+  alter_link_padding_table_->setHorizontalHeaderLabels(alter_headers);
+  alter_link_padding_table_->setColumnWidth(0, 300);
+  alter_link_padding_table_->setColumnWidth(1, 150);
+  alter_link_padding_table_->setMinimumWidth(500);
+
+  for(unsigned int i = 0; i < planning_scene.link_padding.size(); i++) {
+    QTableWidgetItem* link_item = new QTableWidgetItem(QString::fromStdString(planning_scene.link_padding[i].link_name));
+    link_item->setFlags(Qt::ItemIsEnabled);
+    alter_link_padding_table_->setItem(i, 0, link_item);
+
+    QDoubleSpinBox* padding_spin_box = new QDoubleSpinBox(alter_link_padding_table_);
+    padding_spin_box->setMinimum(0.0);
+    padding_spin_box->setDecimals(3);
+    padding_spin_box->setSingleStep(.005);
+    padding_spin_box->setValue(planning_scene.link_padding[i].padding);
+    connect(padding_spin_box, SIGNAL(valueChanged(double)), this, SLOT(alteredLinkPaddingValueChanged(double)));
+
+    alter_link_padding_table_->setCellWidget(i, 1, padding_spin_box);
+  }
+  layout->addWidget(alter_link_padding_table_);
+  alter_link_padding_dialog_->setLayout(layout);
+}
+
+void WarehouseViewer::alterLinkPaddingPressed()
+{
+  createAlterLinkPaddingDialog();
+  alter_link_padding_dialog_->exec();
+  delete alter_link_padding_dialog_;
+}
+
+void WarehouseViewer::alteredLinkPaddingValueChanged(double d)
+{
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  planning_scene.link_padding.clear();
+
+  for(int i = 0; i < alter_link_padding_table_->rowCount(); i++)
+  {
+    arm_navigation_msgs::LinkPadding lp;
+    lp.link_name = alter_link_padding_table_->item(i,0)->text().toStdString();
+    lp.padding = dynamic_cast<QDoubleSpinBox*>(alter_link_padding_table_->cellWidget(i,1))->value();
+    planning_scene.link_padding.push_back(lp);
+  }
+  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+}
+
+void WarehouseViewer::alterAllowedCollisionPressed()
+{
+  createAlterAllowedCollisionDialog();
+  alter_allowed_collision_dialog_->exec();
+  delete alter_allowed_collision_dialog_;
+}
+
+void WarehouseViewer::createAlterAllowedCollisionDialog()
+{
+  if(current_planning_scene_ID_ == "") {
+    return;
+  }
+
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+
+  if(planning_scene.allowed_collision_matrix.link_names.size() == 0) {
+    planning_environment::convertFromACMToACMMsg(cm_->getDefaultAllowedCollisionMatrix(), planning_scene.allowed_collision_matrix);
+    (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  }
+
+  alter_allowed_collision_dialog_ = new QDialog(this);
+  alter_allowed_collision_dialog_->setWindowTitle("Alter Allowed Collision");
+  QGridLayout* layout = new QGridLayout(alter_allowed_collision_dialog_);
+  
+  QLabel* col_1_label = new QLabel(alter_allowed_collision_dialog_);
+  col_1_label->setText("First entity");
+
+  QLabel* col_2_label = new QLabel(alter_allowed_collision_dialog_);
+  col_2_label->setText("Second entity");
+
+  QLabel* col_3_label = new QLabel(alter_allowed_collision_dialog_);
+  col_2_label->setText("Status");
+
+  QLabel* col_4_label = new QLabel(alter_allowed_collision_dialog_);
+  col_4_label->setText("Operation");
+
+  layout->addWidget(col_1_label, 0, 0);
+  layout->addWidget(col_2_label, 0, 1);
+  layout->addWidget(col_3_label, 0, 2);
+  layout->addWidget(col_4_label, 0, 3);
+
+  first_allowed_collision_line_edit_ = new QLineEdit(alter_allowed_collision_dialog_);
+  second_allowed_collision_line_edit_ = new QLineEdit(alter_allowed_collision_dialog_);
+
+  layout->addWidget(first_allowed_collision_line_edit_, 1, 0);
+  layout->addWidget(second_allowed_collision_line_edit_, 1, 1);
+
+  connect(first_allowed_collision_line_edit_,SIGNAL(textEdited()), this, SLOT(entityListsEdited()));
+  connect(second_allowed_collision_line_edit_,SIGNAL(textEdited()), this, SLOT(entityListsEdited()));
+
+  first_allowed_collision_list_ = new QListWidget(alter_allowed_collision_dialog_);
+  second_allowed_collision_list_ = new QListWidget(alter_allowed_collision_dialog_);
+  
+  for(unsigned int i = 0; i < planning_scene.allowed_collision_matrix.link_names.size(); i++) {
+    first_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
+    second_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
+  }
+
+  connect(first_allowed_collision_list_,SIGNAL(itemSelectionChanged()), this, SLOT(firstEntityListSelected()));
+  connect(second_allowed_collision_list_,SIGNAL(itemSelectionChanged()), this, SLOT(secondEntityListSelected()));
+
+
+  layout->addWidget(first_allowed_collision_list_, 2, 0);
+  layout->addWidget(second_allowed_collision_list_, 2, 1);
+
+  allowed_status_line_edit_ = new QLineEdit(alter_allowed_collision_dialog_);
+  allowed_status_line_edit_->setMinimumWidth(125);
+  allowed_status_line_edit_->setMaximumWidth(125);
+  allowed_status_line_edit_->setAlignment(Qt::AlignCenter);
+  layout->addWidget(allowed_status_line_edit_, 1, 2);
+  
+  QPushButton* enable_collision_button = new QPushButton(alter_allowed_collision_dialog_);
+  enable_collision_button->setText("Enable");
+  enable_collision_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+  QPushButton* disable_collision_button = new QPushButton(alter_allowed_collision_dialog_);
+  disable_collision_button->setText("Disable");
+  disable_collision_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+  connect(enable_collision_button, SIGNAL(clicked()), this, SLOT(enableCollisionClicked()));
+  connect(disable_collision_button, SIGNAL(clicked()), this, SLOT(disableCollisionClicked()));
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+
+  layout->addWidget(enable_collision_button, 1, 3);
+  layout->addWidget(disable_collision_button, 2, 3, Qt::AlignTop);
+
+  alter_allowed_collision_dialog_->setLayout(layout);
+}
+
+void WarehouseViewer::firstEntityListSelected() {
+  first_allowed_collision_line_edit_->setText(first_allowed_collision_list_->selectedItems()[0]->text());
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+}
+
+void WarehouseViewer::secondEntityListSelected() {
+  second_allowed_collision_line_edit_->setText(second_allowed_collision_list_->selectedItems()[0]->text());
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+}
+
+void WarehouseViewer::entityListsEdited() {
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+}
+
+void WarehouseViewer::enableCollisionClicked() {
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
+  QString qs1 = first_allowed_collision_line_edit_->text();
+  QString qs2 = second_allowed_collision_line_edit_->text();
+  
+  bool allowed;
+  if(!acm.getAllowedCollision(qs1.toStdString(), qs2.toStdString(), allowed)) {
+    return;
+  } else if(!allowed) {
+    return;
+  } 
+  ROS_INFO_STREAM("Enabling");
+  acm.changeEntry(qs1.toStdString(), qs2.toStdString(), false);
+  planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
+  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+}
+
+void WarehouseViewer::disableCollisionClicked() {
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
+  QString qs1 = first_allowed_collision_line_edit_->text();
+  QString qs2 = second_allowed_collision_line_edit_->text();
+
+  bool allowed;
+  if(!acm.getAllowedCollision(qs1.toStdString(), qs2.toStdString(), allowed)) {
+    return;
+  } else if(allowed) {
+    return;
+  } 
+  ROS_INFO_STREAM("Disabling");
+  acm.changeEntry(qs1.toStdString(), qs2.toStdString(), true);
+  planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
+  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+}
+
+void WarehouseViewer::setEnabledDisabledDisplay(const QString& qs1, const QString& qs2) {
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
+  bool allowed;
+  if(!acm.getAllowedCollision(qs1.toStdString(), qs2.toStdString(), allowed)) {
+    allowed_status_line_edit_->setText("NO ENTRY");
+  } else if(allowed) {
+    allowed_status_line_edit_->setText("DISABLED");
+  } else {
+    allowed_status_line_edit_->setText("ENABLED");
+  }
 }
 
 void WarehouseViewer::refreshSceneButtonPressed()
@@ -1387,6 +1621,124 @@ void WarehouseViewer::createNewObjectDialog()
   layout->addWidget(make_object_button_);
   new_object_dialog_->setLayout(layout);
 
+}
+
+void WarehouseViewer::createNewMeshPressed()
+{
+  new_mesh_dialog_->show();
+}
+
+void WarehouseViewer::meshFileSelected(const QString& filename)
+{
+  mesh_filename_field_->setText(filename);
+}
+
+void WarehouseViewer::createMeshConfirmedPressed()
+{
+  geometry_msgs::Pose pose;
+  pose.position.x = (float)mesh_object_pos_x_box_->value() / 100.0f;
+  pose.position.y = (float)mesh_object_pos_y_box_->value() / 100.0f;
+  pose.position.z = (float)mesh_object_pos_z_box_->value() / 100.0f;
+  pose.orientation.x = 0;
+  pose.orientation.y = 0;
+  pose.orientation.z = 0;
+  pose.orientation.w = 1;
+
+  createMeshObject(pose, "file://"+mesh_filename_field_->text().toStdString(), last_mesh_object_color_);
+}
+
+void WarehouseViewer::createNewMeshDialog()
+{
+  new_mesh_dialog_ = new QDialog(this);
+  QVBoxLayout* layout = new QVBoxLayout(new_mesh_dialog_);
+  QGroupBox* panel = new QGroupBox(new_mesh_dialog_);
+  panel->setTitle("New Mesh Collision Object");
+
+  QVBoxLayout* panelLayout = new QVBoxLayout(panel);
+
+  mesh_filename_field_ = new QLineEdit(this);
+  mesh_filename_field_->setText("<mesh_filename>");
+  panelLayout->addWidget(mesh_filename_field_);
+
+  QPushButton* selectFileButton = new QPushButton(this);
+  selectFileButton->setText("Select Mesh file ...");
+
+  file_selector_ = new QFileDialog(this);
+  file_selector_->setFileMode(QFileDialog::ExistingFile);
+  file_selector_->setOption(QFileDialog::ReadOnly, true);
+  QStringList filters;
+  filters << "Mesh files (*.stl *.stla *.stlb *.dae)";
+  file_selector_->setNameFilters(filters);
+
+  connect(file_selector_, SIGNAL(fileSelected(const QString&)), this, SLOT(meshFileSelected(const QString&)));
+  connect(selectFileButton, SIGNAL(clicked()), file_selector_, SLOT(open()));
+  panelLayout->addWidget(selectFileButton);
+
+  QGroupBox* posBox = new QGroupBox(panel);
+  posBox->setTitle("Position (x,y,z) cm");
+  QHBoxLayout* posLayout = new QHBoxLayout(posBox);
+
+  mesh_object_pos_x_box_ = new QSpinBox(posBox);
+  mesh_object_pos_y_box_ = new QSpinBox(posBox);
+  mesh_object_pos_z_box_ = new QSpinBox(posBox);
+  mesh_object_pos_x_box_->setRange(-10000, 10000);
+  mesh_object_pos_y_box_->setRange(-10000, 10000);
+  mesh_object_pos_z_box_->setRange(-10000, 10000);
+  mesh_object_pos_x_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  mesh_object_pos_y_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  mesh_object_pos_z_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+
+  posLayout->addWidget(mesh_object_pos_x_box_);
+  posLayout->addWidget(mesh_object_pos_y_box_);
+  posLayout->addWidget(mesh_object_pos_z_box_);
+
+  posBox->setLayout(posLayout);
+  panelLayout->addWidget(posBox);
+
+  panel->setLayout(panelLayout);
+  layout->addWidget(panel);
+
+  mesh_color_button_ = new QPushButton(new_mesh_dialog_);
+
+  std::stringstream colorStream;
+  colorStream<< "Color: (" << (int)(last_mesh_object_color_.r*255) <<" , ";
+  colorStream << (int)(last_mesh_object_color_.g*255) << " , ";
+  colorStream << (int)(last_mesh_object_color_.b*255) << ")";
+
+  mesh_color_button_->setText(QString::fromStdString(colorStream.str()));
+  mesh_color_button_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  connect(mesh_color_button_, SIGNAL(clicked()), this, SLOT(meshColorButtonPressed()));
+
+  make_mesh_button_ = new QPushButton(new_mesh_dialog_);
+  make_mesh_button_->setText("Create...");
+  make_mesh_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  connect(make_mesh_button_, SIGNAL(clicked()), this, SLOT(createMeshConfirmedPressed()));
+
+  layout->addWidget(mesh_color_button_);
+  layout->addWidget(make_mesh_button_);
+  new_mesh_dialog_->setLayout(layout);
+
+}
+
+void WarehouseViewer::meshColorButtonPressed()
+{
+
+  QColor selected = QColorDialog::getColor(QColor(last_mesh_object_color_.r*255, last_mesh_object_color_.g*255, last_mesh_object_color_.b*255), new_object_dialog_);
+
+  if(selected.isValid())
+  {
+    last_mesh_object_color_.r = selected.redF();
+    last_mesh_object_color_.g = selected.greenF();
+    last_mesh_object_color_.b = selected.blueF();
+    last_mesh_object_color_.a = 1.0;
+
+    std::stringstream colorStream;
+    colorStream<< "Color: (" << (int)(last_mesh_object_color_.r*255) <<" , ";
+    colorStream << (int)(last_mesh_object_color_.g*255) << " , ";
+    colorStream << (int)(last_mesh_object_color_.b*255) << ")";
+
+    mesh_color_button_->setText(QString::fromStdString(colorStream.str()));
+  }
 }
 
 void WarehouseViewer::objectColorButtonPressed()

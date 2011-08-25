@@ -17,7 +17,7 @@
 	<node name="collision_proximity_planner" pkg="collision_proximity_planner" type="collision_proximity_planner" output="screen" respawn="false" />
 	<param name="warehouse_port" value="27019"/>
 	<node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
-	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer" launch-prefix="xterm -e gdb --args" />
+	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
 	<!-- Called when left arm executes trajectory using controllers -->
 	<param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />
 	<!-- Called when right arm executes trajectory using controllers -->
