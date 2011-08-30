@@ -675,7 +675,7 @@ public:
 
   /// @brief Fills the member marker array with small red spheres associated with collision points.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_,
-                              ros::ServiceClient& distance_state_validity_service_client_);
+                              ros::ServiceClient* distance_state_validity_service_client_);
 };
 
 
@@ -1047,7 +1047,7 @@ public:
   /// @brief Checks the current state for collisions, and fills the collision marker array with red spheres
   /// for each collision point.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
-                              ros::ServiceClient& distance_state_validity_service_client_);
+                              ros::ServiceClient* distance_state_validity_service_client_);
 };
 
 ////
@@ -1139,6 +1139,7 @@ protected:
   ////
   struct SelectableObject
   {
+    arm_navigation_msgs::AttachedCollisionObject attached_collision_object_;
     arm_navigation_msgs::CollisionObject collision_object_;
     visualization_msgs::InteractiveMarker selection_marker_;
     visualization_msgs::InteractiveMarker control_marker_;
@@ -1168,23 +1169,20 @@ protected:
   }
 
   //////
-  /// @brief Pure virtual function called when the planner is invoked.
+  /// @brief Virtual function called when the planner is invoked.
   /// @param errorCode, the result of the plan.
   //////
-  virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
-  {
-
-  }
+  virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode) = 0;
 
   ///////
-  /// @brief Pure virtual function called when the filter is invoked.
+  /// @brief Virtual function called when the filter is invoked.
   /// @param errorCode, the result of the filter call.
   //////
-  virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
-  {
+  virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode) = 0;
 
-  }
+  // virtual void attachObjectCallback(arm_navigation_msgs::CollisionObject& object) = 0;
 
+  // virtual void detachObjectCallback(arm_navigation_msgs::CollisionObject& object) = 0;
 
   boost::recursive_mutex lock_scene_;
   arm_navigation_msgs::ArmNavigationErrorCodes last_collision_set_error_code_;
@@ -1273,12 +1271,19 @@ protected:
 
   ros::Time last_marker_start_time_;
   ros::Duration marker_dt_;
+
+  void attachCollisionObject(const arm_navigation_msgs::CollisionObject& coll,
+                             const std::string& link_name,
+                             const std::vector<std::string> touch_links);
+  
   /////
   /// @brief Registers a collision object as a selectable marker.
   /////
   void createSelectableMarkerFromCollisionObject(arm_navigation_msgs::CollisionObject& object, std::string name,
-                                                 std::string description, std_msgs::ColorRGBA color);
+                                                 std::string description, std_msgs::ColorRGBA color, bool insert_selectable=true);
 
+  
+  
 public:
   static geometry_msgs::Pose toGeometryPose(btTransform transform)
   {

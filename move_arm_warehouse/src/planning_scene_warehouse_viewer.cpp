@@ -433,6 +433,7 @@ void WarehouseViewer::createAlterAllowedCollisionDialog()
 
   alter_allowed_collision_dialog_ = new QDialog(this);
   alter_allowed_collision_dialog_->setWindowTitle("Alter Allowed Collision");
+
   QGridLayout* layout = new QGridLayout(alter_allowed_collision_dialog_);
   
   QLabel* col_1_label = new QLabel(alter_allowed_collision_dialog_);
@@ -442,7 +443,7 @@ void WarehouseViewer::createAlterAllowedCollisionDialog()
   col_2_label->setText("Second entity");
 
   QLabel* col_3_label = new QLabel(alter_allowed_collision_dialog_);
-  col_2_label->setText("Status");
+  col_3_label->setText("Status");
 
   QLabel* col_4_label = new QLabel(alter_allowed_collision_dialog_);
   col_4_label->setText("Operation");
@@ -458,8 +459,8 @@ void WarehouseViewer::createAlterAllowedCollisionDialog()
   layout->addWidget(first_allowed_collision_line_edit_, 1, 0);
   layout->addWidget(second_allowed_collision_line_edit_, 1, 1);
 
-  connect(first_allowed_collision_line_edit_,SIGNAL(textEdited()), this, SLOT(entityListsEdited()));
-  connect(second_allowed_collision_line_edit_,SIGNAL(textEdited()), this, SLOT(entityListsEdited()));
+  connect(first_allowed_collision_line_edit_,SIGNAL(textEdited(const QString&)), this, SLOT(entityListsEdited()));
+  connect(second_allowed_collision_line_edit_,SIGNAL(textEdited(const QString&)), this, SLOT(entityListsEdited()));
 
   first_allowed_collision_list_ = new QListWidget(alter_allowed_collision_dialog_);
   second_allowed_collision_list_ = new QListWidget(alter_allowed_collision_dialog_);
@@ -468,6 +469,8 @@ void WarehouseViewer::createAlterAllowedCollisionDialog()
     first_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
     second_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
   }
+  addSpecialEntries(first_allowed_collision_list_);
+  addSpecialEntries(second_allowed_collision_list_);
 
   connect(first_allowed_collision_list_,SIGNAL(itemSelectionChanged()), this, SLOT(firstEntityListSelected()));
   connect(second_allowed_collision_list_,SIGNAL(itemSelectionChanged()), this, SLOT(secondEntityListSelected()));
@@ -493,11 +496,77 @@ void WarehouseViewer::createAlterAllowedCollisionDialog()
   connect(enable_collision_button, SIGNAL(clicked()), this, SLOT(enableCollisionClicked()));
   connect(disable_collision_button, SIGNAL(clicked()), this, SLOT(disableCollisionClicked()));
   setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
+  
+  QPushButton* reset_default_button = new QPushButton(alter_allowed_collision_dialog_);
+  reset_default_button->setText("Reset");
+  reset_default_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+  connect(reset_default_button, SIGNAL(clicked()), this, SLOT(resetAllowedCollisionClicked()));
 
   layout->addWidget(enable_collision_button, 1, 3);
   layout->addWidget(disable_collision_button, 2, 3, Qt::AlignTop);
+  layout->addWidget(reset_default_button, 2, 3, Qt::AlignBottom);
 
   alter_allowed_collision_dialog_->setLayout(layout);
+
+  alter_allowed_collision_dialog_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Minimum);
+}
+
+void WarehouseViewer::addSpecialEntries(QListWidget* list_widget) {
+  list_widget->addItem("------Groups---------");
+  std::vector<std::string> group_names;
+  cm_->getKinematicModel()->getModelGroupNames(group_names);
+  for(unsigned int i = 0; i < group_names.size(); i++) {
+    list_widget->addItem(group_names[i].c_str());
+  }
+  list_widget->addItem("------Objects---------");
+  std::vector<std::string> object_names;
+  cm_->getCollisionObjectNames(object_names);
+  for(unsigned int i = 0; i < object_names.size(); i++) {
+    list_widget->addItem(object_names[i].c_str());
+  }
+  list_widget->addItem("------Attached Objects---------");
+  std::vector<std::string> attached_object_names;
+  cm_->getAttachedCollisionObjectNames(attached_object_names);
+  for(unsigned int i = 0; i < attached_object_names.size(); i++) {
+    list_widget->addItem(attached_object_names[i].c_str());
+  }
+  list_widget->addItem("------Special-------");
+  list_widget->addItem("COLLISION_SET_ALL");
+  list_widget->addItem("COLLISION_SET_OBJECTS");
+  list_widget->addItem("COLLISION_SET_ATTACHED_OBJECTS");
+}
+
+void WarehouseViewer::getEntryList(const std::string& s1, 
+                                   std::vector<std::string>& sv1)
+{
+  bool all = false;
+  if(s1 == "COLLISION_SET_ALL") {
+    all = true;
+  } else if(s1 == "COLLISION_SET_OBJECTS") {
+    cm_->getCollisionObjectNames(sv1);
+  } else if(s1 == "COLLISION_SET_ATTACHED_OBJECTS") {
+    cm_->getAttachedCollisionObjectNames(sv1);
+  } else if(cm_->getKinematicModel()->hasModelGroup(s1)) {
+    sv1 = cm_->getKinematicModel()->getModelGroup(s1)->getGroupLinkNames();
+  } else {
+    sv1.push_back(s1);
+  }
+  if(all) {
+    collision_space::EnvironmentModel::AllowedCollisionMatrix acm = cm_->getCurrentAllowedCollisionMatrix();
+    acm.getAllEntryNames(sv1);
+  }
+}
+
+void WarehouseViewer::resetAllowedCollisionClicked() 
+{
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  collision_space::EnvironmentModel::AllowedCollisionMatrix acm = cm_->getDefaultAllowedCollisionMatrix(); 
+  
+  planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
+  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
 }
 
 void WarehouseViewer::firstEntityListSelected() {
@@ -519,15 +588,29 @@ void WarehouseViewer::enableCollisionClicked() {
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
   QString qs1 = first_allowed_collision_line_edit_->text();
   QString qs2 = second_allowed_collision_line_edit_->text();
+
+  std::vector<std::string> first_list;
+  std::vector<std::string> second_list;
+
+  getEntryList(qs1.toStdString(), first_list); 
+  getEntryList(qs2.toStdString(), second_list);
+
+  bool all_enabled = true;
+
+  for(unsigned int i = 0; i < first_list.size(); i++) {
+    for(unsigned int j = 0; j < second_list.size(); j++) {
+      bool allowed = false;
+      if(acm.getAllowedCollision(first_list[i], second_list[j], allowed)) {
+        if(allowed) {
+          all_enabled = false;
+          break;
+        }
+      }
+    }
+  }
+  if(all_enabled) return;
   
-  bool allowed;
-  if(!acm.getAllowedCollision(qs1.toStdString(), qs2.toStdString(), allowed)) {
-    return;
-  } else if(!allowed) {
-    return;
-  } 
-  ROS_INFO_STREAM("Enabling");
-  acm.changeEntry(qs1.toStdString(), qs2.toStdString(), false);
+  acm.changeEntry(first_list, second_list, false);
   planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
   (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
   sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
@@ -540,14 +623,29 @@ void WarehouseViewer::disableCollisionClicked() {
   QString qs1 = first_allowed_collision_line_edit_->text();
   QString qs2 = second_allowed_collision_line_edit_->text();
 
-  bool allowed;
-  if(!acm.getAllowedCollision(qs1.toStdString(), qs2.toStdString(), allowed)) {
-    return;
-  } else if(allowed) {
-    return;
-  } 
-  ROS_INFO_STREAM("Disabling");
-  acm.changeEntry(qs1.toStdString(), qs2.toStdString(), true);
+  std::vector<std::string> first_list;
+  std::vector<std::string> second_list;
+
+  getEntryList(qs1.toStdString(), first_list); 
+  getEntryList(qs2.toStdString(), second_list);
+
+  bool all_disabled = true;
+
+  for(unsigned int i = 0; i < first_list.size(); i++) {
+    for(unsigned int j = 0; j < second_list.size(); j++) {
+      bool allowed = false;
+      if(acm.getAllowedCollision(first_list[i], second_list[j], allowed)) {
+        if(!allowed) {
+          all_disabled = false;
+          break;
+        }
+      }
+    }
+  }
+  
+  if(all_disabled) return;
+
+  acm.changeEntry(first_list, second_list, true);
   planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
   (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
   sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
@@ -557,10 +655,34 @@ void WarehouseViewer::disableCollisionClicked() {
 void WarehouseViewer::setEnabledDisabledDisplay(const QString& qs1, const QString& qs2) {
   arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
-  bool allowed;
-  if(!acm.getAllowedCollision(qs1.toStdString(), qs2.toStdString(), allowed)) {
+  std::vector<std::string> first_list;
+  std::vector<std::string> second_list;
+  
+  getEntryList(qs1.toStdString(), first_list); 
+  getEntryList(qs2.toStdString(), second_list);
+
+  bool all_disabled = true;
+  bool all_enabled = true;
+  bool some_found = false;
+
+  for(unsigned int i = 0; i < first_list.size(); i++) {
+    for(unsigned int j = 0; j < second_list.size(); j++) {
+      bool allowed = false;
+      if(acm.getAllowedCollision(first_list[i], second_list[j], allowed)) {
+        some_found = true;
+        if(allowed) {
+          all_enabled = false;
+        } else {
+          all_disabled = false;
+        }
+      } 
+    }
+  }
+  if(!some_found) {
     allowed_status_line_edit_->setText("NO ENTRY");
-  } else if(allowed) {
+  } else if(!all_disabled && !all_enabled) {
+    allowed_status_line_edit_->setText("MIXED");
+  } else if(all_disabled) {
     allowed_status_line_edit_->setText("DISABLED");
   } else {
     allowed_status_line_edit_->setText("ENABLED");
@@ -1925,6 +2047,132 @@ void WarehouseViewer::filterCallback(arm_navigation_msgs::ArmNavigationErrorCode
   }
 }
 
+// void WarehouseViewer::attachObjectCallback(const arm_navigation_msgs::CollisionObject& object)
+// {
+//   createAttachObjectDialog();
+//   int res = attach_object_dialog_->exec();
+//   if(res == QDialog::Accepted) {
+//     QList<QListWidgetItem *> l = added_touch_links_->selectedItems();
+//     std::vector<std::string> touch_links;
+//     for(unsigned int i = 0; i < l.size(); i++) {
+//       touch_links.push_back(l.text()->toStdString());
+//     }
+//     attachCollisionObject(object, attach_link_box_->currentText().toStdString(), touch_links);
+//   }
+//   delete attach_object_dialog_;
+// }
+
+// void WarehouseViewer::createAttachObjectDialog(const arm_navigation_msgs::CollisionObject& object)
+// {
+//   if(current_planning_scene_ID_ == "") {
+//     return;
+//   }
+  
+//   arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  
+//   attach_object_dialog_ = new QDialog(this);
+//   attach_object_dialog_->setWindowTitle("Attach object " << object.id);
+  
+//   QVBoxLayout* layout = new QVBoxLayout(attach_object_dialog_);
+
+//   QGroupBox* panel = new QGroupBox(attach_object_dialog_);
+//   panel->setTitle("Link for attaching");
+
+//   QVBoxLayout* panel_layout = new QVBoxLayout(panel);
+//   attach_link_box_= new QComboBox(attach_object_dialog_);
+
+//   std::vector<std::string> link_names;
+//   cm_->getKinematicModel()->getLinkModelNames(link_names);
+//   for(unsigned int i = 0; i < link_names.size(); i++) {
+//     attach_link_box_->addItem(link_names[i].c_str());
+//   }
+//   panel_layout->addWidget(attach_link_box_);
+//   panel->setLayout(panel_layout);
+//   layout->addWidget(panel);
+
+//   QGroupBox* grid_panel = new QGroupBox(attach_object_dialog_);
+//   QGridLayout* grid = new QGridLayout(attach_object_dialog_);
+  
+//   QLabel* all_label = new QLabel(attach_object_dialog_);
+//   all_label->setText("Links and groups");
+
+//   QLabel* touch_links = new QLabel(attach_object_dialog_);
+//   touch_links->setText("Touch links");
+
+//   grid->addWidget(all_label, 0, 0);
+//   grid->addWidget(touch_links, 0, 2);
+
+//   QPushButton* add_button = new QPushButton(attach_object_dialog_);
+//   add_button->setText("Add ->");
+  
+//   connect(add_button, SIGNAL(clicked()), this, SLOT(addTouchLinkClicked()));
+
+//   QPushButton* remove_button = new QPushButton(attach_object_dialog_);
+//   remove_button->setText("Remove");
+
+//   connect(remove_button, SIGNAL(clicked()), this, SLOT(removeTouchLinkClicked()));
+
+//   grid->addWidget(add_button, 1, 1, Qt::AlignCenter);  
+//   grid->addWidget(remove_button, 1, 1, Qt::AlignCenter);
+   
+//   possible_touch_links_ = new QListWidget(attach_object_dialog_);
+//   for(unsigned int i = 0; i < link_names.size(); i++) {
+//     possible_touch_links_->addItem(link_names[i].c_str());
+//   }
+//   possible_touch_links_->addItem("------Groups---------");
+//   std::vector<std::string> group_names;
+//   cm_->getKinematicModel()->getModelGroupNames(group_names);
+//   for(unsigned int i = 0; i < group_names.size(); i++) {
+//     possible_touch_links_->addItem(group_names[i].c_str());
+//   }
+//   added_touch_links_ = new QListWidget(attach_object_dialog_);
+
+//   grid->addWidget(possible_touch_links_, 1, 0);
+//   grid->addWidget(added_touch_links_, 1, 2);
+
+//   grid_panel->addLayout(grid);
+
+//   layout->addWidget(grid_panel);
+
+//   QDialogButtonBox* qdb = new QDialogButtonBox();
+//   QPushButton* cancel_button = new QPushButton("Cancel");
+//   QPushButton* attach_button = new QPushButton("Attach");
+//   qdb->addButton(cancel_button, QDialogButtonBox::RejectRole);
+//   qdb->addButton(attach_button, QDialogButtonBox::AcceptRole);
+//   connect(success_button_box, SIGNAL(accepted()), attach_object_dialog_, SLOT(accept()));
+//   connect(success_button_box, SIGNAL(rejected()), attach_object_dialog_, SLOT(reject()));
+
+//   layout->addWidget(success_button_box, Qt::AlignRight);
+
+//   attach_object_dialog_->setLayout(layout);
+// }
+
+// void WarehouseViewer::addTouchLinkClicked() 
+// {
+//   QList<QListWidgetItem *> l = possible_touch_links_->selectedItems();
+
+//   for(unsigned int i = 0; i < l.size(); i++) {
+//     bool found = false;
+//     for(unsigned int j = 0; j < added_touch_links_->count(); j++) {
+//       if(l[i]->text() == added_touch_links_->item(j)->text()) {
+//         found = true;
+//         break;
+//       }
+//     }
+//     if(!found) {
+//       added_touch_links_->addItem(l[i]->text());
+//     }
+//   }
+// }
+
+// void WarehouseViewer::removeTouchLinkClicked()
+// {
+//   QList<QListWidgetItem *> l = added_touch_links_->selectedItems();
+//   for(unsigned int i = 0; i < l.size(); i++) {
+//     added_touch_links_->removeItem(l[i]);
+//   }
+// }
+ 
 void WarehouseViewer::popupPlannerFailure(int value)
 {
   ArmNavigationErrorCodes errorCode;

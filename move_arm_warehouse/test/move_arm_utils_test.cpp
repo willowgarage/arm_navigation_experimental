@@ -49,7 +49,23 @@ using namespace trajectory_msgs;
 using namespace planning_scene_utils;
 using namespace ros::param;
 
-PlanningSceneEditor* editor = NULL;
+class PlanningSceneEditorTest : public planning_scene_utils::PlanningSceneEditor
+{
+public:
+
+  PlanningSceneEditorTest(PlanningSceneParameters& params) : PlanningSceneEditor(params)
+  {
+  }
+
+  virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+  {
+  }
+  virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
+  {
+  }
+};
+
+PlanningSceneEditorTest* editor = NULL;
 planning_scene_utils::PlanningSceneParameters params;
 
 bool killThread = false;
@@ -60,7 +76,7 @@ bool inited = false;
 /////
 TEST(TestSuite, connectTest)
 {
-  editor = new PlanningSceneEditor(params);
+  editor = new PlanningSceneEditorTest(params);
 }
 
 /////

@@ -340,9 +340,16 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   void createAlterAllowedCollisionDialog();
   
 
-  void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
-  void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+  virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+  virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
+
+  // virtual void attachObjectCallback(const arm_navigation_msgs::CollisionObject& object);
+  // virtual void detachObjectCallback(const arm_navigation_msgs::CollisionObject& object);
+
   void setEnabledDisabledDisplay(const QString& qs1, const QString& qs2);
+  void getEntryList(const std::string& s1, 
+                    std::vector<std::string>& sv1);
+  void addSpecialEntries(QListWidget* list_widget);
 
 signals:
   /// @brief Changes the progress bar of the load planning scene dialog.
@@ -457,8 +464,13 @@ public slots:
   void entityListsEdited();
   void disableCollisionClicked();
   void enableCollisionClicked();
+  void resetAllowedCollisionClicked();
 
   void meshFileSelected(const QString& s);
+
+  // void addTouchLinkClicked();
+  // void removeTouchLinkClicked();
+  // void actuallyAttachObject();
 
 protected:
   bool warehouse_data_loaded_once_;
