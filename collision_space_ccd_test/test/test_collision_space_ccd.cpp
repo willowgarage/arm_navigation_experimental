@@ -726,10 +726,10 @@ TEST_F(TestCollisionSpaceCCD, TestODEvsCCDBox)
 TEST_F(TestCollisionSpaceCCD, TestODEvsCCDMesh)
 {
   setupForRandomConfigurations();
-  std::string full_path = ros::package::getPath("collision_space_ccd_test")+"/objects/meshes/9300.stl";
+  std::string full_path = "package://collision_space_ccd_test/objects/meshes/9300.stl";
   for(unsigned int i=0; i < NUM_MESH_OBJECTS; i++)
   {
-    shapes::Mesh* mesh = shapes::createMeshFromBinaryStl(full_path.c_str());
+    shapes::Mesh* mesh = shapes::createMeshFromFilename(full_path.c_str());
     ASSERT_TRUE(mesh);
     btTransform pose;
     geometry_msgs::Pose pose_msg = generateRandomPoseInWorkspace();
