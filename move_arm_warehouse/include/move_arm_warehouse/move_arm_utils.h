@@ -242,7 +242,8 @@ protected:
   bool is_goal_visible_;
   bool should_refresh_colors_;
   bool has_refreshed_colors_;
-  bool has_good_ik_solution_;
+  bool has_good_goal_ik_solution_;
+  bool has_good_start_ik_solution_;
   bool are_collisions_visible_;
   bool has_state_changed_;
   bool are_joint_controls_visible_;
@@ -419,15 +420,23 @@ public:
   }
 
   /// @brief Returns true if an IK solution was found for this request, and false otherwise.
-  inline bool hasGoodIKSolution()
+  inline bool hasGoodIKSolution(const PositionType& type)
   {
-    return has_good_ik_solution_;
+    if(type == StartPosition) {
+      return has_good_start_ik_solution_;
+    } else {
+      return has_good_goal_ik_solution_;
+    }
   }
 
   /// @brief Set whether or not an IK solution was found for the start or end of this request.
-  inline void setHasGoodIKSolution(bool solution)
+  inline void setHasGoodIKSolution(const bool& solution, const PositionType& type)
   {
-    has_good_ik_solution_ = solution;
+    if(type == StartPosition) {
+      has_good_start_ik_solution_ = solution;
+    } else {
+      has_good_goal_ik_solution_ = solution;
+    }
   }
 
   /// @brief Returns a KinematicState pointer corresponding to the starting joint state of the robot.
@@ -1139,6 +1148,15 @@ protected:
   ////
   struct SelectableObject
   {
+    SelectableObject() {
+      attach_ = false;
+      detach_ = false;
+      attached_collision_object_.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
+      collision_object_.operation.operation = arm_navigation_msgs::CollisionObjectOperation::REMOVE;
+    }
+
+    bool attach_;
+    bool detach_;
     arm_navigation_msgs::AttachedCollisionObject attached_collision_object_;
     arm_navigation_msgs::CollisionObject collision_object_;
     visualization_msgs::InteractiveMarker selection_marker_;
@@ -1180,9 +1198,10 @@ protected:
   //////
   virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode) = 0;
 
-  // virtual void attachObjectCallback(arm_navigation_msgs::CollisionObject& object) = 0;
-
+  virtual void attachObjectCallback(const std::string& name) = 0;
   // virtual void detachObjectCallback(arm_navigation_msgs::CollisionObject& object) = 0;
+
+  void changeToAttached(const std::string& name);
 
   boost::recursive_mutex lock_scene_;
   arm_navigation_msgs::ArmNavigationErrorCodes last_collision_set_error_code_;
@@ -1239,6 +1258,7 @@ protected:
   std_msgs::ColorRGBA point_color_;
   std::vector<geometry_msgs::TransformStamped> robot_transforms_;
 
+  interactive_markers::MenuHandler::FeedbackCallback attached_collision_object_feedback_ptr_;
   interactive_markers::MenuHandler::FeedbackCallback collision_object_selection_feedback_ptr_;
   interactive_markers::MenuHandler::FeedbackCallback collision_object_movement_feedback_ptr_;
   interactive_markers::MenuHandler::FeedbackCallback ik_control_feedback_ptr_;
@@ -1272,9 +1292,9 @@ protected:
   ros::Time last_marker_start_time_;
   ros::Duration marker_dt_;
 
-  void attachCollisionObject(const arm_navigation_msgs::CollisionObject& coll,
+  void attachCollisionObject(const std::string& name, 
                              const std::string& link_name,
-                             const std::vector<std::string> touch_links);
+                             const std::vector<std::string>& touch_links);
   
   /////
   /// @brief Registers a collision object as a selectable marker.
@@ -1525,6 +1545,7 @@ public:
   /////
   void collisionObjectSelectionCallback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
 
+  void attachedCollisionObjectInteractiveCallback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
 
   /////
   /// @brief creates an entirely new collision object and places it in the environment.

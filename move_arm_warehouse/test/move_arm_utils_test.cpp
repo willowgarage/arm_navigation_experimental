@@ -63,6 +63,11 @@ public:
   virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
   {
   }
+
+  virtual void attachObjectCallback(const std::string& name)
+  {
+  }
+
 };
 
 PlanningSceneEditorTest* editor = NULL;

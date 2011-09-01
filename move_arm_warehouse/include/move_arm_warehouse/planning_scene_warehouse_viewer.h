@@ -338,13 +338,15 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   void createOutcomeDialog();
   void createAlterLinkPaddingDialog();
   void createAlterAllowedCollisionDialog();
+  void createAttachObjectDialog(const std::string& name);
   
 
   virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
   virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
 
-  // virtual void attachObjectCallback(const arm_navigation_msgs::CollisionObject& object);
-  // virtual void detachObjectCallback(const arm_navigation_msgs::CollisionObject& object);
+  virtual void attachObjectCallback(const std::string& name) {
+    emit attachObjectSignal(name);
+  }
 
   void setEnabledDisabledDisplay(const QString& qs1, const QString& qs2);
   void getEntryList(const std::string& s1, 
@@ -356,11 +358,17 @@ signals:
   void changeProgress(int progress);
   /// @brief Updates the trajectory and motion plan tables.
   void updateTables();
-
+  
   void plannerFailure(int value);
   void filterFailure(int value);
+                               
+  void attachObjectSignal(const std::string& name);
+
+  void allScenesLoaded();
 
 public slots:
+
+  void refreshPlanningSceneDialog();
 
   void popupPlannerFailure(int value);
   void popupFilterFailure(int value);
@@ -374,6 +382,7 @@ public slots:
   {
     load_scene_progress_->setValue(progress);
   }
+  void planningSceneTableHeaderClicked(int col);
   /// @brief Called when the load planning scene button is pressed
   void loadButtonPressed();
   /// @brief Called when the refresh planning scene action is triggered
@@ -468,9 +477,9 @@ public slots:
 
   void meshFileSelected(const QString& s);
 
-  // void addTouchLinkClicked();
-  // void removeTouchLinkClicked();
-  // void actuallyAttachObject();
+  void attachObject(const std::string& name);
+  void addTouchLinkClicked();
+  void removeTouchLinkClicked();
 
 protected:
   bool warehouse_data_loaded_once_;
@@ -496,7 +505,12 @@ protected:
   QLineEdit* allowed_status_line_edit_;
   QListWidget* first_allowed_collision_list_;
   QListWidget* second_allowed_collision_list_;
-  
+
+  QDialog* attach_object_dialog_;
+  QComboBox* attach_link_box_;
+  QListWidget* possible_touch_links_;
+  QListWidget* added_touch_links_;
+
   QDialog* load_planning_scene_dialog_;
   QDialog* new_object_dialog_;
   QDialog* new_mesh_dialog_;

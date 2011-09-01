@@ -33,6 +33,9 @@
 #include <qt4/QtGui/qapplication.h>
 #include <assert.h>
 #include <qt4/QtGui/qsplashscreen.h>
+#include <qt4/QtGui/qdialogbuttonbox.h>
+#include <qt4/QtGui/qdialog.h>
+#include <qt4/QtGui/qheaderview.h>
 #include <ros/package.h>
 
 using namespace collision_space;
@@ -57,6 +60,9 @@ WarehouseViewer::WarehouseViewer(QWidget* parent, planning_scene_utils::Planning
   selected_trajectory_ID_ = "";
   warehouse_data_loaded_once_ = false;
   table_load_thread_ = NULL;
+
+  qRegisterMetaType < std::string > ( "std::string" );
+
 }
 
 WarehouseViewer::~WarehouseViewer()
@@ -215,6 +221,8 @@ void WarehouseViewer::initQtWidgets()
   connect(alter_allowed_collision_action_, SIGNAL(triggered()), this, SLOT(alterAllowedCollisionPressed()));
   connect(this, SIGNAL(plannerFailure(int)),this, SLOT(popupPlannerFailure(int)));
   connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
+  connect(this, SIGNAL(attachObjectSignal(const std::string&)), this, SLOT(attachObject(const std::string&)));
+  connect(this, SIGNAL(allScenesLoaded()), this, SLOT(refreshPlanningSceneDialog()));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -797,6 +805,7 @@ void WarehouseViewer::setupPlanningSceneDialog()
   layout->addWidget(load_planning_scene_button_);
   layout->addWidget(refresh_planning_scene_button_);
 
+  load_planning_scene_dialog_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
   load_planning_scene_dialog_->setLayout(layout);
 }
 
@@ -1177,7 +1186,6 @@ void WarehouseViewer::updateStateTriggered()
 void WarehouseViewer::popupLoadPlanningScenes()
 {
   load_planning_scene_dialog_->show();
-
   if(!warehouse_data_loaded_once_)
   {
     refreshButtonPressed();
@@ -1623,15 +1631,22 @@ void WarehouseViewer::createPlanningSceneTable()
     r++;
   }
 
-  planning_scene_table_->sortByColumn(2);
+  planning_scene_table_->sortByColumn(2, Qt::DescendingOrder);
+  connect(planning_scene_table_->horizontalHeader(), SIGNAL(sectionClicked(int)), this, SLOT(planningSceneTableHeaderClicked(int)));
+  planning_scene_table_->horizontalHeader()->resizeSections(QHeaderView::Stretch);
   planning_scene_table_->setHorizontalHeaderLabels(labels);
-  planning_scene_table_->setColumnWidth(0, 150);
-  planning_scene_table_->setColumnWidth(1, 150);
-  planning_scene_table_->setColumnWidth(2, 300);
-  planning_scene_table_->setColumnWidth(3, 400);
   planning_scene_table_->setMinimumWidth(1000);
 
+  emit allScenesLoaded();
+}
 
+void WarehouseViewer::refreshPlanningSceneDialog()
+{
+  planning_scene_table_->horizontalHeader()->resizeSections(QHeaderView::Stretch);
+}
+
+void WarehouseViewer::planningSceneTableHeaderClicked(int col) {
+  planning_scene_table_->sortByColumn(col);
 }
 
 void WarehouseViewer::motionPlanJointControlsActiveButtonClicked(bool checked)
@@ -1687,6 +1702,9 @@ void WarehouseViewer::createNewObjectDialog()
   collision_object_scale_x_box_->setRange(1, 10000);
   collision_object_scale_y_box_->setRange(1, 10000);
   collision_object_scale_z_box_->setRange(1, 10000);
+  collision_object_scale_x_box_->setValue(10);
+  collision_object_scale_y_box_->setValue(10);
+  collision_object_scale_z_box_->setValue(10);
   collision_object_scale_x_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   collision_object_scale_y_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   collision_object_scale_z_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
@@ -2047,131 +2065,132 @@ void WarehouseViewer::filterCallback(arm_navigation_msgs::ArmNavigationErrorCode
   }
 }
 
-// void WarehouseViewer::attachObjectCallback(const arm_navigation_msgs::CollisionObject& object)
-// {
-//   createAttachObjectDialog();
-//   int res = attach_object_dialog_->exec();
-//   if(res == QDialog::Accepted) {
-//     QList<QListWidgetItem *> l = added_touch_links_->selectedItems();
-//     std::vector<std::string> touch_links;
-//     for(unsigned int i = 0; i < l.size(); i++) {
-//       touch_links.push_back(l.text()->toStdString());
-//     }
-//     attachCollisionObject(object, attach_link_box_->currentText().toStdString(), touch_links);
-//   }
-//   delete attach_object_dialog_;
-// }
+void WarehouseViewer::attachObject(const std::string& name)
+{
+  createAttachObjectDialog(name);
+  int res = attach_object_dialog_->exec();
+  if(res == QDialog::Accepted) {
+    std::vector<std::string> touch_links;
+    for(int i = 0; i < added_touch_links_->count(); i++) {
+      touch_links.push_back(added_touch_links_->item(i)->text().toStdString());
+      
+    }
+    attachCollisionObject(name, attach_link_box_->currentText().toStdString(), touch_links);
+    changeToAttached(name);
+  }
+  delete attach_object_dialog_;
+}
 
-// void WarehouseViewer::createAttachObjectDialog(const arm_navigation_msgs::CollisionObject& object)
-// {
-//   if(current_planning_scene_ID_ == "") {
-//     return;
-//   }
+void WarehouseViewer::createAttachObjectDialog(const std::string& name)
+{
+  if(current_planning_scene_ID_ == "") {
+    return;
+  }
   
-//   arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+
+  std::stringstream ss;
+  ss << "Attach object " << name;
   
-//   attach_object_dialog_ = new QDialog(this);
-//   attach_object_dialog_->setWindowTitle("Attach object " << object.id);
+  attach_object_dialog_ = new QDialog(this);
+  attach_object_dialog_->setWindowTitle(ss.str().c_str());
   
-//   QVBoxLayout* layout = new QVBoxLayout(attach_object_dialog_);
+  QVBoxLayout* layout = new QVBoxLayout(attach_object_dialog_);
 
-//   QGroupBox* panel = new QGroupBox(attach_object_dialog_);
-//   panel->setTitle("Link for attaching");
+  QGroupBox* panel = new QGroupBox(attach_object_dialog_);
+  panel->setTitle("Link for attaching");
 
-//   QVBoxLayout* panel_layout = new QVBoxLayout(panel);
-//   attach_link_box_= new QComboBox(attach_object_dialog_);
+  QVBoxLayout* panel_layout = new QVBoxLayout(panel);
+  attach_link_box_= new QComboBox(attach_object_dialog_);
 
-//   std::vector<std::string> link_names;
-//   cm_->getKinematicModel()->getLinkModelNames(link_names);
-//   for(unsigned int i = 0; i < link_names.size(); i++) {
-//     attach_link_box_->addItem(link_names[i].c_str());
-//   }
-//   panel_layout->addWidget(attach_link_box_);
-//   panel->setLayout(panel_layout);
-//   layout->addWidget(panel);
+  std::vector<std::string> link_names;
+  cm_->getKinematicModel()->getLinkModelNames(link_names);
+  for(unsigned int i = 0; i < link_names.size(); i++) {
+    attach_link_box_->addItem(link_names[i].c_str());
+  }
+  panel_layout->addWidget(attach_link_box_);
+  panel->setLayout(panel_layout);
+  layout->addWidget(panel);
 
-//   QGroupBox* grid_panel = new QGroupBox(attach_object_dialog_);
-//   QGridLayout* grid = new QGridLayout(attach_object_dialog_);
+  QGroupBox* grid_panel = new QGroupBox(attach_object_dialog_);
+  QGridLayout* grid = new QGridLayout(grid_panel);
   
-//   QLabel* all_label = new QLabel(attach_object_dialog_);
-//   all_label->setText("Links and groups");
+  QLabel* all_label = new QLabel(attach_object_dialog_);
+  all_label->setText("Links and groups");
 
-//   QLabel* touch_links = new QLabel(attach_object_dialog_);
-//   touch_links->setText("Touch links");
+  QLabel* touch_links = new QLabel(attach_object_dialog_);
+  touch_links->setText("Touch links");
 
-//   grid->addWidget(all_label, 0, 0);
-//   grid->addWidget(touch_links, 0, 2);
+  grid->addWidget(all_label, 0, 0);
+  grid->addWidget(touch_links, 0, 2);
 
-//   QPushButton* add_button = new QPushButton(attach_object_dialog_);
-//   add_button->setText("Add ->");
+  QPushButton* add_button = new QPushButton(attach_object_dialog_);
+  add_button->setText("Add ->");
   
-//   connect(add_button, SIGNAL(clicked()), this, SLOT(addTouchLinkClicked()));
+  connect(add_button, SIGNAL(clicked()), this, SLOT(addTouchLinkClicked()));
 
-//   QPushButton* remove_button = new QPushButton(attach_object_dialog_);
-//   remove_button->setText("Remove");
+  QPushButton* remove_button = new QPushButton(attach_object_dialog_);
+  remove_button->setText("Remove");
 
-//   connect(remove_button, SIGNAL(clicked()), this, SLOT(removeTouchLinkClicked()));
+  connect(remove_button, SIGNAL(clicked()), this, SLOT(removeTouchLinkClicked()));
 
-//   grid->addWidget(add_button, 1, 1, Qt::AlignCenter);  
-//   grid->addWidget(remove_button, 1, 1, Qt::AlignCenter);
-   
-//   possible_touch_links_ = new QListWidget(attach_object_dialog_);
-//   for(unsigned int i = 0; i < link_names.size(); i++) {
-//     possible_touch_links_->addItem(link_names[i].c_str());
-//   }
-//   possible_touch_links_->addItem("------Groups---------");
-//   std::vector<std::string> group_names;
-//   cm_->getKinematicModel()->getModelGroupNames(group_names);
-//   for(unsigned int i = 0; i < group_names.size(); i++) {
-//     possible_touch_links_->addItem(group_names[i].c_str());
-//   }
-//   added_touch_links_ = new QListWidget(attach_object_dialog_);
+  grid->addWidget(add_button, 1, 1, Qt::AlignTop);  
+  grid->addWidget(remove_button, 1, 1, Qt::AlignBottom);
 
-//   grid->addWidget(possible_touch_links_, 1, 0);
-//   grid->addWidget(added_touch_links_, 1, 2);
+  possible_touch_links_ = new QListWidget(attach_object_dialog_);
+  possible_touch_links_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  for(unsigned int i = 0; i < link_names.size(); i++) {
+    possible_touch_links_->addItem(link_names[i].c_str());
+  }
+  possible_touch_links_->addItem("------Groups---------");
+  std::vector<std::string> group_names;
+  cm_->getKinematicModel()->getModelGroupNames(group_names);
+  for(unsigned int i = 0; i < group_names.size(); i++) {
+    possible_touch_links_->addItem(group_names[i].c_str());
+  }
+  added_touch_links_ = new QListWidget(attach_object_dialog_);
+  added_touch_links_->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-//   grid_panel->addLayout(grid);
+  grid->addWidget(possible_touch_links_, 1, 0);
+  grid->addWidget(added_touch_links_, 1, 2);
 
-//   layout->addWidget(grid_panel);
+  layout->addWidget(grid_panel);
 
-//   QDialogButtonBox* qdb = new QDialogButtonBox();
-//   QPushButton* cancel_button = new QPushButton("Cancel");
-//   QPushButton* attach_button = new QPushButton("Attach");
-//   qdb->addButton(cancel_button, QDialogButtonBox::RejectRole);
-//   qdb->addButton(attach_button, QDialogButtonBox::AcceptRole);
-//   connect(success_button_box, SIGNAL(accepted()), attach_object_dialog_, SLOT(accept()));
-//   connect(success_button_box, SIGNAL(rejected()), attach_object_dialog_, SLOT(reject()));
+  QDialogButtonBox* qdb = new QDialogButtonBox();
+  QPushButton* cancel_button = new QPushButton("Cancel");
+  QPushButton* attach_button = new QPushButton("Attach");
+  qdb->addButton(cancel_button, QDialogButtonBox::RejectRole);
+  qdb->addButton(attach_button, QDialogButtonBox::AcceptRole);
+  connect(qdb, SIGNAL(accepted()), attach_object_dialog_, SLOT(accept()));
+  connect(qdb, SIGNAL(rejected()), attach_object_dialog_, SLOT(reject()));
 
-//   layout->addWidget(success_button_box, Qt::AlignRight);
+  layout->addWidget(qdb, Qt::AlignRight);
 
-//   attach_object_dialog_->setLayout(layout);
-// }
+  attach_object_dialog_->setLayout(layout);
+}
 
-// void WarehouseViewer::addTouchLinkClicked() 
-// {
-//   QList<QListWidgetItem *> l = possible_touch_links_->selectedItems();
+void WarehouseViewer::addTouchLinkClicked() 
+{
+  QList<QListWidgetItem *> l = possible_touch_links_->selectedItems();
 
-//   for(unsigned int i = 0; i < l.size(); i++) {
-//     bool found = false;
-//     for(unsigned int j = 0; j < added_touch_links_->count(); j++) {
-//       if(l[i]->text() == added_touch_links_->item(j)->text()) {
-//         found = true;
-//         break;
-//       }
-//     }
-//     if(!found) {
-//       added_touch_links_->addItem(l[i]->text());
-//     }
-//   }
-// }
+  for(int i = 0; i < l.size(); i++) {
+    bool found = false;
+    for(int j = 0; j < added_touch_links_->count(); j++) {
+      if(l[i]->text() == added_touch_links_->item(j)->text()) {
+        found = true;
+        break;
+      }
+    }
+    if(!found && l[i]->text().toStdString() != std::string("------Groups---------")) {
+      added_touch_links_->addItem(l[i]->text());
+    }
+  }
+}
 
-// void WarehouseViewer::removeTouchLinkClicked()
-// {
-//   QList<QListWidgetItem *> l = added_touch_links_->selectedItems();
-//   for(unsigned int i = 0; i < l.size(); i++) {
-//     added_touch_links_->removeItem(l[i]);
-//   }
-// }
+void WarehouseViewer::removeTouchLinkClicked()
+{
+  qDeleteAll(added_touch_links_->selectedItems());
+}
  
 void WarehouseViewer::popupPlannerFailure(int value)
 {
