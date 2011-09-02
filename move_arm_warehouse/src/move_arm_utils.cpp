@@ -481,6 +481,8 @@ PlanningSceneEditor::PlanningSceneEditor()
   max_planning_scene_ID_ = 0;
   max_request_ID_ = 0;
   max_trajectory_ID_ = 0;
+  string robot_description_name = nh_.resolveName("robot_description", true);
+  cm_ = new CollisionModels(robot_description_name);
 }
 
 PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
@@ -800,9 +802,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
   {
     interactive_marker_server_->erase(it->second.selection_marker_.name);
     interactive_marker_server_->erase(it->second.control_marker_.name);
-    ROS_INFO_STREAM("Erasing " << it->first);
   }
-  ROS_INFO_STREAM("Clearing " << selectable_objects_->size());
   selectable_objects_->clear();
 
   for(map<string, IKController>::iterator it = (*ik_controllers_).begin(); it != (*ik_controllers_).end(); it++)
@@ -873,8 +873,6 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
       createSelectableMarkerFromCollisionObject(scene.getPlanningScene().collision_objects[i], scene.getPlanningScene().collision_objects[i].id, "", color);
     }
 
-    ROS_INFO_STREAM("After coll " << selectable_objects_->size());
-
     /////
     /// Create collision object.
     /////
@@ -907,8 +905,6 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
                             scene.getPlanningScene().attached_collision_objects[i].touch_links);
       changeToAttached(scene.getPlanningScene().attached_collision_objects[i].object.id);
     }
-
-    ROS_INFO_STREAM("After attach " << selectable_objects_->size());
 
     /////
     /// Load motion plan requests
@@ -1594,7 +1590,7 @@ bool PlanningSceneEditor::getPlanningSceneOutcomes(const ros::Time& time, vector
 {
   if(!move_arm_warehouse_logger_reader_->getAssociatedOutcomes("", time, pipeline_stages, error_codes))
   {
-    ROS_WARN_STREAM("No outcome associated with planning scene");
+    ROS_DEBUG_STREAM("No outcome associated with planning scene");
     return false;
   }
 
@@ -1611,12 +1607,10 @@ std::string PlanningSceneEditor::createNewPlanningScene()
 {
   lock_scene_.lock();
 
-  string robot_description_name = nh_.resolveName("robot_description", true);
-  cm_ = new CollisionModels(robot_description_name);
-
   if(robot_state_ == NULL)
   {
     robot_state_ = new KinematicState(cm_->getKinematicModel());
+  } else {
     robot_state_->setKinematicStateToDefault();
   }
 
@@ -1689,31 +1683,57 @@ void PlanningSceneEditor::loadAllWarehouseData()
   error_map_.clear();
 }
 
-void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data)
+void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
 {
+  if(!copy && move_arm_warehouse_logger_reader_->hasPlanningScene(data.getHostName(),
+                                                                  data.getTimeStamp())) {
+    move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(),
+                                                                                         data.getTimeStamp());
+  }
+
+  PlanningScene* actual_planning_scene;
+
+  std::string name_to_push = "";
+
   // Have to do this in case robot state was corrupted by sim time.
-  data.setTimeStamp(data.getTimeStamp());
+  if(!copy) {
+    data.setTimeStamp(data.getTimeStamp());
+    actual_planning_scene = &(data.getPlanningScene());
+    ROS_INFO("Saving Planning Scene %s", data.getName().c_str());
+  } else {
+    //force reload
+    warehouse_data_loaded_once_ = false;
+    PlanningSceneData ndata = data;
+    ndata.setName(generateNewPlanningSceneID());
+    ndata.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
+    ROS_INFO("Copying Planning Scene %s to %s", data.getName().c_str(), ndata.getName().c_str());
+    (*planning_scene_map_)[ndata.getName()] = ndata;
+    name_to_push = ndata.getName();
+    actual_planning_scene = &(*planning_scene_map_)[ndata.getName()].getPlanningScene();
+  }
 
-  move_arm_warehouse_logger_reader_->pushPlanningSceneToWarehouse(data.getPlanningScene());
-
-  ROS_INFO("Saving Planning Scene %s", data.getName().c_str());
-
+  move_arm_warehouse_logger_reader_->pushPlanningSceneToWarehouse(*actual_planning_scene);
+  
   for(size_t i = 0; i < data.getRequests().size(); i++)
   {
     MotionPlanRequestData& req = (*motion_plan_map_)[data.getRequests()[i]];
-    move_arm_warehouse_logger_reader_->pushMotionPlanRequestToWarehouse(data.getPlanningScene(), req.getSource(),
+    move_arm_warehouse_logger_reader_->pushMotionPlanRequestToWarehouse(*actual_planning_scene, req.getSource(),
                                                                         req.getMotionPlanRequest(), req.getID());
     ROS_INFO("Saving Request %s", req.getID().c_str());
     for(size_t j = 0; j < req.getTrajectories().size(); j++)
     {
       TrajectoryData& traj = (*trajectory_map_)[req.getTrajectories()[j]];
-      move_arm_warehouse_logger_reader_->pushJointTrajectoryToWarehouse(data.getPlanningScene(), traj.getSource(),
+      move_arm_warehouse_logger_reader_->pushJointTrajectoryToWarehouse(*actual_planning_scene, traj.getSource(),
                                                                         traj.getDuration(), traj.getTrajectory(),
                                                                         traj.getID(), traj.getMotionPlanRequestID(), traj.trajectory_error_code_);
-      move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(data.getPlanningScene(), traj.getSource(),
+      move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(*actual_planning_scene, traj.getSource(),
                                                                 traj.trajectory_error_code_);
       ROS_INFO("Saving Trajectory %s", traj.getID().c_str());
     }
+  }
+  if(!name_to_push.empty()) {
+    ROS_INFO_STREAM("Setting current planning scene to " << name_to_push);
+    setCurrentPlanningScene(name_to_push);
   }
 }
 
@@ -1727,7 +1747,6 @@ bool PlanningSceneEditor::getAllPlanningSceneTimes(vector<ros::Time>& planning_s
 bool PlanningSceneEditor::loadPlanningScene(const ros::Time& time, std::string& ID)
 {
   assert(planning_scene_map_ != NULL);
-  deleteKinematicStates();
   PlanningSceneData data;
   data.setTimeStamp(time);
   data.setName(generateNewPlanningSceneID());

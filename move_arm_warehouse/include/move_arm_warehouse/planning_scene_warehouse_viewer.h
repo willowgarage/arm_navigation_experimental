@@ -339,7 +339,9 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   void createAlterLinkPaddingDialog();
   void createAlterAllowedCollisionDialog();
   void createAttachObjectDialog(const std::string& name);
-  
+  bool createNewPlanningSceneConfirm();  
+
+  void saveCurrentPlanningScene(bool copy);
 
   virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
   virtual void filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);
@@ -383,10 +385,12 @@ public slots:
     load_scene_progress_->setValue(progress);
   }
   void planningSceneTableHeaderClicked(int col);
+  void newButtonPressed();
   /// @brief Called when the load planning scene button is pressed
   void loadButtonPressed();
   /// @brief Called when the refresh planning scene action is triggered
   void refreshButtonPressed();
+  void removePlanningSceneButtonPressed();
   /// @brief Called when the user clicks on an item in the trajectory tree
   void trajectoryTableSelection();
   /// @brief Called when the user clicks on an item in the motion plan tree
@@ -402,9 +406,11 @@ public slots:
   /// @brief Called when the user changes the box displaying the current trajectory point.
   void trajectoryEditChanged();
   /// @brief Called when the "Create New Planning Scene ..." action is triggered.
-  void createNewPlanningScenePressed();
+  void createNewPlanningSceneSlot();
   /// @brief Called when the "Save Current Planning Scene ..." action is triggered.
-  void saveCurrentPlanningScene();
+  void savePlanningSceneSlot();
+  /// @brief Called when the "Save Current Planning Scene ..." action is triggered.
+  void copyPlanningSceneSlot();
   /// @brief Creates a new motion plan request for the given group and end effector link.
   void createNewMotionPlanRequest(std::string group_name, std::string end_effector_name);
   /// @brief Called when the start position color button is pressed for a particular motion plan request.
@@ -482,7 +488,8 @@ public slots:
   void removeTouchLinkClicked();
 
 protected:
-  bool warehouse_data_loaded_once_;
+  
+  bool planning_scene_initialized_;
   QLabel* selected_trajectory_label_;
   QLabel* selected_request_label_;
   QMenuBar* menu_bar_;
@@ -523,6 +530,7 @@ protected:
   QAction* new_motion_plan_action_;
   QAction* load_planning_scene_action_;
   QAction* save_planning_scene_action_;
+  QAction* copy_planning_scene_action_;
   QAction* quit_action_;
   QTableWidget* planning_scene_table_;
   QTreeWidget* motion_plan_tree_;
@@ -533,8 +541,10 @@ protected:
   QPushButton* replan_button_;
   QPushButton* execute_button_;
 
+  QPushButton* new_planning_scene_button_;
   QPushButton* load_planning_scene_button_;
   QPushButton* refresh_planning_scene_button_;
+  QPushButton* remove_planning_scene_button_;
   QPushButton* object_color_button_;
   QComboBox* collision_display_box_;
 

@@ -89,7 +89,7 @@ mongo_ros::Metadata MoveArmWarehouseLoggerReader::initializeMetadataWithHostname
 }
 
 void MoveArmWarehouseLoggerReader::addPlanningSceneTimeToMetadata(const arm_navigation_msgs::PlanningScene& planning_scene,
-                                                            mongo_ros::Metadata& metadata)
+                                                                  mongo_ros::Metadata& metadata)
 {
   metadata.append(PLANNING_SCENE_TIME_NAME, planning_scene.robot_state.joint_state.header.stamp.toSec());
 }
@@ -101,10 +101,11 @@ void MoveArmWarehouseLoggerReader::pushPlanningSceneToWarehouse(const arm_naviga
   planning_scene_collection_->insert(planning_scene, metadata);
 }
 
+
 void MoveArmWarehouseLoggerReader::pushMotionPlanRequestToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
-                                                              const std::string& stage_name,
-                                                              const arm_navigation_msgs::MotionPlanRequest& motion_plan_request,
-                                                              const std::string& ID)
+                                                                    const std::string& stage_name,
+                                                                    const arm_navigation_msgs::MotionPlanRequest& motion_plan_request,
+                                                                    const std::string& ID)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
@@ -123,12 +124,12 @@ void MoveArmWarehouseLoggerReader::pushMotionPlanRequestToWarehouse(const arm_na
 }
 
 void MoveArmWarehouseLoggerReader::pushJointTrajectoryToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
-                                                            const std::string& trajectory_source,
-                                                            const ros::Duration& production_time,
-                                                            const trajectory_msgs::JointTrajectory& trajectory,
-                                                            const std::string& trajectory_ID,
-                                                            const std::string& motion_plan_ID,
-                                                            const arm_navigation_msgs::ArmNavigationErrorCodes& error_code)
+                                                                  const std::string& trajectory_source,
+                                                                  const ros::Duration& production_time,
+                                                                  const trajectory_msgs::JointTrajectory& trajectory,
+                                                                  const std::string& trajectory_ID,
+                                                                  const std::string& motion_plan_ID,
+                                                                  const arm_navigation_msgs::ArmNavigationErrorCodes& error_code)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
@@ -142,8 +143,8 @@ void MoveArmWarehouseLoggerReader::pushJointTrajectoryToWarehouse(const arm_navi
 }
 
 void MoveArmWarehouseLoggerReader::pushOutcomeToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
-                                                    const std::string& pipeline_stage,
-                                                    const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes)
+                                                          const std::string& pipeline_stage,
+                                                          const arm_navigation_msgs::ArmNavigationErrorCodes& error_codes)
 {
   mongo_ros::Metadata metadata = initializeMetadataWithHostname();
   addPlanningSceneTimeToMetadata(planning_scene, metadata);
@@ -213,15 +214,15 @@ bool MoveArmWarehouseLoggerReader::getPlanningScene(const std::string& hostname,
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedOutcomes(const std::string& hostname,
-                                                   const ros::Time& time,
-                                                   std::vector<std::string>& pipeline_names,
-                                                   std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes)
+                                                         const ros::Time& time,
+                                                         std::vector<std::string>& pipeline_names,
+                                                         std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   std::vector<ErrorCodesWithMetadata> meta_error_codes = outcome_collection_->pullAllResults(q, false);
   
   if(meta_error_codes.size() == 0) {
-    ROS_WARN_STREAM("No outcomes associated with time " << time);
+    ROS_DEBUG_STREAM("No outcomes associated with time " << time);
     return false;
   } 
   error_codes.resize(meta_error_codes.size());
@@ -234,8 +235,8 @@ bool MoveArmWarehouseLoggerReader::getAssociatedOutcomes(const std::string& host
 }
                                                  
 bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequestsStageNames(const std::string& hostname, 
-                                                                       const ros::Time& time,
-                                                                       std::vector<std::string>& stage_names)
+                                                                             const ros::Time& time,
+                                                                             std::vector<std::string>& stage_names)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   std::vector<MotionPlanRequestWithMetadata> motion_plan_requests = motion_plan_request_collection_->pullAllResults(q, true, "creation_time", true);
@@ -252,10 +253,10 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequestsStageNames(con
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequest(const std::string& hostname, 
-                                                            const ros::Time& time,
-                                                            const std::string& stage_name,
-                                                            arm_navigation_msgs::MotionPlanRequest& request,
-                                                            std::string& ID_out)
+                                                                  const ros::Time& time,
+                                                                  const std::string& stage_name,
+                                                                  arm_navigation_msgs::MotionPlanRequest& request,
+                                                                  std::string& ID_out)
 {  
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   q.append("stage_name", stage_name);
@@ -274,10 +275,10 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequest(const std::str
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequests(const std::string& hostname,
-                                     const ros::Time& time,
-                                     std::vector<std::string>& stage_names,
-                                     std::vector<std::string>& IDs,
-                                     std::vector<arm_navigation_msgs::MotionPlanRequest>& requests)
+                                                                   const ros::Time& time,
+                                                                   std::vector<std::string>& stage_names,
+                                                                   std::vector<std::string>& IDs,
+                                                                   std::vector<arm_navigation_msgs::MotionPlanRequest>& requests)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);
   std::vector<MotionPlanRequestWithMetadata> motion_plan_requests = motion_plan_request_collection_->pullAllResults(q, false);
@@ -293,8 +294,8 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequests(const std::st
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectorySources(const std::string& hostname, 
-                                                                 const ros::Time& time,
-                                                                 std::vector<std::string>& trajectory_sources)
+                                                                       const ros::Time& time,
+                                                                       std::vector<std::string>& trajectory_sources)
 {
   trajectory_sources.clear();
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
@@ -312,11 +313,11 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectorySources(const std
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectory(const std::string& hostname, 
-                                                          const ros::Time& time,
-                                                          const std::string& trajectory_source,
-                                                          const unsigned int& trajectory_index,
-                                                          ros::Duration& duration, 
-                                                          trajectory_msgs::JointTrajectory& joint_trajectory)
+                                                                const ros::Time& time,
+                                                                const std::string& trajectory_source,
+                                                                const unsigned int& trajectory_index,
+                                                                ros::Duration& duration, 
+                                                                trajectory_msgs::JointTrajectory& joint_trajectory)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
   q.append("trajectory_source", trajectory_source);
@@ -336,13 +337,13 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectory(const std::strin
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectories(const std::string& hostname,
-                                    const ros::Time& time,
-                                    const std::string& motion_plan_ID,
-                                    std::vector<trajectory_msgs::JointTrajectory>& trajectories,
-                                    std::vector<std::string>& sources,
-                                    std::vector<std::string>& IDs,
-                                    std::vector<ros::Duration>& durations,
-                                    std::vector<int32_t>& error_codes)
+                                                                  const ros::Time& time,
+                                                                  const std::string& motion_plan_ID,
+                                                                  std::vector<trajectory_msgs::JointTrajectory>& trajectories,
+                                                                  std::vector<std::string>& sources,
+                                                                  std::vector<std::string>& IDs,
+                                                                  std::vector<ros::Duration>& durations,
+                                                                  std::vector<int32_t>& error_codes)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);
   q.append("trajectory_motion_plan_ID", motion_plan_ID);
@@ -380,9 +381,9 @@ bool MoveArmWarehouseLoggerReader::getAssociatedPausedStates(const std::string& 
 }
 
 bool MoveArmWarehouseLoggerReader::getAssociatedPausedState(const std::string& hostname, 
-                                                      const ros::Time& planning_time, 
-                                                      const ros::Time& paused_time,
-                                                      head_monitor_msgs::HeadMonitorFeedback& paused_state)
+                                                            const ros::Time& planning_time, 
+                                                            const ros::Time& paused_time,
+                                                            head_monitor_msgs::HeadMonitorFeedback& paused_state)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneTime(planning_time);  
   q.append(PAUSED_COLLISION_MAP_TIME_NAME, paused_time.toSec());
@@ -399,3 +400,53 @@ bool MoveArmWarehouseLoggerReader::getAssociatedPausedState(const std::string& h
   paused_state = *paused_states[0];
   return true;
 }
+
+bool MoveArmWarehouseLoggerReader::hasPlanningScene(const std::string& hostname,
+                                                    const ros::Time& time)
+{
+  mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
+  q.append("hostname", hostname);
+  
+  std::vector<PlanningSceneWithMetadata> planning_scenes = planning_scene_collection_->pullAllResults(q, true);
+  if(planning_scenes.size() > 0) return true;
+  return false;
+}
+
+bool MoveArmWarehouseLoggerReader::removePlanningSceneAndAssociatedDataFromWarehouse(const std::string& hostname,
+                                                                                     const ros::Time& time)
+{
+  mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
+  q.append("hostname", hostname);
+
+  unsigned int rem = planning_scene_collection_->removeMessages(q);
+  ROS_INFO_STREAM("Removed " << rem << " planning scenes");
+
+  bool has_planning_scene = (rem > 0);
+  
+  rem = motion_plan_request_collection_->removeMessages(q);
+  ROS_INFO_STREAM("Removed " << rem << " motion plan requests");
+
+  rem = trajectory_collection_->removeMessages(q);
+  ROS_INFO_STREAM("Removed " << rem << " trajectories");
+
+  rem = outcome_collection_->removeMessages(q);
+  ROS_INFO_STREAM("Removed " << rem << " outcomes");
+
+  rem = paused_state_collection_->removeMessages(q);
+  ROS_INFO_STREAM("Removed " << rem << " paused states");
+
+  return has_planning_scene;
+}
+
+// void MoveArmWarehouseLoggerReader::deleteMotionPlanRequestFromWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
+//                                                                         const std::string& stage_name,
+//                                                                         const std::string& ID)
+// {
+//   mongo_ros::Query q = makeQueryForPlanningSceneTime(time);  
+//   q.append("stage_name", stage_name);
+//   q.append("motion_plan_ID", ID);
+//   std::vector<MotionPlanRequestWithMetadata> motion_plan_requests = motion_plan_request_collection_->pullAllResults(q, false);
+//   coll.removeMessages(q);
+//   std::vector<MotionPlanRequestWithMetadata> motion_plan_requests_after = motion_plan_request_collection_->pullAllResults(q, false);
+//   ROS_INFO_STREAM("Removing " << motion_plan_requests.size()-motion_plan_requests_after.size() << " motion plan requests");
+// }

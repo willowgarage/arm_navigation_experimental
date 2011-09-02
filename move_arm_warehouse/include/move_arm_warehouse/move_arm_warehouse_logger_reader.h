@@ -142,6 +142,12 @@ public:
                                 const ros::Time& paused_time,
                                 head_monitor_msgs::HeadMonitorFeedback& paused_state);
 
+  bool hasPlanningScene(const std::string& hostname,
+                        const ros::Time& time);
+
+  bool removePlanningSceneAndAssociatedDataFromWarehouse(const std::string& hostname,
+                                                         const ros::Time& time);
+
 protected:
 
   mongo_ros::Metadata initializeMetadataWithHostname();

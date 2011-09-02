@@ -1248,6 +1248,8 @@ protected:
   unsigned int max_planning_scene_ID_;
   unsigned int max_collision_object_ID_;
 
+  bool warehouse_data_loaded_once_;
+
   trajectory_msgs::JointTrajectory logged_trajectory_;
   ros::Time logged_trajectory_start_time_;
 
@@ -1758,7 +1760,7 @@ public:
   /// @brief Pushes the given planning scene to the warehouse with ros::WallTime::now() as its timestamp.
   /// @param data the planning scene to push to the warehouse.
   //////
-  void savePlanningScene(PlanningSceneData& data);
+  void savePlanningScene(PlanningSceneData& data, bool copy = false);
 
   /////
   /// @brief sends all stored mesh and sphere markers for collisions and links to rviz.

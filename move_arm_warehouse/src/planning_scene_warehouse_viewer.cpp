@@ -36,6 +36,7 @@
 #include <qt4/QtGui/qdialogbuttonbox.h>
 #include <qt4/QtGui/qdialog.h>
 #include <qt4/QtGui/qheaderview.h>
+#include <qt4/QtGui/qimage.h>
 #include <ros/package.h>
 
 using namespace collision_space;
@@ -60,8 +61,11 @@ WarehouseViewer::WarehouseViewer(QWidget* parent, planning_scene_utils::Planning
   selected_trajectory_ID_ = "";
   warehouse_data_loaded_once_ = false;
   table_load_thread_ = NULL;
+  planning_scene_initialized_ = false;
 
   qRegisterMetaType < std::string > ( "std::string" );
+
+  popupLoadPlanningScenes();
 
 }
 
@@ -103,6 +107,7 @@ void WarehouseViewer::initQtWidgets()
   new_planning_scene_action_ = file_menu_->addAction("New Planning Scene ...");
   load_planning_scene_action_ = file_menu_->addAction("Load Planning Scene ...");
   save_planning_scene_action_ = file_menu_->addAction("Save Planning Scene ...");
+  copy_planning_scene_action_ = file_menu_->addAction("Save Copy of Planning Scene ...");
   new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
   refresh_action_ = planning_scene_menu_->addAction("Refresh Planning Scene...");
   view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
@@ -199,11 +204,12 @@ void WarehouseViewer::initQtWidgets()
 
   connect(deleteMPRButton, SIGNAL(clicked()), this, SLOT(deleteSelectedMotionPlan()));
   connect(deleteTrajectoryButton, SIGNAL(clicked()), this, SLOT(deleteSelectedTrajectory()));
-  connect(new_planning_scene_action_, SIGNAL(triggered()), this, SLOT(createNewPlanningScenePressed()));
+  connect(new_planning_scene_action_, SIGNAL(triggered()), this, SLOT(createNewPlanningSceneSlot()));
   connect(new_motion_plan_action_, SIGNAL(triggered()), this, SLOT(createNewMotionPlanPressed()));
   connect(new_object_action_, SIGNAL(triggered()), this, SLOT(createNewObjectPressed()));
   connect(new_mesh_action_, SIGNAL(triggered()), this, SLOT(createNewMeshPressed()));
-  connect(save_planning_scene_action_, SIGNAL(triggered()), this, SLOT(saveCurrentPlanningScene()));
+  connect(save_planning_scene_action_, SIGNAL(triggered()), this, SLOT(savePlanningSceneSlot()));
+  connect(copy_planning_scene_action_, SIGNAL(triggered()), this, SLOT(copyPlanningSceneSlot()));
   connect(load_planning_scene_action_, SIGNAL(triggered()), this, SLOT(popupLoadPlanningScenes()));
   connect(quit_action_, SIGNAL(triggered()), this, SLOT(quit()));
   connect(play_button_, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
@@ -237,7 +243,8 @@ void WarehouseViewer::initQtWidgets()
   createNewMeshDialog();
   createRequestDialog();
 
-  setCurrentPlanningScene(createNewPlanningScene(), false, false);
+  //setCurrentPlanningScene(createNewPlanningScene(), false, false);
+
 }
 
 void WarehouseViewer::createOutcomeDialog()
@@ -781,17 +788,27 @@ void WarehouseViewer::setupPlanningSceneDialog()
   layout->addWidget(planning_scene_table_);
   load_scene_progress_ = new QProgressBar(load_planning_scene_dialog_);
   layout->addWidget(load_scene_progress_);
+
+  new_planning_scene_button_ = new QPushButton(load_planning_scene_dialog_);
+  new_planning_scene_button_->setText("New...");
+  new_planning_scene_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+
   load_planning_scene_button_ = new QPushButton(load_planning_scene_dialog_);
   load_planning_scene_button_->setText("Load...");
   load_planning_scene_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+
+  remove_planning_scene_button_ = new QPushButton(load_planning_scene_dialog_);
+  remove_planning_scene_button_->setText("Remove...");
+  remove_planning_scene_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
 
   refresh_planning_scene_button_ = new QPushButton(load_planning_scene_dialog_);
   refresh_planning_scene_button_->setText("Refresh...");
   refresh_planning_scene_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
 
+  connect(new_planning_scene_button_, SIGNAL(clicked()), this, SLOT(newButtonPressed()));
   connect(load_planning_scene_button_, SIGNAL(clicked()), this, SLOT(loadButtonPressed()));
   connect(refresh_planning_scene_button_, SIGNAL(clicked()), this, SLOT(refreshButtonPressed()));
-
+  connect(remove_planning_scene_button_, SIGNAL(clicked()), this, SLOT(removePlanningSceneButtonPressed()));
 
   load_motion_plan_requests_box_ = new QCheckBox(load_planning_scene_dialog_);
   load_motion_plan_requests_box_->setChecked(true);
@@ -802,8 +819,10 @@ void WarehouseViewer::setupPlanningSceneDialog()
 
   layout->addWidget(load_motion_plan_requests_box_);
   layout->addWidget(load_trajectories_box_);
+  layout->addWidget(new_planning_scene_button_);
   layout->addWidget(load_planning_scene_button_);
   layout->addWidget(refresh_planning_scene_button_);
+  layout->addWidget(remove_planning_scene_button_);
 
   load_planning_scene_dialog_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
   load_planning_scene_dialog_->setLayout(layout);
@@ -826,7 +845,7 @@ void WarehouseViewer::quit()
   }
   else if (msgBox.clickedButton() == saveQuitButton)
   {
-    saveCurrentPlanningScene();
+    saveCurrentPlanningScene(false);
     quit_threads_ = true;
     delete this;
     return;
@@ -1130,44 +1149,55 @@ void WarehouseViewer::createNewMotionPlanRequest(std::string group_name, std::st
   }
 }
 
-void WarehouseViewer::saveCurrentPlanningScene()
+void WarehouseViewer::savePlanningSceneSlot() {
+  saveCurrentPlanningScene(false);
+}
+
+void WarehouseViewer::copyPlanningSceneSlot() {
+  saveCurrentPlanningScene(true);
+}
+
+void WarehouseViewer::saveCurrentPlanningScene(bool copy)
 {
-  savePlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  ROS_INFO_STREAM("Current planning scene id is " << current_planning_scene_ID_);
+  savePlanningScene((*planning_scene_map_)[current_planning_scene_ID_], copy);
   QMessageBox msgBox(QMessageBox::Information, "Saved", "Saved planning scene successfully.");
   msgBox.addButton(QMessageBox::Ok);
   msgBox.exec();
 }
 
-void WarehouseViewer::createNewPlanningScenePressed()
+void WarehouseViewer::createNewPlanningSceneSlot() {
+  createNewPlanningSceneConfirm();
+}
+
+bool WarehouseViewer::createNewPlanningSceneConfirm()
 {
-  QMessageBox msgBox(QMessageBox::Warning, "Create New Planning Scene", "Are you sure you want to create a new planning scene? Unsaved changes to the current planning scene will be lost.");
-  QPushButton *createButton= msgBox.addButton("Create New Without Saving Changes", QMessageBox::ActionRole);
-  QPushButton *saveCreateButton = msgBox.addButton("Save Changes Before Creating New", QMessageBox::ActionRole);
-  msgBox.addButton(QMessageBox::Cancel);
+  if(planning_scene_initialized_) {
+    QMessageBox msgBox(QMessageBox::Warning, "Create New Planning Scene", "Are you sure you want to create a new planning scene? Unsaved changes to the current planning scene will be lost.");
+    QPushButton *createButton= msgBox.addButton("Create New Without Saving Changes", QMessageBox::ActionRole);
+    QPushButton *saveCreateButton = msgBox.addButton("Save Changes Before Creating New", QMessageBox::ActionRole);
+    msgBox.addButton(QMessageBox::Cancel);
 
-  msgBox.exec();
-
-  if (msgBox.clickedButton() == saveCreateButton)
-  {
-    saveCurrentPlanningScene();
-    setCurrentPlanningScene(createNewPlanningScene(), true, true);
-    motion_plan_tree_->clear();
-    trajectory_tree_->clear();
-    ROS_INFO("Created a new planning scene: %s", current_planning_scene_ID_.c_str());
+    msgBox.exec();
+    if (msgBox.clickedButton() == saveCreateButton)
+    {
+      saveCurrentPlanningScene(false);
+      setCurrentPlanningScene(createNewPlanningScene(), true, true);
+      motion_plan_tree_->clear();
+      trajectory_tree_->clear();
+      ROS_INFO("Created a new planning scene: %s", current_planning_scene_ID_.c_str());
+    }
+    else if (msgBox.clickedButton() != createButton)
+    {
+      return false;
+    }
   }
-  else if (msgBox.clickedButton() == createButton)
-  {
-    setCurrentPlanningScene(createNewPlanningScene(), true, true);
-    motion_plan_tree_->clear();
-    trajectory_tree_->clear();
-    ROS_INFO("Created a new planning scene: %s", current_planning_scene_ID_.c_str());
-  }
-  else
-  {
-    return;
-  }
-
-
+  setCurrentPlanningScene(createNewPlanningScene(), true, true);
+  planning_scene_initialized_ = true;
+  motion_plan_tree_->clear();
+  trajectory_tree_->clear();
+  ROS_INFO("Created a new planning scene: %s", current_planning_scene_ID_.c_str());
+  return true;
 }
 
 void WarehouseViewer::updateState()
@@ -1185,11 +1215,11 @@ void WarehouseViewer::updateStateTriggered()
 
 void WarehouseViewer::popupLoadPlanningScenes()
 {
-  load_planning_scene_dialog_->show();
   if(!warehouse_data_loaded_once_)
   {
     refreshButtonPressed();
   }
+  load_planning_scene_dialog_->exec();
 }
 
 void WarehouseViewer::refreshButtonPressed()
@@ -1204,23 +1234,31 @@ void WarehouseViewer::refreshButtonPressed()
   table_load_thread_->start();
 }
 
+void WarehouseViewer::newButtonPressed() 
+{
+  if(createNewPlanningSceneConfirm()) {
+    load_planning_scene_dialog_->close();
+  }
+}
+
 void WarehouseViewer::loadButtonPressed()
 {
-
-  QMessageBox msgBox(QMessageBox::Information, "Load New Planning Scene", "Are you sure you want to load a new planning scene? Unsaved changes to the current planning scene will be lost.");
-  QPushButton *createButton= msgBox.addButton("Load New Without Saving Changes", QMessageBox::ActionRole);
-  QPushButton *saveCreateButton = msgBox.addButton("Save Changes Before Loading New", QMessageBox::ActionRole);
-  msgBox.addButton(QMessageBox::Cancel);
-
-  msgBox.exec();
-
-  if (msgBox.clickedButton() == saveCreateButton)
-  {
-    saveCurrentPlanningScene();
-  }
-  else if (msgBox.clickedButton() != createButton)
-  {
-    return;
+  if(planning_scene_initialized_) {
+    QMessageBox msgBox(QMessageBox::Information, "Load New Planning Scene", "Are you sure you want to load a new planning scene? Unsaved changes to the current planning scene will be lost.");
+    QPushButton *createButton= msgBox.addButton("Load New Without Saving Changes", QMessageBox::ActionRole);
+    QPushButton *saveCreateButton = msgBox.addButton("Save Changes Before Loading New", QMessageBox::ActionRole);
+    msgBox.addButton(QMessageBox::Cancel);
+    
+    msgBox.exec();
+    
+    if (msgBox.clickedButton() == saveCreateButton)
+    {
+      saveCurrentPlanningScene(false);
+    }
+    else if (msgBox.clickedButton() != createButton)
+    {
+      return;
+    }
   }
 
   QList<QTableWidgetItem*> items = planning_scene_table_->selectedItems();
@@ -1235,9 +1273,35 @@ void WarehouseViewer::loadButtonPressed()
     updateJointStates();
     createMotionPlanTable();
     data.getRobotState(robot_state_);
+    planning_scene_initialized_ = true;
+    load_planning_scene_dialog_->close();
+  }
+}
+
+void WarehouseViewer::removePlanningSceneButtonPressed()
+{
+  QMessageBox msgBox(QMessageBox::Information, "Remove Planning Scene", "This will permanently remove the indicated planning scene(s) and all associated data from the warehouse.");
+  msgBox.addButton(QMessageBox::Cancel);
+
+  QPushButton *deleteButton= msgBox.addButton("Remove", QMessageBox::ActionRole);
+
+  msgBox.exec();
+
+  if (msgBox.clickedButton() != deleteButton)
+  {
+    return;
   }
 
-  load_planning_scene_dialog_->close();
+  QList<QTableWidgetItem*> items = planning_scene_table_->selectedItems();
+  
+  for(int i = 0; i < items.size(); i++) {
+    QTableWidgetItem* item = items[i];
+    QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),1);
+    PlanningSceneData& data = (*planning_scene_map_)[nameItem->text().toStdString()];
+    move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(), data.getTimeStamp());
+    planning_scene_map_->erase(nameItem->text().toStdString());
+    planning_scene_table_->removeRow(item->row());
+  }
 }
 
 void WarehouseViewer::replanButtonPressed()
