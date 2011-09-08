@@ -1155,12 +1155,17 @@ void WarehouseViewer::savePlanningSceneSlot() {
 
 void WarehouseViewer::copyPlanningSceneSlot() {
   saveCurrentPlanningScene(true);
+  trajectory_tree_->clear();
+  updateJointStates();
+  createMotionPlanTable();
+  (*planning_scene_map_)[current_planning_scene_ID_].getRobotState(robot_state_);
 }
 
 void WarehouseViewer::saveCurrentPlanningScene(bool copy)
 {
   ROS_INFO_STREAM("Current planning scene id is " << current_planning_scene_ID_);
-  savePlanningScene((*planning_scene_map_)[current_planning_scene_ID_], copy);
+  ROS_INFO_STREAM("Hostname is " << (*planning_scene_map_)[current_planning_scene_ID_].getHostName());
+ savePlanningScene((*planning_scene_map_)[current_planning_scene_ID_], copy);
   QMessageBox msgBox(QMessageBox::Information, "Saved", "Saved planning scene successfully.");
   msgBox.addButton(QMessageBox::Ok);
   msgBox.exec();

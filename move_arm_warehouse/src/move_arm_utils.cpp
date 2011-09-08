@@ -848,7 +848,6 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
 
   if((*planning_scene_map_).find(ID) != (*planning_scene_map_).end())
   {
-
     /////
     /// Load planning scene
     /////
@@ -975,6 +974,8 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string ID, bool loadReque
     }
 
     sendPlanningScene(scene);
+  } else {
+    ROS_INFO_STREAM("Bad place");
   }
 
   interactive_marker_server_->applyChanges();
@@ -1639,14 +1640,14 @@ std::string PlanningSceneEditor::createNewPlanningScene()
 
   sendPlanningScene(data);
 
+  char hostname[256];
+  gethostname(hostname, 256);
+  data.setHostName(std::string(hostname));
+
   (*planning_scene_map_)[data.getName()] = data;
   lock_scene_.unlock();
 
   updateJointStates();
-
-  char hostname[256];
-  gethostname(hostname, 256);
-  data.setHostName(std::string(hostname));
 
   return data.getName();
 }
@@ -1685,24 +1686,33 @@ void PlanningSceneEditor::loadAllWarehouseData()
 
 void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
 {
-  if(!copy && move_arm_warehouse_logger_reader_->hasPlanningScene(data.getHostName(),
-                                                                  data.getTimeStamp())) {
-    move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(),
-                                                                                         data.getTimeStamp());
-  }
-
   PlanningScene* actual_planning_scene;
 
   std::string name_to_push = "";
 
+  warehouse_data_loaded_once_ = false;
+
   // Have to do this in case robot state was corrupted by sim time.
   if(!copy) {
     data.setTimeStamp(data.getTimeStamp());
+    //bool has;
+    //has = move_arm_warehouse_logger_reader_->hasPlanningScene(data.getHostName(),
+    //data.getTimeStamp());
+    //ROS_INFO_STREAM("Has is " << has);
+
+    ROS_INFO_STREAM("Name is " << data.getHostName() << " stamp is " << data.getTimeStamp());
+
+    if(1) {
+      move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(),
+                                                                                           data.getTimeStamp());
+    }
+
+
     actual_planning_scene = &(data.getPlanningScene());
+
     ROS_INFO("Saving Planning Scene %s", data.getName().c_str());
   } else {
     //force reload
-    warehouse_data_loaded_once_ = false;
     PlanningSceneData ndata = data;
     ndata.setName(generateNewPlanningSceneID());
     ndata.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));

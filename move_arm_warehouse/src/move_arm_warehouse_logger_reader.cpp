@@ -288,6 +288,7 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequests(const std::st
     stage_names.push_back(motion_plan_requests[i]->lookupString("stage_name"));
     IDs.push_back(motion_plan_requests[i]->lookupString("motion_plan_ID"));
     requests.push_back(*motion_plan_requests[i]);
+    ROS_INFO("Loading motion plan request %s from warehouse...", IDs[i].c_str());
   }
 
   return true;

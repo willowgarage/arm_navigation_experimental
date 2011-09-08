@@ -57,6 +57,10 @@ public:
 
   ~MoveArmWarehouseLoggerReader();
 
+  const std::string& getHostname() const {
+    return hostname_;
+  }
+
   ///
   /// LOGGING FUNCTIONS
   ///
