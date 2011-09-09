@@ -340,6 +340,7 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   void createAlterAllowedCollisionDialog();
   void createAttachObjectDialog(const std::string& name);
   bool createNewPlanningSceneConfirm();  
+  void createRobotStateEditor();
 
   void saveCurrentPlanningScene(bool copy);
 
@@ -487,6 +488,10 @@ public slots:
   void addTouchLinkClicked();
   void removeTouchLinkClicked();
 
+  void editRobotStatePressed();
+  void editJointBoxChanged(const QString& joint);
+  void jointStateSliderChanged(int nv);
+
 protected:
   
   bool planning_scene_initialized_;
@@ -517,6 +522,14 @@ protected:
   QComboBox* attach_link_box_;
   QListWidget* possible_touch_links_;
   QListWidget* added_touch_links_;
+
+  QAction* edit_robot_state_action_;
+  QDialog* edit_robot_state_dialog_;
+  QComboBox* edit_joint_box_;
+  QSlider* joint_state_slider_;
+  QLineEdit* lower_bound_edit_window_;
+  QLineEdit* upper_bound_edit_window_;
+  QLineEdit* current_value_window_;
 
   QDialog* load_planning_scene_dialog_;
   QDialog* new_object_dialog_;

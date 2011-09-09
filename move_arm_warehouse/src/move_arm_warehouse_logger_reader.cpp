@@ -204,7 +204,7 @@ bool MoveArmWarehouseLoggerReader::getPlanningScene(const std::string& hostname,
     ROS_WARN_STREAM("No scenes with that time");
     return false;
   } else if(planning_scenes.size() > 1) {
-    ROS_WARN_STREAM("More than one stream with that time " << planning_scenes.size());
+    ROS_WARN_STREAM("More than one scene with that time " << planning_scenes.size());
   }
 
   PlanningSceneWithMetadata& scene = planning_scenes[0];

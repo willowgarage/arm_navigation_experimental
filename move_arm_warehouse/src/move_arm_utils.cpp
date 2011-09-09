@@ -1665,6 +1665,8 @@ void PlanningSceneEditor::loadAllWarehouseData()
   vector<ros::Time> planningSceneTimes;
   getAllPlanningSceneTimes(planningSceneTimes);
 
+  ROS_INFO_STREAM("Starting load");
+
   // For each planning scene
   for(size_t i = 0; i < planningSceneTimes.size(); i++)
   {

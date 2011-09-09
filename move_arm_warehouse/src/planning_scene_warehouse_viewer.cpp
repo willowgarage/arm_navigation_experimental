@@ -113,6 +113,7 @@ void WarehouseViewer::initQtWidgets()
   view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
   alter_link_padding_action_ = planning_scene_menu_->addAction("Alter Link Padding ...");
   alter_allowed_collision_action_ = planning_scene_menu_->addAction("Alter Allowed Collision Operations ...");
+  edit_robot_state_action_ = planning_scene_menu_->addAction("Edit Robot State ...");
   quit_action_ = file_menu_->addAction("Quit");
 
   collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
@@ -225,6 +226,7 @@ void WarehouseViewer::initQtWidgets()
   connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
   connect(alter_link_padding_action_, SIGNAL(triggered()), this, SLOT(alterLinkPaddingPressed()));
   connect(alter_allowed_collision_action_, SIGNAL(triggered()), this, SLOT(alterAllowedCollisionPressed()));
+  connect(edit_robot_state_action_, SIGNAL(triggered()), this, SLOT(editRobotStatePressed()));
   connect(this, SIGNAL(plannerFailure(int)),this, SLOT(popupPlannerFailure(int)));
   connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
   connect(this, SIGNAL(attachObjectSignal(const std::string&)), this, SLOT(attachObject(const std::string&)));
@@ -1634,6 +1636,7 @@ void WarehouseViewer::createPlanningSceneTable()
   warehouse_data_loaded_once_ = true;
   assert(planning_scene_map_ != NULL);
   planning_scene_table_->clear();
+  ROS_INFO_STREAM("Running clear");
   int count = 0;
   for(map<string, PlanningSceneData>::iterator it = planning_scene_map_->begin(); it != planning_scene_map_->end(); it++)
   {
@@ -2259,6 +2262,136 @@ void WarehouseViewer::addTouchLinkClicked()
 void WarehouseViewer::removeTouchLinkClicked()
 {
   qDeleteAll(added_touch_links_->selectedItems());
+}
+
+void WarehouseViewer::editRobotStatePressed()
+{
+  createRobotStateEditor();
+  edit_robot_state_dialog_->exec();
+  delete edit_robot_state_dialog_;
+}
+
+void WarehouseViewer::createRobotStateEditor() {
+
+  edit_robot_state_dialog_ = new QDialog(this);
+  edit_robot_state_dialog_->setWindowTitle("Edit robot state");
+  
+  QVBoxLayout* layout = new QVBoxLayout(edit_robot_state_dialog_);
+
+  QGroupBox* panel = new QGroupBox(edit_robot_state_dialog_);
+  panel->setTitle("Joint state to edit");
+
+  QVBoxLayout* panel_layout = new QVBoxLayout(panel);
+  edit_joint_box_= new QComboBox(edit_robot_state_dialog_);
+
+  const std::vector<planning_models::KinematicModel::JointModel*>& joint_models = cm_->getKinematicModel()->getJointModels();
+  for(unsigned int i = 0; i < joint_models.size(); i++) {
+    if(joint_models[i]->getComputatationOrderMapIndex().size() == 1) {
+      edit_joint_box_->addItem(joint_models[i]->getName().c_str());
+    }
+  }
+
+  QGridLayout* slider_layout = new QGridLayout(panel);
+
+  QLabel* lower_label = new QLabel(edit_robot_state_dialog_);
+  lower_label->setText("Lower bound");
+
+  QLabel* upper_label = new QLabel(edit_robot_state_dialog_);
+  upper_label->setText("Upper bound");
+
+  QLabel* current_label = new QLabel(edit_robot_state_dialog_);
+  current_label->setText("Current value");
+
+  lower_bound_edit_window_ = new QLineEdit(edit_robot_state_dialog_);
+  upper_bound_edit_window_ = new QLineEdit(edit_robot_state_dialog_);
+  current_value_window_ = new QLineEdit(edit_robot_state_dialog_);
+
+  lower_bound_edit_window_->setReadOnly(true);
+  upper_bound_edit_window_->setReadOnly(true);
+  lower_bound_edit_window_->setMinimumWidth(125);
+  lower_bound_edit_window_->setMaximumWidth(125);
+  upper_bound_edit_window_->setMinimumWidth(125);
+  upper_bound_edit_window_->setMaximumWidth(125);
+
+  joint_state_slider_ = new QSlider(Qt::Horizontal, edit_robot_state_dialog_);
+  joint_state_slider_->setMinimum(0);
+  joint_state_slider_->setMaximum(0);
+
+  slider_layout->addWidget(lower_label, 0, 0);
+  slider_layout->addWidget(current_label, 0, 1);
+  slider_layout->addWidget(upper_label, 0, 2);
+
+  slider_layout->addWidget(lower_bound_edit_window_, 1, 0);
+  slider_layout->addWidget(joint_state_slider_, 1, 1);
+  slider_layout->addWidget(upper_bound_edit_window_, 1, 2);
+  
+  slider_layout->addWidget(current_value_window_, 2, 1);
+
+  slider_layout->setColumnStretch(1, 100);
+
+  panel_layout->addWidget(edit_joint_box_);
+  panel_layout->addLayout(slider_layout);
+
+  panel->setLayout(panel_layout);
+  layout->addWidget(panel);
+
+  edit_robot_state_dialog_->setLayout(layout);
+
+  //getting reasonable stuff in there
+  editJointBoxChanged(edit_joint_box_->currentText());
+
+  connect(edit_joint_box_, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(editJointBoxChanged(const QString&)));
+  connect(joint_state_slider_, SIGNAL(valueChanged(int)), this, SLOT(jointStateSliderChanged(int)));
+}
+
+void WarehouseViewer::editJointBoxChanged(const QString& joint) 
+{
+
+  std::map<std::string, double> current_joint_state_values;
+  robot_state_->getKinematicStateValues(current_joint_state_values);
+
+  double current_value = current_joint_state_values[joint.toStdString()];
+
+  const planning_models::KinematicModel::JointModel* jm = cm_->getKinematicModel()->getJointModel(joint.toStdString());
+
+  std::pair<double, double> bounds; 
+  jm->getVariableBounds(jm->getName(), bounds);
+
+  std::stringstream lb;
+  lb << bounds.first;
+  std::stringstream ub;
+  ub << bounds.second;
+
+  std::stringstream cur;
+  cur << current_value;
+
+  lower_bound_edit_window_->setText(lb.str().c_str());
+  upper_bound_edit_window_->setText(ub.str().c_str());
+  current_value_window_->setText(cur.str().c_str());
+
+  joint_state_slider_->setMinimum(bounds.first*1000);
+  joint_state_slider_->setMaximum(bounds.second*1000);
+  joint_state_slider_->setValue(current_value*1000);
+}
+
+void WarehouseViewer::jointStateSliderChanged(int nv) 
+{
+  std::map<std::string, double> current_joint_state_values;
+  robot_state_->getKinematicStateValues(current_joint_state_values);
+
+  current_joint_state_values[edit_joint_box_->currentText().toStdString()] = nv/1000.0;
+
+  std::stringstream cur;
+  cur << nv/1000.0;
+  current_value_window_->setText(cur.str().c_str());
+
+  robot_state_->setKinematicState(current_joint_state_values);
+
+  planning_environment::convertKinematicStateToRobotState(*robot_state_,
+                                                          ros::Time::now(),
+                                                          cm_->getWorldFrameId(),
+                                                          (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene().robot_state);
+  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
 }
  
 void WarehouseViewer::popupPlannerFailure(int value)
