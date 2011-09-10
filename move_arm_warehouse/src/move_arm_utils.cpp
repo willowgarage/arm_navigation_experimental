@@ -289,7 +289,8 @@ void MotionPlanRequestData::updateGoalState()
     jointValues[constraint.joint_name] = constraint.position;
   }
 
-  goal_state_->setKinematicState(jointValues);
+  goal_state_->setKinematicState(jointValues);  
+
 }
 
 // Kinematic state must be converted to robot state message
@@ -476,7 +477,6 @@ PlanningSceneEditor::PlanningSceneEditor()
   non_collision_aware_ik_services_ = NULL;
   selectable_objects_ = NULL;
   ik_controllers_ = NULL;
-  state_monitor_ = NULL;
   max_collision_object_ID_ = 0;
   max_planning_scene_ID_ = 0;
   max_request_ID_ = 0;
@@ -730,50 +730,83 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   /////
   if(params.use_robot_data_)
   {
-    state_monitor_ = new KinematicModelStateMonitor(cm_, &transform_listenter_);
-    state_monitor_->addOnStateUpdateCallback(boost::bind(&PlanningSceneEditor::jointStateCallback, this, _1));
+    ROS_INFO_STREAM("Subscribing");
+    joint_state_subscriber_ = nh_.subscribe("joint_states", 25, &PlanningSceneEditor::jointStateCallback, this);
   }
 }
 
 void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
 {
-  lockScene();
-  if(robot_state_ != NULL)
+  if(robot_state_ == NULL) return;
+
+  std::map<std::string, double> joint_state_map;
+  std::map<std::string, double> joint_velocity_map;
+  
+  //message already been validated in kmsm
+  for(unsigned int i = 0; i < joint_state->position.size(); ++i)
   {
-    state_monitor_->setStateValuesFromCurrentValues(*robot_state_);
-
-    // Records trajectory if currently executing.
-    if(monitor_status_ == Executing)
-    {
-      std::map<std::string, double> joint_state_map;
-      std::map<std::string, double> joint_velocity_map;
-
-      //message already been validated in kmsm
-      for(unsigned int i = 0; i < joint_state->position.size(); ++i)
-      {
-        joint_state_map[joint_state->name[i]] = joint_state->position[i];
-        joint_velocity_map[joint_state->name[i]] = joint_state->velocity[i];
-      }
-      trajectory_msgs::JointTrajectoryPoint point;
-      point.positions.resize(logged_trajectory_.joint_names.size());
-      point.velocities.resize(logged_trajectory_.joint_names.size());
-      for(unsigned int i = 0; i < logged_trajectory_.joint_names.size(); i++)
-      {
-        point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
-        point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
-      }
-      point.time_from_start = ros::Time(ros::WallTime::now().toSec()) - logged_trajectory_start_time_;
-      logged_trajectory_.points.push_back(point);
-    }
+    joint_state_map[joint_state->name[i]] = joint_state->position[i];
+    joint_velocity_map[joint_state->name[i]] = joint_state->velocity[i];
   }
+  //getting base transform
+  lockScene();
+  std::vector<planning_models::KinematicState::JointState*>& joint_state_vector = robot_state_->getJointStateVector();  
+  for(std::vector<planning_models::KinematicState::JointState*>::iterator it = joint_state_vector.begin();
+      it != joint_state_vector.end();
+      it++) {
+    bool tfSets = false;
+    //see if we need to update any transforms
+    std::string parent_frame_id = (*it)->getParentFrameId();
+    std::string child_frame_id = (*it)->getChildFrameId();
+    if(!parent_frame_id.empty() && !child_frame_id.empty()) {
+      std::string err;
+      ros::Time tm;
+      tf::StampedTransform transf;
+      bool ok = false;
+      if (transform_listener_.getLatestCommonTime(parent_frame_id, child_frame_id, tm, &err) == tf::NO_ERROR) {
+        ok = true;
+        try
+        {
+          transform_listener_.lookupTransform(parent_frame_id, child_frame_id, tm, transf);
+        }
+        catch(tf::TransformException& ex)
+        {
+          ROS_ERROR("Unable to lookup transform from %s to %s.  Exception: %s", parent_frame_id.c_str(), child_frame_id.c_str(), ex.what());
+          ok = false;
+        }
+      } else {
+        ROS_DEBUG("Unable to lookup transform from %s to %s: no common time.", parent_frame_id.c_str(), child_frame_id.c_str());
+        ok = false;
+      }
+      if(ok) {
+        tfSets = (*it)->setJointStateValues(transf);
+      }
+    }
+    (*it)->setJointStateValues(joint_state_map);
+  }
+  robot_state_->updateKinematicLinks();
+  robot_state_->getKinematicStateValues(robot_state_joint_values_);
   unlockScene();
+  // Records trajectory if currently executing.
+  if(monitor_status_ == Executing)
+  {
+    trajectory_msgs::JointTrajectoryPoint point;
+    point.positions.resize(logged_trajectory_.joint_names.size());
+    point.velocities.resize(logged_trajectory_.joint_names.size());
+    for(unsigned int i = 0; i < logged_trajectory_.joint_names.size(); i++)
+    {
+      point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
+      point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
+    }
+    point.time_from_start = ros::Time(ros::WallTime::now().toSec()) - logged_trajectory_start_time_;
+    logged_trajectory_.points.push_back(point);
+  }
 }
 
 PlanningSceneEditor::~PlanningSceneEditor()
 {
   SAFE_DELETE(robot_state_);
   SAFE_DELETE(interactive_marker_server_);
-  SAFE_DELETE(state_monitor_);
   SAFE_DELETE(selectable_objects_);
   SAFE_DELETE(planning_scene_map_);
   SAFE_DELETE(trajectory_map_);
@@ -1223,6 +1256,7 @@ void PlanningSceneEditor::getMotionPlanningMarkers(visualization_msgs::MarkerArr
           cm_->getRobotMarkersGivenState(*(data.getGoalState()), arr, col,
                                          it->first + "_Goal", ros::Duration(MARKER_REFRESH_TIME),
                                          &lnames, 1.0, false);
+
           // Bodies held by robot
           cm_->getAttachedCollisionObjectMarkers(*(data.getGoalState()), arr, it->first + "_Goal",
                                                  col, ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
@@ -1612,7 +1646,11 @@ std::string PlanningSceneEditor::createNewPlanningScene()
   {
     robot_state_ = new KinematicState(cm_->getKinematicModel());
   } else {
-    robot_state_->setKinematicStateToDefault();
+    if(robot_state_joint_values_.empty()) {
+      robot_state_->setKinematicStateToDefault();
+    } else {
+      robot_state_->setKinematicState(robot_state_joint_values_);
+    }
   }
 
   PlanningSceneData data;
@@ -1831,15 +1869,17 @@ void PlanningSceneEditor::deleteKinematicStates()
 
 bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
 {
-  lock_scene_.lock();
+  lockScene();
   last_collision_set_error_code_.val = 0;
 
   SetPlanningSceneDiff::Request planning_scene_req;
   SetPlanningSceneDiff::Response planning_scene_res;
 
   planning_scene_req.planning_scene_diff = data.getPlanningScene();
-  //convertKinematicStateToRobotState(*robot_state_, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
-  //                                  planning_scene_req.planning_scene_diff.robot_state);
+  // if(params_.use_robot_data_) {
+  //   arm_navigation_msgs::RobotState emp;
+  //   planning_scene_req.planning_scene_diff.robot_state = emp;
+  // }
 
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm; 
   if(planning_scene_req.planning_scene_diff.allowed_collision_matrix.link_names.empty()) {
@@ -1920,6 +1960,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res))
   {
     ROS_WARN("Can't get planning scene");
+    unlockScene();
     return false;
   }
 
@@ -1936,7 +1977,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   if(getRobotState() == NULL)
   {
     ROS_ERROR("Something wrong with planning scene");
-    lock_scene_.unlock();
+    unlockScene();
     return false;
   }
 
@@ -1962,7 +2003,6 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
     }
   }
 
-  robot_state_joint_values_.clear();
   robot_state_->getKinematicStateValues(robot_state_joint_values_);
 
   for(map<string, MotionPlanRequestData>::iterator it = motion_plan_map_->begin(); it != motion_plan_map_->end(); it++)
@@ -1983,7 +2023,7 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
 
   //setShowCollisions(false);
 
-  lock_scene_.unlock();
+  unlockScene();
   return true;
 }
 

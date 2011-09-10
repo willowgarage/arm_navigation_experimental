@@ -206,7 +206,7 @@ public:
 
     use_robot_data_ = new QCheckBox(groupBox);
     use_robot_data_->setText("Use Robot Data");
-    use_robot_data_->setChecked(false);
+    use_robot_data_->setChecked(params_.use_robot_data_);
     layout->addRow("Use Data From Simulated/Real Robot?", use_robot_data_);
     use_robot_data_->setToolTip("When this is checked, a robot state publisher will not be created. Instead, TF data\n\
                                   will be taken from the robot's actual state.");

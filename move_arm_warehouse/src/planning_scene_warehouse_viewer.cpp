@@ -2500,6 +2500,7 @@ int main(int argc, char** argv)
   param<string>("switch_controllers_service", params.switch_controllers_service_, SWITCH_CONTROLLERS_SERVICE);
   param<string>("gazebo_robot_model", params.gazebo_model_name_, GAZEBO_ROBOT_MODEL);
   param<string>("robot_description_param", params.robot_description_param_, ROBOT_DESCRIPTION_PARAM);
+  param<bool>("use_robot_data", params.use_robot_data_, false);
   params.sync_robot_state_with_gazebo_ = false;
 
   ParameterDialog* dialog = new ParameterDialog(params);

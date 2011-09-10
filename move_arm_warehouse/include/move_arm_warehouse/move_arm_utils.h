@@ -1214,6 +1214,7 @@ protected:
   ros::Publisher joint_state_publisher_;
   ros::Publisher vis_marker_array_publisher_;
   ros::Publisher vis_marker_publisher_;
+  ros::Subscriber joint_state_subscriber_;
   ros::ServiceClient collision_proximity_planner_client_;
   ros::ServiceClient distance_aware_service_client_;
   ros::ServiceClient distance_state_validity_service_client_;
@@ -1239,8 +1240,7 @@ protected:
   std::map<std::string, double> robot_state_joint_values_;
   std::vector<ros::Time> last_creation_time_query_;
   tf::TransformBroadcaster transform_broadcaster_;
-  tf::TransformListener transform_listenter_;
-  planning_environment::KinematicModelStateMonitor* state_monitor_;
+  tf::TransformListener transform_listener_;
   std::map<std::string, actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>*>
   arm_controller_map_;
   unsigned int max_trajectory_ID_;

@@ -41,11 +41,6 @@
 	     <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
 	   </node>
 
-	  <node name="mongo" type="wrapper.py" pkg="mongodb">
-	    <param name="overwrite" value="false"/>
-	    <param name="database_path" value="/tmp/db"/>
-	  </node>
-
 	  <param name="warehouse_port" value="27019"/>
 
 	  <node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
