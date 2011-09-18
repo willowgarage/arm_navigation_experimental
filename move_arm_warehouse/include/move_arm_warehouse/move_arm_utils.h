@@ -82,6 +82,35 @@ typedef map<std::string, interactive_markers::MenuHandler> MenuHandlerMap;
 ////
 namespace planning_scene_utils
 {
+
+inline static std::string getPlanningSceneNameFromId(const unsigned int id) {
+  std::stringstream ss;
+  ss << "Planning Scene " << id;
+  return ss.str();
+}
+
+inline static unsigned int getPlanningSceneIdFromName(const std::string& name) {
+  std::stringstream ss(name);
+  std::string temp;
+  ss >> temp;
+  ss >> temp;
+  unsigned int ret;
+  ss >> ret;
+  return ret;
+}
+
+inline static std::string getMotionPlanRequestNameFromId(const unsigned int id) {
+  std::stringstream ss;
+  ss << "MPR " << id;
+  return ss.str();
+}
+
+inline static std::string getTrajectoryNameFromId(const unsigned int id) {
+  std::stringstream ss;
+  ss << "Trajectory " << id;
+  return ss.str();
+}
+
 ////
 /// Enum PositionType
 /// @brief Specifies either the start or end position
@@ -116,20 +145,20 @@ class PlanningSceneData
 {
 protected:
   std::string name_;
+  unsigned int id_;
   std::string host_;
   ros::Time timestamp_;
   arm_navigation_msgs::PlanningScene planning_scene_;
   std::vector<std::string> pipeline_stages_;
   std::vector<arm_navigation_msgs::ArmNavigationErrorCodes> error_codes_;
-  std::vector<std::string> trajectories_;
-  std::vector<std::string> motion_plan_requests_;
+  std::set<unsigned int> motion_plan_requests_;
 
 public:
   PlanningSceneData();
-  PlanningSceneData(std::string name, ros::Time timestamp, arm_navigation_msgs::PlanningScene scene);
+  PlanningSceneData(unsigned int id, const ros::Time& timestamp, const arm_navigation_msgs::PlanningScene& scene);
 
   /// @brief Returns the host of the network machine that the planning scene was recorded on.
-  inline std::string getHostName()
+  inline std::string getHostName() const
   {
     return host_;
   }
@@ -140,14 +169,19 @@ public:
     host_ = host;
   }
 
-  /// @brief Returns the unique ID of the planning scene
-  inline std::string getName()
+  /// @brief Returns the unique Id of the planning scene
+  inline std::string getName() const
   {
     return name_;
   }
 
+  inline unsigned int getId() const 
+  {
+    return id_;
+  }
+
   /// @brief Returns the time that the planning scene was recorded (ignores sim time)
-  inline ros::Time getTimeStamp()
+  inline const ros::Time& getTimeStamp() const
   {
     return timestamp_;
   }
@@ -158,21 +192,20 @@ public:
     return planning_scene_;
   }
 
-  /// @brief Sets the unique ID of the planning scene
-  inline void setName(std::string name)
-  {
-    name_ = name;
-  }
-
   /// @brief Sets the time that the planning scene was recorded
-  inline void setTimeStamp(ros::Time time)
+  inline void setTimeStamp(const ros::Time& time)
   {
     timestamp_ = time;
     planning_scene_.robot_state.joint_state.header.stamp = time;
   }
 
+  inline void setId(unsigned int id) {
+    id_ = id;
+    name_ = getPlanningSceneNameFromId(id);
+  }
+
   /// @brief Sets the underlying planning scene message.
-  inline void setPlanningScene(arm_navigation_msgs::PlanningScene& scene)
+  inline void setPlanningScene(const arm_navigation_msgs::PlanningScene& scene)
   {
     planning_scene_ = scene;
     timestamp_ = scene.robot_state.joint_state.header.stamp;
@@ -204,14 +237,8 @@ public:
     error_codes_ = error_codes;
   }
 
-  /// @brief Returns a vector of trajectory IDs of the trajectories stored in the planning scene.
-  inline std::vector<std::string>& getTrajectories()
-  {
-    return trajectories_;
-  }
-
-  /// @brief Returns a vector of Motion Plan IDs of the motion plan requests stored in the planning scene.
-  inline std::vector<std::string>& getRequests()
+  /// @brief Returns a vector of Motion Plan Ids of the motion plan requests stored in the planning scene.
+  inline std::set<unsigned int>& getRequests()
   {
     return motion_plan_requests_;
   }
@@ -220,6 +247,24 @@ public:
   /// the robot state message inside the underlying planning scene message.
   void getRobotState(planning_models::KinematicState* state);
 
+  bool hasMotionPlanRequestId(unsigned int id) const {
+    return(motion_plan_requests_.find(id) != motion_plan_requests_.end());
+  }
+  
+  void addMotionPlanRequestId(unsigned int id) {
+    motion_plan_requests_.insert(id);
+  }
+
+  void removeMotionPlanRequestId(unsigned int id) {
+    motion_plan_requests_.erase(id);
+  }
+
+  unsigned int getNextMotionPlanRequestId() const {
+    if(motion_plan_requests_.empty()) {
+      return 0;
+    }
+    return (*motion_plan_requests_.rbegin())+1;
+  }
 };
 
 ////
@@ -230,9 +275,10 @@ public:
 class MotionPlanRequestData
 {
 protected:
-  std::string ID_;
+  std::string name_;
+  unsigned int id_;
   std::string source_;
-  std::string planning_scene_name_;
+  unsigned int planning_scene_id_;
   std::string end_effector_link_;
   std::string group_name_;
   arm_navigation_msgs::MotionPlanRequest motion_plan_request_;
@@ -249,13 +295,14 @@ protected:
   bool are_joint_controls_visible_;
   std_msgs::ColorRGBA start_color_;
   std_msgs::ColorRGBA goal_color_;
-  std::vector<std::string> trajectories_;
+  std::set<unsigned int> trajectories_;
   planning_models::KinematicState* start_state_;
   planning_models::KinematicState* goal_state_;
   btTransform last_good_start_pose_;
   btTransform last_good_goal_pose_;
   visualization_msgs::MarkerArray collision_markers_;
   RenderType render_type_;
+  unsigned int next_trajectory_id_;
 
 public:
   MotionPlanRequestData()
@@ -264,9 +311,9 @@ public:
     goal_state_ = NULL;
   }
 
-  MotionPlanRequestData(planning_models::KinematicState* robot_state);
-  MotionPlanRequestData(std::string ID, std::string source, arm_navigation_msgs::MotionPlanRequest request,
-                        planning_models::KinematicState* robot_state);
+  MotionPlanRequestData(const planning_models::KinematicState* robot_state);
+  MotionPlanRequestData(const unsigned int& id, const std::string& source, const arm_navigation_msgs::MotionPlanRequest& request,
+                        const planning_models::KinematicState* robot_state);
 
   /// @brief If the color of the motion plan request changes, this counter is incremented until it reaches
   /// a value specified by the planning scene editor. This is done to allow the display markers time to disappear
@@ -301,7 +348,7 @@ public:
   bool isJointNameInGoal(std::string joint);
 
   /// @brief Gets what mesh to display in RVIZ.
-  inline RenderType getRenderType()
+  inline RenderType getRenderType() const
   {
     return render_type_;
   }
@@ -313,7 +360,7 @@ public:
   }
 
   /// @brief returns whether the interactive joint control markers are visible.
-  inline bool areJointControlsVisible()
+  inline bool areJointControlsVisible() const
   {
     return are_joint_controls_visible_;
   }
@@ -324,7 +371,7 @@ public:
   void setJointControlsVisible(bool visible, PlanningSceneEditor* editor);
 
   /// @brief Returns true if the joint values or the color of the motion plan request has changed.
-  inline bool hasStateChanged()
+  inline bool hasStateChanged() const
   {
     return has_state_changed_;
   }
@@ -342,7 +389,7 @@ public:
   }
 
   /// @brief Return whether or not the small red spheres corresponding to collision points are being published.
-  inline bool areCollisionsVisible()
+  inline bool areCollisionsVisible() const
   {
     return are_collisions_visible_;
   }
@@ -354,7 +401,7 @@ public:
   }
 
   /// @brief Convenience shorthand for setCollisionsVisible(true)
-  inline void showCollisions()
+  inline void showCollisions() 
   {
     setCollisionsVisible(true);
   }
@@ -366,13 +413,13 @@ public:
   }
 
   /// @brief Returns the last starting pose that had a good IK solution
-  inline btTransform getLastGoodStartPose()
+  inline btTransform getLastGoodStartPose() const
   {
     return last_good_start_pose_;
   }
 
   /// @brief Returns the last goal pose that had a good IK solution
-  inline btTransform getLastGoodGoalPose()
+  inline btTransform getLastGoodGoalPose() const
   {
     return last_good_goal_pose_;
   }
@@ -420,7 +467,7 @@ public:
   }
 
   /// @brief Returns true if an IK solution was found for this request, and false otherwise.
-  inline bool hasGoodIKSolution(const PositionType& type)
+  inline bool hasGoodIKSolution(const PositionType& type) const
   {
     if(type == StartPosition) {
       return has_good_start_ik_solution_;
@@ -453,50 +500,55 @@ public:
 
   /// @brief Returns the name of the planning group associated
   /// with the motion plan request (usually, right or left arm)
-  inline std::string getGroupName()
-  {
+  inline std::string getGroupName() const
+  { 
     return group_name_;
   }
 
   /// @brief Returns the name of the link that IK is performed for.
-  inline std::string getEndEffectorLink()
+  inline std::string getEndEffectorLink() const
   {
     return end_effector_link_;
   }
 
   /// @brief Sets the name of the planning group associated with the
   /// motion plan request (usually, right or left arm)
-  inline void setGroupName(std::string name)
+  inline void setGroupName(const std::string& name)
   {
     group_name_ = name;
   }
 
   /// @brief Sets the name of the link that IK is performed for.
-  inline void setEndEffectorLink(std::string name)
+  inline void setEndEffectorLink(const std::string& name)
   {
     end_effector_link_ = name;
   }
 
-  /// @brief Returns the unique ID of the motion plan request
-  inline std::string getID()
+  /// @brief Returns the unique Id of the motion plan request
+  inline const std::string& getName() const
   {
-    return ID_;
+    return name_;
+  }
+  
+  unsigned int getId() const {
+    return id_;
   }
 
-  /// @brief Sets the unique ID of the motion plan request.
-  inline void setID(std::string ID)
+  /// @brief Sets the unique Id of the motion plan request.
+  inline void setId(const unsigned int id)
   {
-    ID_ = ID;
+    id_ = id;
+    name_ = getMotionPlanRequestNameFromId(id_);
   }
 
   /// @brief Returns true if the motion plan request's colors have changed, and false otherwise.
-  inline bool shouldRefreshColors()
+  inline bool shouldRefreshColors() const 
   {
     return should_refresh_colors_;
   }
 
   /// @brief Returns true if the refresh counter has been exhausted, and false otherwise.
-  inline bool hasRefreshedColors()
+  inline bool hasRefreshedColors() const
   {
     return has_refreshed_colors_;
   }
@@ -523,14 +575,14 @@ public:
 
   /// @brief Returns true if the starting kinematic state of the robot is being published as a set
   /// of markers or false otherwise
-  inline bool isStartVisible()
+  inline bool isStartVisible() const
   {
     return is_start_visible_;
   }
 
   /// @brief Returns true if the goal kinematic state of the robot is being published as a set of markers
   /// or false otherwise
-  inline bool isEndVisible()
+  inline bool isEndVisible() const
   {
     return is_goal_visible_;
   }
@@ -586,13 +638,13 @@ public:
   }
 
   /// @brief Returns the color of the markers of the start position.
-  inline std_msgs::ColorRGBA getStartColor()
+  inline const std_msgs::ColorRGBA& getStartColor() const
   {
     return start_color_;
   }
 
   /// @brief Returns the color of the markers of the goal position.
-  inline std_msgs::ColorRGBA getGoalColor()
+  inline const std_msgs::ColorRGBA& getGoalColor() const
   {
     return goal_color_;
   }
@@ -625,26 +677,26 @@ public:
 
   /// @brief If true, then a 6DOF control and joint controls will be visible
   /// for the start position of the robot. If false, these controls will not be shown.
-  inline bool isStartEditable()
+  inline bool isStartEditable() const
   {
     return is_start_editable_;
   }
 
   /// @brief If true, then a 6DOF control and joint controls will be visible
   /// for the goal position of the robot. If false, these controls will not be shown.
-  inline bool isGoalEditable()
+  inline bool isGoalEditable() const
   {
     return is_goal_editable_;
   }
 
   /// @brief Set the pipeline stage associated with this motion plan request
-  inline void setSource(std::string source)
+  inline void setSource(const std::string& source)
   {
     source_ = source;
   }
 
   /// @brief Returns the pipeline stage associated with this motion plan request.
-  inline std::string getSource()
+  inline const std::string& getSource() const
   {
     return source_;
   }
@@ -656,7 +708,7 @@ public:
   }
 
   /// @brief Sets the underlying motion plan request message.
-  inline void setMotionPlanRequest(arm_navigation_msgs::MotionPlanRequest& request)
+  inline void setMotionPlanRequest(const arm_navigation_msgs::MotionPlanRequest& request)
   {
     motion_plan_request_ = request;
     updateStartState();
@@ -664,22 +716,43 @@ public:
 
   }
 
-  /// @brief Sets the planning scene ID that this motion plan request is associated with.
-  inline void setPlanningSceneName(std::string name)
+  /// @brief Sets the planning scene Id that this motion plan request is associated with.
+  inline void setPlanningSceneId(const unsigned int id)
   {
-    planning_scene_name_ = name;
+    planning_scene_id_ = id;
+  }
+  inline unsigned int getPlanningSceneId() const
+  {
+    return planning_scene_id_;
   }
 
-  /// @brief Returns the unique planning scene ID that this motion plan request is associated with.
-  inline std::string getPlanningSceneName()
+  /// @brief Returns the unique planning scene Id that this motion plan request is associated with.
+  inline std::string getPlanningSceneName() const 
   {
-    return planning_scene_name_;
+    return getPlanningSceneNameFromId(planning_scene_id_);
   }
 
-  /// @brief Returns a vector of unique trajectory IDs associated with this motion plan request.
-  inline std::vector<std::string>& getTrajectories()
+  /// @brief Returns a vector of unique trajectory Ids associated with this motion plan request.
+  inline std::set<unsigned int>& getTrajectories()
   {
     return trajectories_;
+  }
+
+  unsigned int getNextTrajectoryId() const {
+    if(trajectories_.empty()) return 0;
+    return (*trajectories_.rbegin())+1;
+  }
+
+  void addTrajectoryId(unsigned int id) {
+    trajectories_.insert(id);
+  }
+  
+  void removeTrajectoryId(unsigned int id) {
+    trajectories_.erase(id);
+  }
+
+  bool hasTrajectoryId(unsigned int id) const {
+    return (trajectories_.find(id) != trajectories_.end());
   }
 
   /// @brief Fills the member marker array with small red spheres associated with collision points.
@@ -704,11 +777,12 @@ public:
   };
 
 protected:
-  std::string ID_;
+  std::string name_;
+  unsigned int id_;
   std::string source_;
   std::string group_name_;
-  std::string planning_scene_name_;
-  std::string motion_plan_request_ID_;
+  unsigned int planning_scene_id_;
+  unsigned int motion_plan_request_Id_;
   trajectory_msgs::JointTrajectory trajectory_;
   bool is_visible_;
   MarkerType marker_type_;
@@ -734,8 +808,8 @@ public:
   arm_navigation_msgs::ArmNavigationErrorCodes trajectory_error_code_;
 
   TrajectoryData();
-  TrajectoryData(std::string ID, std::string source, std::string group_name,
-                 trajectory_msgs::JointTrajectory trajectory);
+  TrajectoryData(const unsigned int& id, const std::string& source, const std::string& group_name,
+                 const trajectory_msgs::JointTrajectory& trajectory);
 
   /// @brief Sets the current state of the trajectory to the current trajectory point + amount.
   /// Allows for negative values. Does not overshoot the trajectory's end or start.
@@ -745,8 +819,8 @@ public:
   void updateCurrentState();
 
   /// @brief Returns true if the current state has been recently changed, and false otherwise.
-  inline bool hasStateChanged()
-  {
+  inline bool hasStateChanged() const
+  { 
     return state_changed_;
   }
 
@@ -763,7 +837,7 @@ public:
   }
 
   /// @brief Returns true if the collision sphers are being published, and false otherwise.
-  inline bool areCollisionsVisible()
+  inline bool areCollisionsVisible() const
   {
     return collisions_visible_;
   }
@@ -787,19 +861,19 @@ public:
   }
 
   /// @brief Returns the number of discrete points in the trajectory.
-  inline size_t getTrajectorySize()
+  inline size_t getTrajectorySize() const
   {
     return trajectory_.points.size();
   }
 
   /// @brief Returns true if the trajectory's color has changed, and false otherwise.
-  inline bool shouldRefreshColors()
+  inline bool shouldRefreshColors() const
   {
     return should_refresh_colors_;
   }
 
   /// @brief Returns ture if the refresh counter has been exhausted, and false otherwise.
-  inline bool hasRefreshedColors()
+  inline bool hasRefreshedColors() const
   {
     return has_refreshed_colors_;
   }
@@ -825,7 +899,7 @@ public:
   }
 
   /// @brief Gets what mesh to display in RVIZ.
-  inline RenderType getRenderType()
+  inline RenderType getRenderType() const
   {
     return render_type_;
   }
@@ -866,16 +940,24 @@ public:
     state_changed_ = true;
   }
 
-  /// @brief Sets the unique ID corresponding to the motion plan request associated with this trajectory.
-  inline void setMotionPlanRequestID(std::string ID)
+  /// @brief Sets the unique Id corresponding to the motion plan request associated with this trajectory.
+  inline void setMotionPlanRequestId(const unsigned int& Id)
   {
-    motion_plan_request_ID_ = ID;
+    motion_plan_request_Id_ = Id;
   }
 
-  /// @brief See setMotionPlanRequestID
-  inline std::string getMotionPlanRequestID()
+  /// @brief See setMotionPlanRequestId
+  inline const unsigned int& getMotionPlanRequestId() const
   {
-    return motion_plan_request_ID_;
+    return motion_plan_request_Id_;
+  }
+
+  void setPlanningSceneId(const unsigned int id) {
+    planning_scene_id_ = id;
+  }
+
+  unsigned int getPlanningScendId() const {
+    return planning_scene_id_;
   }
 
   /// @brief Sets the current joint trajectory point displayed in Rviz.
@@ -886,25 +968,25 @@ public:
   }
 
   /// @brief see setCurrentPoint
-  inline unsigned int getCurrentPoint()
+  inline unsigned int getCurrentPoint() const
   {
     return current_trajectory_point_;
   }
 
   /// @brief Returns the trajectory point where an error occurred.
-  inline unsigned int getBadPoint()
+  inline unsigned int getBadPoint() const
   {
     return trajectory_bad_point_;
   }
 
   /// @brief Sets the planning group name of the trajectory (usually right arm or left arm)
-  inline void setGroupname(std::string group_name)
+  inline void setGroupname(const std::string& group_name)
   {
     group_name_ = group_name;
   }
 
   /// @brief Returns true if the current state is automatically marching through trajectory points, and false ow.
-  inline bool isPlaying()
+  inline bool isPlaying() const
   {
     return is_playing_;
   }
@@ -928,7 +1010,7 @@ public:
   }
 
   /// @brief Returns true if the current state is being shown in rviz, and false otherwise.
-  inline bool isVisible()
+  inline bool isVisible() const
   {
     return is_visible_;
   }
@@ -964,25 +1046,25 @@ public:
 
   /// @brief For planners, returns the time it took to plan the trajectory, for filters, the time it took to
   /// filter it, and for robot monitors, the time it took to execute the trajectory.
-  inline ros::Duration getDuration()
+  inline const ros::Duration& getDuration() const
   {
     return duration_;
   }
 
   /// @brief See getDuration
-  inline void setDuration(ros::Duration duration)
+  inline void setDuration(const ros::Duration& duration)
   {
     duration_ = duration;
   }
 
   /// @brief Returns the color of the markers representing the current state being published in Rviz.
-  inline std_msgs::ColorRGBA getColor()
+  inline const std_msgs::ColorRGBA& getColor() const
   {
     return color_;
   }
 
   /// @brief See getColor
-  inline void setColor(std_msgs::ColorRGBA color)
+  inline void setColor(const std_msgs::ColorRGBA& color)
   {
     color_ = color;
   }
@@ -1000,31 +1082,36 @@ public:
   }
 
   /// @brief See getSource
-  inline void setSource(std::string source)
+  inline void setSource(const std::string& source)
   {
     source_ = source;
   }
 
   /// @brief see getTrajectory
-  inline void setTrajectory(trajectory_msgs::JointTrajectory& trajectory)
+  inline void setTrajectory(const trajectory_msgs::JointTrajectory& trajectory)
   {
     trajectory_ = trajectory;
   }
 
-  /// @brief Returns the unique ID of the trajectory
-  inline std::string getID()
+  /// @brief Returns the unique Id of the trajectory
+  inline unsigned int getId() const
   {
-    return ID_;
+    return id_;
   }
 
-  /// @brief Sets the unique ID of the trajectory
-  inline void setID(std::string ID)
+  /// @brief Sets the unique Id of the trajectory
+  inline void setId(const unsigned int& id)
   {
-    ID_ = ID;
+    id_ = id;
+    name_ = getTrajectoryNameFromId(id_);
+  }
+
+  const std::string& getName() const {
+    return name_;
   }
 
   /// @brief Gets the planning group associated with the trajectory (usually right arm or left arm)
-  inline std::string getGroupName()
+  inline const std::string& getGroupName() const
   {
     return group_name_;
   }
@@ -1041,18 +1128,6 @@ public:
     group_name_ = name;
   }
 
-  /// @brief Sets the unique ID of the planning scene that this trajectory occurred in.
-  inline void setPlanningSceneName(std::string name)
-  {
-    planning_scene_name_ = name;
-  }
-
-  /// @brief See setPlanningSceneName
-  inline std::string getPlanningSceneName()
-  {
-    return planning_scene_name_;
-  }
-
   /// @brief Checks the current state for collisions, and fills the collision marker array with red spheres
   /// for each collision point.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
@@ -1060,8 +1135,8 @@ public:
 };
 
 ////
-/// Struct PlanningSceneParameters
-/// @brief contains several parameters (mostly service call definitions)
+/// Struct brief
+/// @PlanningSceneParameters contains several parameters (mostly service call definitions)
 /// used in the planning scene editor. These are populated by a launch file.
 ////
 struct PlanningSceneParameters
@@ -1117,14 +1192,14 @@ protected:
   /////
   /// Enum MonitorStatus
   /// @brief PlanningSceneEditor monitors robot state while
-  /// "use_robot_data_" is true. When in Idle mode, the monitor
+  /// "use_robot_data_" is true. When in idle mode, the monitor
   /// is not recording robot state into a trajectory. In Executing
   /// mode, the monitor records to a trajectory. In Done mode, the
   /// final trajectory is saved to the trajectory map.
   /////
   enum MonitorStatus
     {
-      Idle, Executing, Done
+      idle, Executing, Done
     };
 
   /////
@@ -1163,7 +1238,7 @@ protected:
     visualization_msgs::InteractiveMarker control_marker_;
     std_msgs::ColorRGBA color_;
 
-    std::string ID_;
+    std::string id_;
   };
 
   /////
@@ -1173,7 +1248,7 @@ protected:
   /////
   struct IKController
   {
-    std::string motion_plan_ID_;
+    unsigned int motion_plan_id_;
     visualization_msgs::InteractiveMarker start_controller_;
     visualization_msgs::InteractiveMarker end_controller_;
   };
@@ -1241,14 +1316,12 @@ protected:
   std::vector<ros::Time> last_creation_time_query_;
   tf::TransformBroadcaster transform_broadcaster_;
   tf::TransformListener transform_listener_;
-  std::map<std::string, actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>*>
-  arm_controller_map_;
-  unsigned int max_trajectory_ID_;
-  unsigned int max_request_ID_;
-  unsigned int max_planning_scene_ID_;
-  unsigned int max_collision_object_ID_;
+  std::map<std::string, actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>*> arm_controller_map_;
+  unsigned int max_trajectory_id_;
+  unsigned int max_collision_object_id_;
 
   bool warehouse_data_loaded_once_;
+  bool use_interpolated_planner_;
 
   trajectory_msgs::JointTrajectory logged_trajectory_;
   ros::Time logged_trajectory_start_time_;
@@ -1271,9 +1344,9 @@ protected:
   std::map<std::string, SelectableObject>* selectable_objects_;
   std::map<std::string, IKController>* ik_controllers_;
 
-  std::string current_planning_scene_ID_;
-  std::string selected_motion_plan_ID_;
-  std::string selected_trajectory_ID_;
+  std::string current_planning_scene_name_;
+  std::string selected_motion_plan_name_;
+  std::string selected_trajectory_name_;
   std::string logged_group_name_;
   std::string logged_motion_plan_request_;
   std::map<string, MenuEntryMap> menu_entry_maps_;
@@ -1281,6 +1354,7 @@ protected:
 
   std::map<string, ros::ServiceClient*>* collision_aware_ik_services_;
   std::map<string, ros::ServiceClient*>* non_collision_aware_ik_services_;
+  std::map<string, ros::ServiceClient*>* interpolated_ik_services_;
   std::map<string, arm_navigation_msgs::ArmNavigationErrorCodes> error_map_;
   std::vector<StateRegistry> states_;
 
@@ -1329,13 +1403,13 @@ public:
   }
 
   /// @brief Map containing all planning scenes, indexed by (unique) name.
-  std::map<std::string, PlanningSceneData>* planning_scene_map_;
+  std::map<std::string, PlanningSceneData> planning_scene_map_;
 
-  /// @brief Map containing all trajectories, indexed by (unique) name.
-  std::map<std::string, TrajectoryData>* trajectory_map_;
+  /// @brief Map containing all trajectories, indexed by (unique) motion plan id name, and then by unique trajectory name.
+  std::map<std::string, std::map<std::string, TrajectoryData> > trajectory_map_;
 
   /// @brief Map containing all motion plan requests, indexed by (unique) name.
-  std::map<std::string, MotionPlanRequestData>* motion_plan_map_;
+  std::map<std::string, MotionPlanRequestData> motion_plan_map_;
 
   /// @brief Map of joint controls and whether they have been clicked by the user.
   std::map<std::string, bool> joint_clicked_map_;
@@ -1351,20 +1425,21 @@ public:
   /// @brief Calls the trajectory filter service on the given trajectory.
   /// @param requestData the request associated with the trajectory.
   /// @param trajectory the trajectory to filter.
-  /// @param filter_ID the ID of the filtered trajectory to be returned.
+  /// @param filter_id the id of the filtered trajectory to be returned.
   /// @return true on filtering success, or false on failure.
   /////
-  bool filterTrajectory(MotionPlanRequestData& requestData, TrajectoryData& trajectory, std::string& filter_ID);
+  bool filterTrajectory(MotionPlanRequestData& requestData, TrajectoryData& trajectory, unsigned int& filter_id);
 
   //////
   /// @brief loads motion plan requests associated with the given timestamp from the warehouse.
   /// @param time the time stamp associated with the planning scene.
-  /// @param IDs vector of strings to be filled with the IDs of motion plan requests associated with that time.
+  /// @param ids vector of strings to be filled with the ids of motion plan requests associated with that time.
   /// @param stages vector of strings to be filled with the planning stages associated with each motion plan request.
   /// @param requests vector of MotionPlanRequests to be filled with the requests associated with the given time.
   /// @return true if query to warehouse was successful, false otherwise.
   /////
-  bool getAllAssociatedMotionPlanRequests(const ros::Time& time, std::vector<std::string>& IDs,
+  bool getAllAssociatedMotionPlanRequests(const ros::Time& time, 
+                                          std::vector<unsigned int>& ids,
                                           std::vector<std::string>& stages,
                                           std::vector<arm_navigation_msgs::MotionPlanRequest>& requests);
 
@@ -1389,7 +1464,8 @@ public:
   /// @param planning_scene_times a vector of time stamps corresponding to each planning scene
   /// @return true if the query to the warehouse was successful, false otherwise.
   /////
-  bool getAllPlanningSceneTimes(std::vector<ros::Time>& planning_scene_times);
+  bool getAllPlanningSceneTimes(std::vector<ros::Time>& planning_scene_times,
+                                vector<unsigned int>& planning_scene_ids);
 
 
   //////
@@ -1397,13 +1473,13 @@ public:
   /// @param time the time stamp of the planning scene to load from.
   /// @param stage the planning stage associated with the request
   /// @param mpr the MotionPlanRequest message to fill with data from the warehouse.
-  /// @param ID the ID of the request to be generated.
-  /// @param planning_scene_ID the planning scene ID associated with the given time.
+  /// @param id the id of the request to be generated.
+  /// @param planning_scene_id the planning scene id associated with the given time.
   /// @return true if the query to the warehouse was successful, false otherwise
   //////
   bool getMotionPlanRequest(const ros::Time& time, const std::string& stage,
-                            arm_navigation_msgs::MotionPlanRequest& mpr, std::string& ID,
-                            std::string& planning_scene_ID);
+                            arm_navigation_msgs::MotionPlanRequest& mpr, std::string& id,
+                            std::string& planning_scene_id);
 
   /////
   /// @brief loads a specific paused state from the warehouse
@@ -1420,7 +1496,7 @@ public:
   /// @param time the time stamp of the planning scene
   /// @param pipeline_stages vector of strings to be filled with all request stages (planner, filter, etc.)
   /// @param error_codes vector of arm navigation error codes to be filled by the warehouse.
-  /// @param error_map associates each error code with a trajectory ID. To be filled by the warehouse.
+  /// @param error_map associates each error code with a trajectory id. To be filled by the warehouse.
   /// @return true if the query to the warehouse was successful, false otherwise.
   //////
   bool getPlanningSceneOutcomes(const ros::Time& time, std::vector<std::string>& pipeline_stages,
@@ -1431,10 +1507,11 @@ public:
   //////
   /// @brief loads a particular planning scene from the warehouse
   /// @param time the time stamp associated with the planning scene
-  /// @param ID the ID of the planning scene to be filled by the function.
+  /// @param id the id of the planning scene to be filled by the function.
   /// @return true if the query to the warehouse was successful, false otherwise.
   ///////
-  bool loadPlanningScene(const ros::Time& time, std::string& ID);
+  bool loadPlanningScene(const ros::Time& time, 
+                         const unsigned int id);
 
   //////
   /// @brief invokes the planner service to plan from the current robot state to the given kinematic state.
@@ -1442,29 +1519,29 @@ public:
   /// @param group_name the group to invoke the request for.
   /// @param end_effector_name the link that IK was performed on.
   /// @param constrain should the planner constrain pitch and roll of the end effector?
-  /// @param trajectoryID_Out the new planned trajectory ID to be filled by the function.
-  /// @param planning_scene_name the ID of the planning scene that this plan occurs in.
+  /// @param trajectoryid_Out the new planned trajectory id to be filled by the function.
+  /// @param planning_scene_name the id of the planning scene that this plan occurs in.
   /// @return true if the planner was successful, and false otherwise
   //////
-  bool planToKinematicState(planning_models::KinematicState& state, std::string group_name,
-                            std::string end_effector_name, bool constrain, std::string& trajectoryID_Out,
-                            std::string& planning_scene_name);
+  bool planToKinematicState(const planning_models::KinematicState& state, const std::string& group_name,
+                            const std::string& end_effector_name, const bool constrain, unsigned int& trajectoryid_Out,
+                            unsigned int& planning_scene_id);
 
   /////
   /// @brief invokes the planner to plan from the start position of the request to the goal position.
   /// @param data the motion plan request to plan for.
-  /// @param trajectoryID_Out the new planned trajectory ID to be filled by the function.
+  /// @param trajectoryid_Out the new planned trajectory id to be filled by the function.
   /// @return true if the planner was successful, false otherwise.
   //////
-  bool planToRequest(MotionPlanRequestData& data, std::string& trajectoryID_Out);
+  bool planToRequest(MotionPlanRequestData& data, unsigned int& trajectoryid_Out);
 
   /////
   /// @brief invokes the planner to plan from the start position of the request to the goal position.
-  /// @param requestID the motion plan request to plan for.
-  /// @param trajectoryID_Out the new planned trajectory ID to be filled by the function.
+  /// @param requestid the motion plan request to plan for.
+  /// @param trajectoryid_Out the new planned trajectory id to be filled by the function.
   /// @return true if the planner was successful, false otherwise.
   //////
-  bool planToRequest(std::string requestID, std::string& trajectoryID_Out);
+  bool planToRequest(const std::string& requestid, unsigned int& trajectoryid_Out);
 
   /////
   /// @brief non-blocking call resetting the given trajectory and setting it to play and be visible.
@@ -1521,7 +1598,7 @@ public:
 
   //////
   /// @brief creates an entirely new, empty planning scene.
-  /// @return the newly generated ID of the planning scene.
+  /// @return the newly generated id of the planning scene.
   //////
   std::string createNewPlanningScene();
 
@@ -1557,12 +1634,13 @@ public:
   /// @param scaleY the size of the object in the y direction in meters.
   /// @param scaleZ the size of the object in the z direction in meters.
   /// @param color the color of the collision object.
-  /// @return the unique ID of the collision object
+  /// @return the unique id of the collision object
   /////
-  std::string createCollisionObject(geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY,
+  std::string createCollisionObject(const std::string& name, geometry_msgs::Pose pose, GeneratedShape shape, float scaleX, float scaleY,
                                     float scaleZ, std_msgs::ColorRGBA color);
 
-  std::string createMeshObject(geometry_msgs::Pose pose,
+  std::string createMeshObject(const std::string& name, 
+                               geometry_msgs::Pose pose,
                                const std::string& filename,
                                std_msgs::ColorRGBA color);
   //////
@@ -1596,26 +1674,31 @@ public:
   /// @param group_name the group that all plans will be performed for (joints outside the group are ignored)
   /// @param end_effector_name the link that IK will be solved for.
   /// @param constrain should the request constrain the pitch and roll of the end effector?
-  /// @param planning_scene_name the ID of the planning scene that this request occurs in.
-  /// @param motionPlan_ID_Out the ID of the new motion plan request.
+  /// @param planning_scene_name the id of the planning scene that this request occurs in.
+  /// @param motionPlan_id_Out the id of the new motion plan request.
   /// @param fromRobotState should the request start from the robot's current state, ignoring start_state?
   /////
-  void createMotionPlanRequest(planning_models::KinematicState& start_state,
-                               planning_models::KinematicState& end_state, std::string group_name,
-                               std::string end_effector_name, bool constrain, std::string planning_scene_name,
-                               std::string& motionPlan_ID_Out, bool fromRobotState = false);
+  void createMotionPlanRequest(const planning_models::KinematicState& start_state,
+                               const planning_models::KinematicState& end_state, 
+                               const std::string& group_name,
+                               const std::string& end_effector_name, 
+                               const bool constrain, 
+                               const unsigned int& planning_scene_name,
+                               const bool fromRobotState, 
+                               unsigned int& motionPlan_id_Out);
 
 
   /////
   /// @brief fills the motion_plan_map with new motion plan requests initialized with warehouse data.
-  /// @param planning_scene_ID the ID of the planning scene these requests occur in.
-  /// @param IDs a vector containing all the motion plan request IDs
+  /// @param planning_scene_id the id of the planning scene these requests occur in.
+  /// @param ids a vector containing all the motion plan request ids
   /// @param stages a vector containing all the motion plan request stages.
   /// @param requests a vector containing all the motion plan request messages from the warehouse.
   //////
-  void initMotionPlanRequestData(std::string planning_scene_ID, std::vector<std::string>& IDs,
-                                 std::vector<std::string>& stages,
-                                 std::vector<arm_navigation_msgs::MotionPlanRequest>& requests);
+  void initMotionPlanRequestData(const unsigned int& planning_scene_id, 
+                                 const std::vector<unsigned int>& ids,
+                                 const std::vector<std::string>& stages,
+                                 const std::vector<arm_navigation_msgs::MotionPlanRequest>& requests);
 
 
   /////
@@ -1633,15 +1716,16 @@ public:
 
   /////
   /// @brief erases the given motion plan request and all its associated trajectories.
-  /// @param ID the ID of the motion plan request to delete
+  /// @param id the id of the motion plan request to delete
   /////
-  void deleteMotionPlanRequest(std::string ID);
+  void deleteMotionPlanRequest(const unsigned int& id,
+                               std::vector<unsigned int>& erased_trajectories);
 
   /////
   /// @brief erases the given trajectory from the trajectory map.
-  /// @param ID the ID of the trajectory to delete.
+  /// @param id the id of the trajectory to delete.
   /////
-  void deleteTrajectory(std::string ID);
+  void deleteTrajectory(unsigned int mpr_id, unsigned int traj_id);
 
 
   /////
@@ -1652,15 +1736,15 @@ public:
   /// @param path_constraint constraint filled by the function which maintains the pitch and roll of end effector.
   /////
   void determinePitchRollConstraintsGivenState(const planning_models::KinematicState& state,
-                                               std::string& end_effector_link,
+                                               const std::string& end_effector_link,
                                                arm_navigation_msgs::OrientationConstraint& goal_constraint,
                                                arm_navigation_msgs::OrientationConstraint& path_constraint);
 
   /////
   /// @brief if real robot data is being used, this can be used to send a trajectory to the robot for execution.
-  /// @param trajectory_ID the ID of the trajectory to execute.
+  /// @param trajectory_id the id of the trajectory to execute.
   /////
-  void executeTrajectory(std::string trajectory_ID);
+  void executeTrajectory(const std::string& mpr_name, const std::string& traj_name);
 
   /////
   /// @brief if real robot data is being used, this can be used to send a trajectory to the robot for execution.
@@ -1724,7 +1808,7 @@ public:
   /// @brief creates an interactive marker for rotation joint control.
   /// @param transform the position and orientation of the marker.
   /// @param axis the axis of rotation
-  /// @param name the ID of the marker
+  /// @param name the id of the marker
   /// @param desciption the text to be displayed above the marker
   /// @param scale the size of the marker's radius, in meters.
   /// @param angle the initial angle of the marker about its axis.
@@ -1736,7 +1820,7 @@ public:
   /// @brief creates an interactive marker for prismatic joint control.
   /// @param transform the position and orientation of the marker.
   /// @param axis the axis of translation of the prismatic joint.
-  /// @param name the ID of the marker.
+  /// @param name the id of the marker.
   /// @param description the text to display above the marker.
   /// @param scale the size of the marker in meters.
   /// @param value the initial translation of the prismatic joint along its axis.
@@ -1772,21 +1856,24 @@ public:
   /////
   void sendTransformsAndClock();
 
+  void makeSelectableAttachedObjectFromPlanningScene(const arm_navigation_msgs::PlanningScene& scene,
+                                                     arm_navigation_msgs::AttachedCollisionObject& att);
+
   //////
   /// @brief loads the given planning scene from the warehouse.
-  /// @param ID the ID of the planning scene to load.
+  /// @param id the id of the planning scene to load.
   /// @param loadRequests should the motion plan requests be loaded as well?
   /// @param loadTrajectories should the trajectories be loaded as well?
   //////
-  void setCurrentPlanningScene(std::string ID, bool loadRequests = true, bool loadTrajectories = true);
+  void setCurrentPlanningScene(std::string id, bool loadRequests = true, bool loadTrajectories = true);
 
   /////
   /// @brief either shows or hides the 6DOF interactive markers associated with the given request.
-  /// @param ID the ID of the motion plan request.
+  /// @param id the id of the motion plan request.
   /// @param type either the start or goal position of the request.
   /// @param visible should the 6DOF controller be shown or not?
   /////
-  void setIKControlsVisible(std::string ID, PositionType type, bool visible);
+  void setIKControlsVisible(std::string id, PositionType type, bool visible);
 
   /////
   /// @brief attempts to set the state of the given joint in the given motion plan request so that it matches the
@@ -1804,62 +1891,35 @@ public:
   /////
   void updateJointStates();
 
-  /////
-  /// @brief generates a unique trajectory ID.
-  /// @return the newly generated ID.
-  /////
-  inline std::string generateNewTrajectoryID()
-  {
-    std::stringstream stream;
-    stream << "Trajectory ";
-    max_trajectory_ID_++;
-    stream << max_trajectory_ID_;
-    return stream.str();
-  }
+  bool hasTrajectory(const std::string& mpr_name,
+                     const std::string& traj_name) const;
 
   /////
-  /// @brief generates a unique collision object ID.
-  /// @return the newly generated ID.
+  /// @brief generates a unique collision object id.
+  /// @return the newly generated id.
   /////
-  inline std::string generateNewCollisionObjectID()
+  inline std::string generateNewCollisionObjectId()
   {
     std::stringstream stream;
     stream << "collision_object_";
-    max_collision_object_ID_++;
-    stream << max_collision_object_ID_;
+    max_collision_object_id_++;
+    stream << max_collision_object_id_;
     return stream.str();
   }
 
   /////
-  /// @brief generates a unique motion plan ID.
-  /// @return the newly generated ID.
+  /// @brief generates a unique planning scene id.
+  /// @return the newly generated id.
   /////
-  inline std::string generateNewMotionPlanID()
+  inline unsigned int generateNewPlanningSceneId()
   {
-    std::stringstream stream;
-    stream << "MPR ";
-    max_request_ID_++;
-    stream << max_request_ID_;
-    return stream.str();
-  }
-
-  /////
-  /// @brief generates a unique planning scene ID.
-  /// @return the newly generated ID.
-  /////
-  inline std::string generateNewPlanningSceneID()
-  {
-    std::stringstream stream;
-    stream << "Planning Scene ";
-    max_planning_scene_ID_++;
-    stream << max_planning_scene_ID_;
-    return stream.str();
+    return move_arm_warehouse_logger_reader_->determineNextPlanningSceneId();
   }
 
 
   //////
   /// @brief Removes the collision object with the specified name from the world.
-  /// @param name the unique ID of the object.
+  /// @param name the unique id of the object.
   //////
   void deleteCollisionObject(std::string& name);
 

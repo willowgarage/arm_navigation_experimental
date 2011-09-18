@@ -106,7 +106,7 @@ TEST(TestSuite, createSaveTest)
   std::string name = editor->createNewPlanningScene();
   ROS_INFO("Created scene %s", name.c_str());
   ROS_INFO("Saving...");
-  editor->savePlanningScene((*(editor->planning_scene_map_))[name]);
+  editor->savePlanningScene(editor->planning_scene_map_[name]);
 }
 
 /////
@@ -120,17 +120,18 @@ TEST(TestSuite, createDeleteMotionPlanTest)
 
   for(int i = 0; i < 100; i++)
   {
-    std::string ID;
+    unsigned int id;
     std::string rightarm = RIGHT_ARM_GROUP;
     std::string rightik = RIGHT_IK_LINK;
 
     ROS_INFO("Creating motion plan request ...");
     editor->createMotionPlanRequest(*(editor->getRobotState()),
                                     *(editor->getRobotState()),
-                                    rightarm, rightik,false,
-                                    planningSceneID, ID,false);
-    ROS_INFO("Deleting motion plan request %s", ID.c_str());
-    editor->deleteMotionPlanRequest(ID);
+                                    rightarm, rightik, false,
+                                    getPlanningSceneIdFromName(planningSceneID), false, id);
+    ROS_INFO_STREAM("Deleting motion plan request " << id);
+    std::vector<unsigned int> traj;
+    editor->deleteMotionPlanRequest(id, traj);
 
   }
 }
@@ -144,7 +145,7 @@ TEST(TestSuite, planTrajectoryTest)
   std::string planningSceneID = editor->createNewPlanningScene();
   ROS_INFO("Created planning scene %s", planningSceneID.c_str());
 
-  std::string ID;
+  unsigned int id;
   std::string rightarm = RIGHT_ARM_GROUP;
   std::string rightik = RIGHT_IK_LINK;
 
@@ -152,23 +153,26 @@ TEST(TestSuite, planTrajectoryTest)
   editor->createMotionPlanRequest(*(editor->getRobotState()),
                                   *(editor->getRobotState()),
                                   rightarm, rightik,false,
-                                  planningSceneID, ID,false);
+                                  getPlanningSceneIdFromName(planningSceneID), 
+                                  false, id);
 
 
-  MotionPlanRequestData& data = (*(editor->motion_plan_map_))[ID];
+  MotionPlanRequestData& data = editor->motion_plan_map_[getMotionPlanRequestNameFromId(id)];
   for(int i = 0; i < 100; i++)
   {
     ROS_INFO("Randomly Perturbing");
     editor->randomlyPerturb(data, GoalPosition);
-    std::string trajID;
+    unsigned int traj_id;
     ROS_INFO("Planning...");
-    editor->planToRequest(ID, trajID);
-    ROS_INFO("Got plan %s ", trajID.c_str());
-    editor->playTrajectory((*(editor->motion_plan_map_))[ID],(*(editor->trajectory_map_))[trajID]);
+    editor->planToRequest(data, traj_id);
+    ROS_INFO_STREAM("Got plan " << traj_id);
+    editor->playTrajectory(editor->motion_plan_map_[getMotionPlanRequestNameFromId(id)],
+                           editor->trajectory_map_[getMotionPlanRequestNameFromId(id)][getTrajectoryNameFromId(traj_id)]);
     ROS_INFO("Deleting...");
-    editor->deleteTrajectory(trajID);
+    editor->deleteTrajectory(data.getId(), traj_id);
   }
-  editor->deleteMotionPlanRequest(ID);
+  std::vector<unsigned int> traj;
+  editor->deleteMotionPlanRequest(id, traj);
 
 }
 
@@ -181,7 +185,7 @@ TEST(TestSuite, filterTrajectoryTest)
   std::string planningSceneID = editor->createNewPlanningScene();
   ROS_INFO("Created planning scene %s", planningSceneID.c_str());
 
-  std::string ID;
+  unsigned int id;
   std::string rightarm = RIGHT_ARM_GROUP;
   std::string rightik = RIGHT_IK_LINK;
 
@@ -189,25 +193,30 @@ TEST(TestSuite, filterTrajectoryTest)
   editor->createMotionPlanRequest(*(editor->getRobotState()),
                                   *(editor->getRobotState()),
                                   rightarm, rightik,false,
-                                  planningSceneID, ID,false);
+                                  getPlanningSceneIdFromName(planningSceneID), 
+                                  false, id);
 
 
-  MotionPlanRequestData& data = (*(editor->motion_plan_map_))[ID];
+  MotionPlanRequestData& data = editor->motion_plan_map_[getMotionPlanRequestNameFromId(id)];
   for(int i = 0; i < 20; i++)
   {
     ROS_INFO("Randomly Perturbing");
     editor->randomlyPerturb(data, GoalPosition);
-    std::string trajID;
+    unsigned int traj_id;
     ROS_INFO("Planning...");
-    editor->planToRequest(ID, trajID);
-    ROS_INFO("Got plan %s ", trajID.c_str());
-    editor->playTrajectory((*(editor->motion_plan_map_))[ID],(*(editor->trajectory_map_))[trajID]);
-    std::string filterID;
-    editor->filterTrajectory((*(editor->motion_plan_map_))[ID],(*(editor->trajectory_map_))[trajID], filterID);
-    editor->playTrajectory((*(editor->motion_plan_map_))[ID],(*(editor->trajectory_map_))[filterID]);
+    editor->planToRequest(data, traj_id);
+    ROS_INFO_STREAM("Got plan  " << traj_id);
+    editor->playTrajectory(editor->motion_plan_map_[getMotionPlanRequestNameFromId(id)],
+                           editor->trajectory_map_[getMotionPlanRequestNameFromId(id)][getTrajectoryNameFromId(traj_id)]);
+    unsigned int filter_id;
+    editor->filterTrajectory(editor->motion_plan_map_[getMotionPlanRequestNameFromId(id)],
+                             editor->trajectory_map_[getMotionPlanRequestNameFromId(id)][getTrajectoryNameFromId(traj_id)],
+                             filter_id);
+    editor->playTrajectory(editor->motion_plan_map_[getMotionPlanRequestNameFromId(id)],
+                           editor->trajectory_map_[getMotionPlanRequestNameFromId(id)][getTrajectoryNameFromId(filter_id)]);
     ROS_INFO("Deleting...");
-    editor->deleteTrajectory(trajID);
-    editor->deleteTrajectory(filterID);
+    editor->deleteTrajectory(data.getId(), traj_id);
+    editor->deleteTrajectory(data.getId(), filter_id);
   }
 }
 
@@ -271,7 +280,7 @@ TEST(TestSuite, collisionObjectTest)
     color.b = 0.5;
     color.a = 1.0;
     ROS_INFO("Creating object with size %f %f %f and position %f %f %f",scaleX, scaleY, scaleZ, pose.position.x, pose.position.y, pose.position.z);
-    std::string obj = editor->createCollisionObject(pose, shape, scaleX, scaleY, scaleZ,color);
+    std::string obj = editor->createCollisionObject("", pose, shape, scaleX, scaleY, scaleZ,color);
     objs.push_back(obj);
   }
 

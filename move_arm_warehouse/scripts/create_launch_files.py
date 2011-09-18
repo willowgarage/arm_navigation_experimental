@@ -38,18 +38,25 @@ right_arm_name = 'none'
 left_arm_ik = 'none'
 right_arm_ik = 'none'
 
-# Start off assuming left arm is first group
-left_arm = groups[0]
+done_left = False
+done_right = False
 
-# Assume right arm is the second group
-if(len(groups) > 1) :
-  right_arm = groups[1]
-  right_arm_name = right_arm['name']
-  right_arm_ik = right_arm['tip_link']
-
+for i in groups:
+  if 'tip_link' in i:
+    if not done_left:
+      left_arm = i
+      done_left = True
+    else:
+      done_right = True
+      right_arm = i
+      break
 
 left_arm_name = left_arm['name']
 left_arm_ik = left_arm['tip_link']
+
+if done_right:
+  right_arm_name = right_arm['name']
+  right_arm_ik = right_arm['tip_link']
 
 # Switch left and right arms if we find any of the following strings in the left arm
 # this is a terrible hack, but by convention we assume one of these strings is in the right arm
@@ -61,7 +68,7 @@ if(re.search("right | Right | RIGHT | ^r_ | _r$ | ^R_ | _R$", left_arm_name)) :
   left_arm_ik = right_arm_ik
   right_arm_ik = temp
 
-template = open('planning_scene_warehouse_viewer_template.launch', 'r')
+template = open(roslib.packages.get_pkg_dir('move_arm_warehouse')+'/scripts/planning_scene_warehouse_viewer_template.launch', 'r')
 text = template.read()
 
 text = re.sub('__ROBOT_NAME__', sys.argv[1], text)

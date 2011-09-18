@@ -134,7 +134,7 @@ class MoveArm
 public:
     unsigned int max_mpr_ID_;
     unsigned int max_trajectory_ID_;
-    std::string last_mpr_ID_;
+    unsigned int last_mpr_ID_;
 
   MoveArm(const std::string &group_name) :
     group_(group_name),
@@ -142,7 +142,6 @@ public:
   {
     max_mpr_ID_ = 0;
     max_trajectory_ID_ = 0;
-    last_mpr_ID_ = "";
 
     private_handle_.param<double>("move_arm_frequency",move_arm_frequency_, 50.0);
     private_handle_.param<double>("trajectory_filter_allowed_time",trajectory_filter_allowed_time_, 2.0);
@@ -314,13 +313,12 @@ private:
       req.motion_plan_request.goal_constraints.position_constraints.clear();
       req.motion_plan_request.goal_constraints.orientation_constraints.clear();
       if(log_to_warehouse_) {
-        std::stringstream ss;
-        ss << "MPR " << (++ max_mpr_ID_);
+        last_mpr_ID_ = max_mpr_ID_;
+        max_mpr_ID_++;
         warehouse_logger_->pushMotionPlanRequestToWarehouse(current_planning_scene_,
+                                                            last_mpr_ID_,
                                                             "after_ik",
-                                                            req.motion_plan_request,
-                                                            ss.str());
-        last_mpr_ID_ = ss.str();
+                                                            req.motion_plan_request);
       }
       return true;
     }
@@ -933,14 +931,11 @@ private:
 	    ROS_DEBUG("Done planning. Transitioning to control");
 	  }
           if(log_to_warehouse_) {
-
-            std::stringstream ss;
-            ss << "Trajectory " << (++ max_trajectory_ID_);
             warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
                                                               "planner",
                                                               ros::Duration(move_arm_stats_.planning_time),
                                                               res.trajectory.joint_trajectory,
-                                                              ss.str(),
+                                                              max_trajectory_ID_++,
                                                               last_mpr_ID_,
                                                               error_code);
           }
@@ -1021,13 +1016,11 @@ private:
             warehouse_logger_->pushOutcomeToWarehouse(current_planning_scene_,
                                                       "filter",
                                                       error_code);
-            std::stringstream ss;
-            ss << "Trajectory " << (++ max_trajectory_ID_);
             warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
                                                               "filter",
                                                               ros::Duration(move_arm_stats_.smoothing_time),
                                                               filtered_trajectory,
-                                                              ss.str(),
+                                                              max_trajectory_ID_++,
                                                               last_mpr_ID_,
                                                               error_code);
           }
@@ -1174,13 +1167,12 @@ private:
     original_request_ = req;
 
     if(log_to_warehouse_) {
-      std::stringstream ss;
-      ss << "MPR " << (++max_trajectory_ID_);
+      unsigned int cur_mpr = max_mpr_ID_;
+      max_mpr_ID_++;
       warehouse_logger_->pushMotionPlanRequestToWarehouse(current_planning_scene_,
+                                                          cur_mpr,
                                                           "original",
-                                                          req.motion_plan_request,
-                                                          ss.str());
-      last_mpr_ID_ = ss.str();
+                                                          req.motion_plan_request);
     }
 
     ros::Rate move_arm_rate(move_arm_frequency_);
@@ -1230,14 +1222,12 @@ private:
           original_request_ = req;
 
           if(log_to_warehouse_) {
-            std::stringstream ss;
-            ss << "MPR " << (++max_mpr_ID_);
-
+            last_mpr_ID_ = max_mpr_ID_;
+            max_mpr_ID_++;
             warehouse_logger_->pushMotionPlanRequestToWarehouse(current_planning_scene_,
+                                                                last_mpr_ID_,
                                                                 "original",
-                                                                req.motion_plan_request,
-                                                                ss.str());
-            last_mpr_ID_ = ss.str();
+                                                                req.motion_plan_request);
           }
           state_ = PLANNING;
         }
@@ -1285,13 +1275,11 @@ private:
     head_monitor_error_code_ = result->error_code;
     ROS_DEBUG_STREAM("Actual trajectory with " << result->actual_trajectory.points.size());
     if(log_to_warehouse_) {
-      std::stringstream ss;
-      ss << "Trajectory " << (++ max_trajectory_ID_);
       warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_,
                                                         "monitor",
                                                         result->actual_trajectory.points.back().time_from_start,
                                                         result->actual_trajectory,
-                                                        ss.str(), last_mpr_ID_,result->error_code);
+                                                        max_trajectory_ID_++, last_mpr_ID_,result->error_code);
     }
   }
 
@@ -1309,6 +1297,9 @@ private:
     arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
 
     revertPlanningScene();
+
+    max_mpr_ID_ = 0;
+    max_trajectory_ID_ = 0;
 
     planning_scene_req.operations = operations;
     planning_scene_req.planning_scene_diff = planning_diff;

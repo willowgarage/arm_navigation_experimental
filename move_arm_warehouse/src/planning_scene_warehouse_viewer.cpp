@@ -58,7 +58,7 @@ WarehouseViewer::WarehouseViewer(QWidget* parent, planning_scene_utils::Planning
 {
   quit_threads_ = false;
   initQtWidgets();
-  selected_trajectory_ID_ = "";
+  selected_trajectory_name_ = "";
   warehouse_data_loaded_once_ = false;
   table_load_thread_ = NULL;
   planning_scene_initialized_ = false;
@@ -120,6 +120,14 @@ void WarehouseViewer::initQtWidgets()
   new_object_action_ = collision_object_menu_->addAction("New Primitive Collision Object ...");
   new_mesh_action_ = collision_object_menu_->addAction("New Mesh Collision Object ...");
 
+  planner_configuration_menu_ = menu_bar_->addMenu("Planner configuration");
+  set_primary_planner_action_ = planner_configuration_menu_->addAction("Use primary planner");
+  set_primary_planner_action_->setCheckable(true);
+  set_primary_planner_action_->setChecked(true);
+  set_secondary_planner_action_ = planner_configuration_menu_->addAction("Use secondary planner");
+  set_secondary_planner_action_->setCheckable(true);
+  set_secondary_planner_action_->setChecked(false);
+
   trajectory_tree_ = new QTreeWidget(trajectoryBox);
   trajectory_tree_->setColumnCount(8);
 
@@ -131,6 +139,8 @@ void WarehouseViewer::initQtWidgets()
   QHBoxLayout* buttonLayout = new QHBoxLayout(buttonsBox);
 
   trajectory_slider_ = new QSlider(Qt::Horizontal,trajectoryBox);
+  trajectory_slider_->setMinimum(0);
+  trajectory_slider_->setMaximum(0);
 
   QLabel* modeLabel = new QLabel(trajectoryBox);
   modeLabel->setText("Selected Trajectory: ");
@@ -168,7 +178,7 @@ void WarehouseViewer::initQtWidgets()
   execute_button_->setToolTip("Sends the currently selected trajectory to the robot's controllers. (Only works if using robot data). Produces a new trajectory.");
 
   trajectory_point_edit_ = new QSpinBox(this);
-  trajectory_point_edit_->setRange(0, 100);
+  trajectory_point_edit_->setRange(0, 0);
   trajectory_point_edit_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   trajectory_point_edit_->setToolTip("Currently displayed trajectory point. Drag to change.");
 
@@ -215,7 +225,7 @@ void WarehouseViewer::initQtWidgets()
   connect(quit_action_, SIGNAL(triggered()), this, SLOT(quit()));
   connect(play_button_, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
   connect(filter_button_, SIGNAL(clicked()), this, SLOT(filterButtonPressed()));
-  connect(trajectory_slider_, SIGNAL(sliderMoved(int)), this, SLOT(sliderDragged()));
+  connect(trajectory_slider_, SIGNAL(sliderMoved(int)), this, SLOT(sliderDragged(int)));
   connect(trajectory_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(trajectoryTableSelection()));
   connect(replan_button_, SIGNAL(clicked()), this, SLOT(replanButtonPressed()));
   connect(trajectory_point_edit_, SIGNAL(valueChanged(int)), this, SLOT(trajectoryEditChanged()));
@@ -231,6 +241,8 @@ void WarehouseViewer::initQtWidgets()
   connect(this, SIGNAL(filterFailure(int)),this, SLOT(popupFilterFailure(int)));
   connect(this, SIGNAL(attachObjectSignal(const std::string&)), this, SLOT(attachObject(const std::string&)));
   connect(this, SIGNAL(allScenesLoaded()), this, SLOT(refreshPlanningSceneDialog()));
+  connect(set_primary_planner_action_, SIGNAL(triggered()), this, SLOT(primaryPlannerTriggered()));
+  connect(set_secondary_planner_action_, SIGNAL(triggered()), this, SLOT(secondaryPlannerTriggered()));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -310,42 +322,42 @@ void WarehouseViewer::createOutcomeDialog()
   trajectoryHeaders.append("Stage");
   trajectoryHeaders.append("Outcome");
 
-  trajectory_outcome_table_->setColumnCount(3);
-  trajectory_outcome_table_->setRowCount((int)(trajectory_map_->size()));
-  trajectory_outcome_table_->setHorizontalHeaderLabels(trajectoryHeaders);
-  trajectory_outcome_table_->setColumnWidth(0, 150);
-  trajectory_outcome_table_->setColumnWidth(1, 150);
-  trajectory_outcome_table_->setColumnWidth(2, 200);
-  trajectory_outcome_table_->setMinimumWidth(550);
+  // trajectory_outcome_table_->setColumnCount(3);
+  // trajectory_outcome_table_->setRowCount((int)(trajectory_map_.find(selected_motion_plan_name_)->second.size()));
+  // trajectory_outcome_table_->setHorizontalHeaderLabels(trajectoryHeaders);
+  // trajectory_outcome_table_->setColumnWidth(0, 150);
+  // trajectory_outcome_table_->setColumnWidth(1, 150);
+  // trajectory_outcome_table_->setColumnWidth(2, 200);
+  // trajectory_outcome_table_->setMinimumWidth(550);
 
-  r = 0;
-  for(map<string, TrajectoryData>::iterator it = trajectory_map_->begin(); it != trajectory_map_->end(); it++)
-  {
-    QTableWidgetItem* trajectoryItem = new QTableWidgetItem(QString::fromStdString(it->first));
-    trajectoryItem->setFlags(Qt::ItemIsEnabled);
-    trajectory_outcome_table_->setItem(r, 0, trajectoryItem);
+  // r = 0;
+  // for(map<string, TrajectoryData>::iterator it = trajectory_map_->begin(); it != trajectory_map_->end(); it++)
+  // {
+  //   QTableWidgetItem* trajectoryItem = new QTableWidgetItem(QString::fromStdString(it->first));
+  //   trajectoryItem->setFlags(Qt::ItemIsEnabled);
+  //   trajectory_outcome_table_->setItem(r, 0, trajectoryItem);
 
-    QTableWidgetItem* stageItem = new QTableWidgetItem(QString::fromStdString(it->second.getSource()));
-    stageItem->setFlags(Qt::ItemIsEnabled);
-    trajectory_outcome_table_->setItem(r, 1, stageItem);
+  //   QTableWidgetItem* stageItem = new QTableWidgetItem(QString::fromStdString(it->second.getSource()));
+  //   stageItem->setFlags(Qt::ItemIsEnabled);
+  //   trajectory_outcome_table_->setItem(r, 1, stageItem);
 
-    QTableWidgetItem* outcomeItem = new QTableWidgetItem(QString::fromStdString(armNavigationErrorCodeToString(it->second.trajectory_error_code_)));
-    outcomeItem ->setFlags(Qt::ItemIsEnabled);
-    trajectory_outcome_table_->setItem(r, 2, outcomeItem);
+  //   QTableWidgetItem* outcomeItem = new QTableWidgetItem(QString::fromStdString(armNavigationErrorCodeToString(it->second.trajectory_error_code_)));
+  //   outcomeItem ->setFlags(Qt::ItemIsEnabled);
+  //   trajectory_outcome_table_->setItem(r, 2, outcomeItem);
 
-    if(it->second.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS)
-    {
-      outcomeItem->setTextColor(QColor(150, 0, 0));
-      std::stringstream ss;
-      ss << "Bad point: " << it->second.getBadPoint();
-      outcomeItem->setToolTip(QString::fromStdString(ss.str()));
-    }
+  //   if(it->second.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS)
+  //   {
+  //     outcomeItem->setTextColor(QColor(150, 0, 0));
+  //     std::stringstream ss;
+  //     ss << "Bad point: " << it->second.getBadPoint();
+  //     outcomeItem->setToolTip(QString::fromStdString(ss.str()));
+  //   }
 
-    r++;
-  }
+  //   r++;
+  // }
 
-  layout->addWidget(stagesBox);
-  layout->addWidget(trajectoryBox);
+  // layout->addWidget(stagesBox);
+  // layout->addWidget(trajectoryBox);
   outcome_dialog_->setLayout(layout);
 
 }
@@ -359,15 +371,15 @@ void WarehouseViewer::viewOutcomesPressed()
 
 void WarehouseViewer::createAlterLinkPaddingDialog()
 {
-  if(current_planning_scene_ID_ == "") {
+  if(current_planning_scene_name_ == "") {
     return;
   }
 
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
 
   if(planning_scene.link_padding.size() == 0) {
     planning_environment::convertFromLinkPaddingMapToLinkPaddingVector(cm_->getDefaultLinkPaddingMap(), planning_scene.link_padding);
-    (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+    planning_scene_map_[current_planning_scene_name_].setPlanningScene(planning_scene);
   }
 
   alter_link_padding_dialog_ = new QDialog(this);
@@ -414,7 +426,7 @@ void WarehouseViewer::alterLinkPaddingPressed()
 
 void WarehouseViewer::alteredLinkPaddingValueChanged(double d)
 {
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
   planning_scene.link_padding.clear();
 
   for(int i = 0; i < alter_link_padding_table_->rowCount(); i++)
@@ -424,8 +436,8 @@ void WarehouseViewer::alteredLinkPaddingValueChanged(double d)
     lp.padding = dynamic_cast<QDoubleSpinBox*>(alter_link_padding_table_->cellWidget(i,1))->value();
     planning_scene.link_padding.push_back(lp);
   }
-  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
-  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  planning_scene_map_[current_planning_scene_name_].setPlanningScene(planning_scene);
+  sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
 }
 
 void WarehouseViewer::alterAllowedCollisionPressed()
@@ -437,15 +449,15 @@ void WarehouseViewer::alterAllowedCollisionPressed()
 
 void WarehouseViewer::createAlterAllowedCollisionDialog()
 {
-  if(current_planning_scene_ID_ == "") {
+  if(current_planning_scene_name_ == "") {
     return;
   }
 
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
 
   if(planning_scene.allowed_collision_matrix.link_names.size() == 0) {
     planning_environment::convertFromACMToACMMsg(cm_->getDefaultAllowedCollisionMatrix(), planning_scene.allowed_collision_matrix);
-    (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
+    planning_scene_map_[current_planning_scene_name_].setPlanningScene(planning_scene);
   }
 
   alter_allowed_collision_dialog_ = new QDialog(this);
@@ -483,8 +495,10 @@ void WarehouseViewer::createAlterAllowedCollisionDialog()
   second_allowed_collision_list_ = new QListWidget(alter_allowed_collision_dialog_);
   
   for(unsigned int i = 0; i < planning_scene.allowed_collision_matrix.link_names.size(); i++) {
-    first_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
-    second_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
+    if(cm_->getKinematicModel()->hasLinkModel(planning_scene.allowed_collision_matrix.link_names[i])) {
+      first_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
+      second_allowed_collision_list_->addItem(planning_scene.allowed_collision_matrix.link_names[i].c_str());
+    }
   }
   addSpecialEntries(first_allowed_collision_list_);
   addSpecialEntries(second_allowed_collision_list_);
@@ -577,12 +591,12 @@ void WarehouseViewer::getEntryList(const std::string& s1,
 
 void WarehouseViewer::resetAllowedCollisionClicked() 
 {
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm = cm_->getDefaultAllowedCollisionMatrix(); 
   
   planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
-  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
-  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  planning_scene_map_[current_planning_scene_name_].setPlanningScene(planning_scene);
+  sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
   setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
 }
 
@@ -601,7 +615,7 @@ void WarehouseViewer::entityListsEdited() {
 }
 
 void WarehouseViewer::enableCollisionClicked() {
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
   QString qs1 = first_allowed_collision_line_edit_->text();
   QString qs2 = second_allowed_collision_line_edit_->text();
@@ -629,13 +643,13 @@ void WarehouseViewer::enableCollisionClicked() {
   
   acm.changeEntry(first_list, second_list, false);
   planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
-  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
-  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  planning_scene_map_[current_planning_scene_name_].setPlanningScene(planning_scene);
+  sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
   setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
 }
 
 void WarehouseViewer::disableCollisionClicked() {
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
   QString qs1 = first_allowed_collision_line_edit_->text();
   QString qs2 = second_allowed_collision_line_edit_->text();
@@ -664,13 +678,13 @@ void WarehouseViewer::disableCollisionClicked() {
 
   acm.changeEntry(first_list, second_list, true);
   planning_environment::convertFromACMToACMMsg(acm, planning_scene.allowed_collision_matrix);
-  (*planning_scene_map_)[current_planning_scene_ID_].setPlanningScene(planning_scene);
-  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+  planning_scene_map_[current_planning_scene_name_].setPlanningScene(planning_scene);
+  sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
   setEnabledDisabledDisplay(first_allowed_collision_line_edit_->text(), second_allowed_collision_line_edit_->text());
 }
 
 void WarehouseViewer::setEnabledDisabledDisplay(const QString& qs1, const QString& qs2) {
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm = planning_environment::convertFromACMMsgToACM(planning_scene.allowed_collision_matrix);
   std::vector<std::string> first_list;
   std::vector<std::string> second_list;
@@ -708,9 +722,9 @@ void WarehouseViewer::setEnabledDisabledDisplay(const QString& qs1, const QStrin
 
 void WarehouseViewer::refreshSceneButtonPressed()
 {
-  if(current_planning_scene_ID_ != "" )
+  if(current_planning_scene_name_ != "" )
   {
-    sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+    sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
   }
   else
   {
@@ -722,9 +736,10 @@ void WarehouseViewer::refreshSceneButtonPressed()
 
 void WarehouseViewer::executeButtonPressed()
 {
-  if(selected_trajectory_ID_ != "")
+  if(selected_trajectory_name_ != "")
   {
-    executeTrajectory(selected_trajectory_ID_);
+    executeTrajectory(selected_motion_plan_name_,
+                      selected_trajectory_name_);
   }
   else
   {
@@ -736,11 +751,11 @@ void WarehouseViewer::executeButtonPressed()
 
 void WarehouseViewer::deleteSelectedMotionPlan()
 {
-  if(selected_motion_plan_ID_ != "")
+  if(selected_motion_plan_name_ != "")
   {
     lockScene();
-    deleteMotionPlanRequest(selected_motion_plan_ID_);
-    selected_motion_plan_ID_ = "";
+    std::vector<unsigned int> erased_trajectories;
+    deleteMotionPlanRequest(motion_plan_map_[selected_motion_plan_name_].getId(), erased_trajectories);
     unlockScene();
   }
   else
@@ -753,11 +768,13 @@ void WarehouseViewer::deleteSelectedMotionPlan()
 
 void WarehouseViewer::deleteSelectedTrajectory()
 {
-  if(selected_trajectory_ID_ != "")
+  if(selected_trajectory_name_ != "")
   {
     lockScene();
-    deleteTrajectory(selected_trajectory_ID_);
-    selected_trajectory_ID_ = "";
+    unsigned int mpr_id = motion_plan_map_[selected_motion_plan_name_].getId();
+    unsigned int traj_id = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_].getId();
+    deleteTrajectory(mpr_id, 
+                     traj_id);
     emit updateTables();
     unlockScene();
   }
@@ -776,10 +793,11 @@ void WarehouseViewer::createNewMotionPlanPressed()
 
 void WarehouseViewer::trajectoryEditChanged()
 {
-  if(selected_trajectory_ID_ != "")
+  if(selected_trajectory_name_ != "")
   {
-    TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
+    TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
     trajectory.setCurrentPoint(trajectory_point_edit_->value());
+    trajectory_slider_->setValue(trajectory_point_edit_->value());
   }
 }
 
@@ -871,38 +889,51 @@ void WarehouseViewer::motionPlanTableSelection()
 
 void WarehouseViewer::selectMotionPlan(std::string ID)
 {
-  selected_motion_plan_ID_ = ID;
-  selected_trajectory_ID_ = "";
+  selected_motion_plan_name_ = ID;
+  selected_trajectory_name_ = "";
   createTrajectoryTable();
-  selected_request_label_->setText(QString::fromStdString("Selected Request: "+selected_motion_plan_ID_ ));
+  selected_request_label_->setText(QString::fromStdString("Selected Request: "+selected_motion_plan_name_ ));
 
 
-  if((*motion_plan_map_)[selected_motion_plan_ID_].getTrajectories().size() > 0)
+  if(motion_plan_map_[selected_motion_plan_name_].getTrajectories().size() > 0)
   {
-    selectTrajectory((*motion_plan_map_)[selected_motion_plan_ID_].getTrajectories()[0]);
+    unsigned int id = *(motion_plan_map_[selected_motion_plan_name_].getTrajectories().begin()); 
+    selectTrajectory(getTrajectoryNameFromId(id));
   }
 }
 
 void WarehouseViewer::createMotionPlanTable()
 {
-  if(current_planning_scene_ID_ != "")
+  if(motion_plan_map_.find(selected_motion_plan_name_) == motion_plan_map_.end()) {
+    selected_request_label_->setText("Selected Request: None");
+    selected_motion_plan_name_ = "";
+  } else {
+    ROS_INFO_STREAM("Have selected motion plan " << selected_motion_plan_name_);
+  }
+
+  if(current_planning_scene_name_ != "")
   {
-    PlanningSceneData& planningSceneData = (*planning_scene_map_)[current_planning_scene_ID_];
+    PlanningSceneData& planningSceneData = planning_scene_map_[current_planning_scene_name_];
 
     motion_plan_tree_->clear();
     motion_plan_tree_->setColumnCount(4);
     motion_plan_tree_->setColumnWidth(0, 150);
 
-    for(size_t i = 0; i < planningSceneData.getRequests().size(); i++)
-    {
-      std::string request = planningSceneData.getRequests()[i];
-      MotionPlanRequestData& requestData = (*motion_plan_map_)[request];
+    unsigned int count = 0;
+    for(std::set<unsigned int>::iterator it = planningSceneData.getRequests().begin();
+        it != planningSceneData.getRequests().end();
+        it++, count++) {
+
+      if(motion_plan_map_.find(getMotionPlanRequestNameFromId(*it)) == motion_plan_map_.end()) {
+        ROS_INFO_STREAM("Bad matt 1");
+      }
+      MotionPlanRequestData& requestData = motion_plan_map_[getMotionPlanRequestNameFromId(*it)];
 
 
-      QTreeWidgetItem* nameItem = new QTreeWidgetItem(QStringList(QString::fromStdString(requestData.getID())));
+      QTreeWidgetItem* nameItem = new QTreeWidgetItem(QStringList(QString::fromStdString(requestData.getName())));
       nameItem->setToolTip(0,nameItem->text(0));
       nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-      motion_plan_tree_->insertTopLevelItem(i, nameItem);
+      motion_plan_tree_->insertTopLevelItem(count, nameItem);
 
       QStringList sourceList;
       sourceList.append("Source");
@@ -1032,7 +1063,7 @@ void WarehouseViewer::motionPlanCollisionVisibleButtonClicked(bool checked)
   if(button != NULL)
   {
     std::string mprID = button->toolTip().toStdString();
-    MotionPlanRequestData& data = (*motion_plan_map_)[mprID];
+    MotionPlanRequestData& data = motion_plan_map_[mprID];
     data.setCollisionsVisible(checked);
   }
 }
@@ -1045,7 +1076,7 @@ void WarehouseViewer::motionPlanStartColorButtonClicked()
   if(button != NULL)
   {
     std::string trajectoryID = button->toolTip().toStdString();
-    MotionPlanRequestData& data = (*motion_plan_map_)[trajectoryID];
+    MotionPlanRequestData& data = motion_plan_map_[trajectoryID];
     QColor col(data.getStartColor().r*255, data.getStartColor().g*255, data.getStartColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
     if(!colorSelected.isValid())
@@ -1077,7 +1108,7 @@ void WarehouseViewer::motionPlanEndColorButtonClicked()
   if(button != NULL)
   {
     std::string trajectoryID = button->toolTip().toStdString();
-    MotionPlanRequestData& data = (*motion_plan_map_)[trajectoryID];
+    MotionPlanRequestData& data = motion_plan_map_[trajectoryID];
     QColor col(data.getGoalColor().r*255, data.getGoalColor().g*255, data.getGoalColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
     if(!colorSelected.isValid())
@@ -1110,7 +1141,7 @@ void WarehouseViewer::motionPlanStartVisibleButtonClicked(bool checked)
   if(button != NULL)
   {
     std::string mprID = button->toolTip().toStdString();
-    MotionPlanRequestData& data = (*motion_plan_map_)[mprID];
+    MotionPlanRequestData& data = motion_plan_map_[mprID];
     data.setStartVisible(checked);
     data.setJointControlsVisible(data.areJointControlsVisible(), this);
     setIKControlsVisible(mprID, StartPosition, button->isChecked());
@@ -1127,7 +1158,7 @@ void WarehouseViewer::motionPlanEndVisibleButtonClicked(bool checked)
   if(button != NULL)
   {
     std::string mprID = button->toolTip().toStdString();
-    MotionPlanRequestData& data = (*motion_plan_map_)[mprID];
+    MotionPlanRequestData& data = motion_plan_map_[mprID];
     data.setEndVisible(checked);
     data.setJointControlsVisible(data.areJointControlsVisible(), this);
     setIKControlsVisible(mprID, GoalPosition, button->isChecked());
@@ -1137,12 +1168,16 @@ void WarehouseViewer::motionPlanEndVisibleButtonClicked(bool checked)
 void WarehouseViewer::createNewMotionPlanRequest(std::string group_name, std::string end_effector_name)
 {
 
-  if(current_planning_scene_ID_ != "")
+  if(current_planning_scene_name_ != "")
   {
-    std::string motionPlanID;
-    createMotionPlanRequest(*robot_state_, *robot_state_, group_name, end_effector_name, false,
-                            current_planning_scene_ID_, motionPlanID, create_request_from_robot_box_->isChecked());
-  }
+    unsigned int motion_plan_id;
+    createMotionPlanRequest(*robot_state_, *robot_state_, 
+                            group_name, end_effector_name, false,
+                            getPlanningSceneIdFromName(current_planning_scene_name_), 
+                            create_request_from_robot_box_->isChecked(), 
+                            motion_plan_id);
+    selectMotionPlan(getMotionPlanRequestNameFromId(motion_plan_id));
+  } 
   else
   {
     QMessageBox msg(QMessageBox::Warning, "Create Request", "No Planning Scene Loaded!");
@@ -1160,14 +1195,14 @@ void WarehouseViewer::copyPlanningSceneSlot() {
   trajectory_tree_->clear();
   updateJointStates();
   createMotionPlanTable();
-  (*planning_scene_map_)[current_planning_scene_ID_].getRobotState(robot_state_);
+  planning_scene_map_[current_planning_scene_name_].getRobotState(robot_state_);
 }
 
 void WarehouseViewer::saveCurrentPlanningScene(bool copy)
 {
-  ROS_INFO_STREAM("Current planning scene id is " << current_planning_scene_ID_);
-  ROS_INFO_STREAM("Hostname is " << (*planning_scene_map_)[current_planning_scene_ID_].getHostName());
- savePlanningScene((*planning_scene_map_)[current_planning_scene_ID_], copy);
+  ROS_INFO_STREAM("Current planning scene id is " << current_planning_scene_name_);
+  ROS_INFO_STREAM("Hostname is " << planning_scene_map_[current_planning_scene_name_].getHostName());
+ savePlanningScene(planning_scene_map_[current_planning_scene_name_], copy);
   QMessageBox msgBox(QMessageBox::Information, "Saved", "Saved planning scene successfully.");
   msgBox.addButton(QMessageBox::Ok);
   msgBox.exec();
@@ -1192,7 +1227,7 @@ bool WarehouseViewer::createNewPlanningSceneConfirm()
       setCurrentPlanningScene(createNewPlanningScene(), true, true);
       motion_plan_tree_->clear();
       trajectory_tree_->clear();
-      ROS_INFO("Created a new planning scene: %s", current_planning_scene_ID_.c_str());
+      ROS_INFO("Created a new planning scene: %s", current_planning_scene_name_.c_str());
     }
     else if (msgBox.clickedButton() != createButton)
     {
@@ -1203,7 +1238,7 @@ bool WarehouseViewer::createNewPlanningSceneConfirm()
   planning_scene_initialized_ = true;
   motion_plan_tree_->clear();
   trajectory_tree_->clear();
-  ROS_INFO("Created a new planning scene: %s", current_planning_scene_ID_.c_str());
+  ROS_INFO("Created a new planning scene: %s", current_planning_scene_name_.c_str());
   return true;
 }
 
@@ -1218,6 +1253,26 @@ void WarehouseViewer::updateStateTriggered()
   createMotionPlanTable();
   createTrajectoryTable();
   unlockScene();
+}
+
+void WarehouseViewer::primaryPlannerTriggered()
+{
+  if(set_primary_planner_action_->isChecked()) {
+    set_secondary_planner_action_->setChecked(false);
+    use_interpolated_planner_ = false;
+  } else if(!set_secondary_planner_action_->isChecked()){
+    set_primary_planner_action_->setChecked(true);
+  }
+}
+
+void WarehouseViewer::secondaryPlannerTriggered()
+{
+  if(set_secondary_planner_action_->isChecked()) {
+    set_primary_planner_action_->setChecked(false);
+    use_interpolated_planner_ = true;
+  } else if(!set_primary_planner_action_->isChecked()){
+    set_secondary_planner_action_->setChecked(true);
+  } 
 }
 
 void WarehouseViewer::popupLoadPlanningScenes()
@@ -1274,7 +1329,10 @@ void WarehouseViewer::loadButtonPressed()
   {
     QTableWidgetItem* item = items[0];
     QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),1);
-    PlanningSceneData& data = (*planning_scene_map_)[nameItem->text().toStdString()];
+    PlanningSceneData& data = planning_scene_map_[nameItem->text().toStdString()];
+    loadPlanningScene(data.getTimeStamp(), data.getId());
+    //this will blow away the above reference, so redoing
+    data = planning_scene_map_[nameItem->text().toStdString()];
     setCurrentPlanningScene(nameItem->text().toStdString(), load_motion_plan_requests_box_->isChecked(), load_trajectories_box_->isChecked());
     trajectory_tree_->clear();
     updateJointStates();
@@ -1304,22 +1362,23 @@ void WarehouseViewer::removePlanningSceneButtonPressed()
   for(int i = 0; i < items.size(); i++) {
     QTableWidgetItem* item = items[i];
     QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),1);
-    PlanningSceneData& data = (*planning_scene_map_)[nameItem->text().toStdString()];
+    PlanningSceneData& data = planning_scene_map_[nameItem->text().toStdString()];
     move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(), data.getTimeStamp());
-    planning_scene_map_->erase(nameItem->text().toStdString());
+    planning_scene_map_.erase(nameItem->text().toStdString());
     planning_scene_table_->removeRow(item->row());
   }
 }
 
 void WarehouseViewer::replanButtonPressed()
 {
-  if(selected_motion_plan_ID_ != "")
+  if(selected_motion_plan_name_ != "")
   {
-    std::string newTraj;
-    planToRequest((*motion_plan_map_)[selected_motion_plan_ID_], newTraj);
+    unsigned int new_traj;
+    planToRequest(motion_plan_map_[selected_motion_plan_name_], new_traj);
     createTrajectoryTable();
-    selectTrajectory(newTraj);
-    playTrajectory((*motion_plan_map_)[selected_motion_plan_ID_], (*trajectory_map_)[newTraj]);
+    selectTrajectory(getTrajectoryNameFromId(new_traj));
+    playTrajectory(motion_plan_map_[selected_motion_plan_name_], 
+                   trajectory_map_[selected_motion_plan_name_][getTrajectoryNameFromId(new_traj)]);
   }
   else
   {
@@ -1342,13 +1401,14 @@ void WarehouseViewer::trajectoryTableSelection()
 
 void WarehouseViewer::selectTrajectory(std::string ID)
 {
-  selected_trajectory_ID_ = ID;
-  TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
+  selected_trajectory_name_ = ID;
+  TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
   trajectory_slider_->setMaximum((int)trajectory.getTrajectory().points.size() - 1);
   trajectory_slider_->setMinimum(0);
+  trajectory_slider_->setValue(trajectory.getCurrentPoint());
 
-  trajectory_point_edit_->setMaximum((int)trajectory.getTrajectory().points.size() - 1);
-  trajectory_point_edit_->setMinimum(0);
+  trajectory_point_edit_->setRange(0,(int)trajectory.getTrajectory().points.size()-1);
+  trajectory_point_edit_->setValue(trajectory.getCurrentPoint());
 
   std::stringstream ss;
   ss << trajectory.trajectory_error_code_.val;
@@ -1357,20 +1417,21 @@ void WarehouseViewer::selectTrajectory(std::string ID)
 
 void WarehouseViewer::playButtonPressed()
 {
-  if(selected_trajectory_ID_ != "")
+  if(selected_trajectory_name_ != "")
   {
-    TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
-    playTrajectory((*motion_plan_map_)[trajectory.getMotionPlanRequestID()], (*trajectory_map_)[selected_trajectory_ID_]);
+    TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
+    playTrajectory(motion_plan_map_[getMotionPlanRequestNameFromId(trajectory.getMotionPlanRequestId())], 
+                   trajectory);
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
-    selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_ID_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+    selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_name_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
 
     // Set checkbox to visible.
     for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
     {
       QTreeWidgetItem* item = trajectory_tree_->topLevelItem(i);
 
-      if(item->text(0).toStdString() == selected_trajectory_ID_)
+      if(item->text(0).toStdString() == selected_trajectory_name_)
       {
         for(int j = 0; j < item->childCount(); j++)
         {
@@ -1401,16 +1462,16 @@ void WarehouseViewer::playButtonPressed()
 
 void WarehouseViewer::filterButtonPressed()
 {
-  if(selected_trajectory_ID_ != "")
+  if(selected_trajectory_name_ != "")
   {
-    TrajectoryData& trajectory = (*trajectory_map_)[selected_trajectory_ID_];
-    string filterID;
-    MotionPlanRequestData& data = (*motion_plan_map_)[trajectory.getMotionPlanRequestID()];
+    TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
+    unsigned int filterID;
+    MotionPlanRequestData& data = motion_plan_map_[getMotionPlanRequestNameFromId(trajectory.getMotionPlanRequestId())];
     filterTrajectory(data,trajectory, filterID);
-    playTrajectory(data, (*trajectory_map_)[filterID]);
+    playTrajectory(data, trajectory_map_[selected_motion_plan_name_][getTrajectoryNameFromId(filterID)]);
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
-    selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_ID_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+    selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_name_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
     createTrajectoryTable();
   }
   else
@@ -1421,11 +1482,11 @@ void WarehouseViewer::filterButtonPressed()
   }
 }
 
-void WarehouseViewer::sliderDragged()
+void WarehouseViewer::sliderDragged(int nv)
 {
-  if(selected_trajectory_ID_ != "")
+  if(selected_trajectory_name_ != "")
   {
-    trajectory_point_edit_->setValue(trajectory_slider_->value());
+    trajectory_point_edit_->setValue(nv);
   }
   else
   {
@@ -1437,24 +1498,48 @@ void WarehouseViewer::sliderDragged()
 
 void WarehouseViewer::createTrajectoryTable()
 {
-  if(selected_motion_plan_ID_ == "")
+  if(selected_motion_plan_name_ == "")
   {
+    trajectory_tree_->clear();
+    trajectory_tree_->setColumnCount(2);
+    trajectory_tree_->setColumnWidth(0, 200);
+    selected_trajectory_name_ = "";
+    selected_trajectory_label_->setText("None");
+    trajectory_slider_->setMaximum(0);
+    trajectory_slider_->setMinimum(0);
+    trajectory_point_edit_->setRange(0,0);
     return;
   }
 
-  MotionPlanRequestData& data = (*motion_plan_map_)[selected_motion_plan_ID_];
+  if(!hasTrajectory(selected_motion_plan_name_,
+                    selected_trajectory_name_)) {
+    selected_trajectory_name_ = "";
+    selected_trajectory_label_->setText("None");
+    trajectory_slider_->setMaximum(0);
+    trajectory_slider_->setMinimum(0);
+    trajectory_point_edit_->setRange(0,0);
+  }
+
+  if(motion_plan_map_.find(selected_motion_plan_name_) == motion_plan_map_.end()) {
+    ROS_INFO_STREAM("Going to be generating empty MPR");
+  }
+
+  MotionPlanRequestData& data = motion_plan_map_[selected_motion_plan_name_];
   trajectory_tree_->clear();
   trajectory_tree_->setColumnCount(2);
   trajectory_tree_->setColumnWidth(0, 200);
 
-  for(size_t i = 0; i < data.getTrajectories().size(); i++)
-  {
-    TrajectoryData& trajectory = (*trajectory_map_)[data.getTrajectories()[i]];
+  unsigned int count = 0;
+  for(std::set<unsigned int>::iterator it = data.getTrajectories().begin();
+      it != data.getTrajectories().end();
+      it++, count++) {
+    TrajectoryData& trajectory = 
+      trajectory_map_[selected_motion_plan_name_][getTrajectoryNameFromId(*it)];
 
-    QTreeWidgetItem* nameItem = new QTreeWidgetItem(QStringList(QString::fromStdString(trajectory.getID())));
+    QTreeWidgetItem* nameItem = new QTreeWidgetItem(QStringList(QString::fromStdString(trajectory.getName())));
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     nameItem->setToolTip(0, nameItem->text(0));
-    trajectory_tree_->insertTopLevelItem(i, nameItem);
+    trajectory_tree_->insertTopLevelItem(count, nameItem);
 
     QStringList sourceList;
     sourceList.append("Source");
@@ -1575,7 +1660,7 @@ void WarehouseViewer::trajectoryCollisionsVisibleButtonClicked(bool checked)
   if(button != NULL)
   {
     std::string trajectoryID = button->toolTip().toStdString();
-    TrajectoryData& data = (*trajectory_map_)[trajectoryID];
+    TrajectoryData& data = trajectory_map_[selected_motion_plan_name_][trajectoryID];
     data.setCollisionsVisible(checked);
   }
 }
@@ -1588,7 +1673,7 @@ void WarehouseViewer::trajectoryVisibleButtonClicked(bool checked)
   if(button != NULL)
   {
     std::string trajectoryID = button->toolTip().toStdString();
-    TrajectoryData& data = (*trajectory_map_)[trajectoryID];
+    TrajectoryData& data = trajectory_map_[selected_motion_plan_name_][trajectoryID];
     data.setVisible(checked);
   }
 }
@@ -1601,7 +1686,7 @@ void WarehouseViewer::trajectoryColorButtonClicked()
   if(button != NULL)
   {
     std::string trajectoryID = button->toolTip().toStdString();
-    TrajectoryData& data = (*trajectory_map_)[trajectoryID];
+    TrajectoryData& data = trajectory_map_[selected_motion_plan_name_][trajectoryID];
     QColor col(data.getColor().r*255, data.getColor().g*255, data.getColor().b*255);
     QColor colorSelected = QColorDialog::getColor(col, this);
     if(!colorSelected.isValid())
@@ -1634,11 +1719,10 @@ void WarehouseViewer::createPlanningSceneTable()
 {
   loadAllWarehouseData();
   warehouse_data_loaded_once_ = true;
-  assert(planning_scene_map_ != NULL);
   planning_scene_table_->clear();
   ROS_INFO_STREAM("Running clear");
   int count = 0;
-  for(map<string, PlanningSceneData>::iterator it = planning_scene_map_->begin(); it != planning_scene_map_->end(); it++)
+  for(map<string, PlanningSceneData>::iterator it = planning_scene_map_.begin(); it != planning_scene_map_.end(); it++)
   {
     count ++;
   }
@@ -1653,7 +1737,7 @@ void WarehouseViewer::createPlanningSceneTable()
   ROS_INFO("Num Planning Scenes: %d", planning_scene_table_->rowCount());
 
   int r = 0;
-  for(map<string, PlanningSceneData>::iterator it = planning_scene_map_->begin(); it != planning_scene_map_->end(); it++)
+  for(map<string, PlanningSceneData>::iterator it = planning_scene_map_.begin(); it != planning_scene_map_.end(); it++)
   {
     PlanningSceneData& data = it->second;
 
@@ -1703,7 +1787,7 @@ void WarehouseViewer::createPlanningSceneTable()
     r++;
   }
 
-  planning_scene_table_->sortByColumn(2, Qt::DescendingOrder);
+  planning_scene_table_->sortByColumn(1, Qt::AscendingOrder);
   connect(planning_scene_table_->horizontalHeader(), SIGNAL(sectionClicked(int)), this, SLOT(planningSceneTableHeaderClicked(int)));
   planning_scene_table_->horizontalHeader()->resizeSections(QHeaderView::Stretch);
   planning_scene_table_->setHorizontalHeaderLabels(labels);
@@ -1733,18 +1817,19 @@ void WarehouseViewer::motionPlanJointControlsActiveButtonClicked(bool checked)
 
   std::string ID = box->toolTip().toStdString();
 
-  if(motion_plan_map_->find(ID) == motion_plan_map_->end())
+  if(motion_plan_map_.find(ID) == motion_plan_map_.end())
   {
     return;
   }
 
-  MotionPlanRequestData& data = (*motion_plan_map_)[ID];
+  MotionPlanRequestData& data = motion_plan_map_[ID];
   data.setJointControlsVisible(checked, this);
   interactive_marker_server_->applyChanges();
 }
 
 void WarehouseViewer::createNewObjectPressed()
 {
+  collision_object_name_->setText(generateNewCollisionObjectId().c_str());
   new_object_dialog_->show();
 }
 
@@ -1756,6 +1841,10 @@ void WarehouseViewer::createNewObjectDialog()
   panel->setTitle("New Collision Object");
 
   QVBoxLayout* panelLayout = new QVBoxLayout(panel);
+
+  collision_object_name_ = new QLineEdit(new_object_dialog_);
+  panelLayout->addWidget(collision_object_name_);
+
   collision_object_type_box_ = new QComboBox(new_object_dialog_);
   collision_object_type_box_->addItem("Box");
   collision_object_type_box_->addItem("Cylinder");
@@ -1837,6 +1926,7 @@ void WarehouseViewer::createNewObjectDialog()
 
 void WarehouseViewer::createNewMeshPressed()
 {
+  mesh_object_name_->setText(generateNewCollisionObjectId().c_str());
   new_mesh_dialog_->show();
 }
 
@@ -1856,7 +1946,8 @@ void WarehouseViewer::createMeshConfirmedPressed()
   pose.orientation.z = 0;
   pose.orientation.w = 1;
 
-  createMeshObject(pose, "file://"+mesh_filename_field_->text().toStdString(), last_mesh_object_color_);
+  createMeshObject(mesh_object_name_->text().toStdString(), pose, "file://"+mesh_filename_field_->text().toStdString(), last_mesh_object_color_);
+  new_mesh_dialog_->hide();
 }
 
 void WarehouseViewer::createNewMeshDialog()
@@ -1867,6 +1958,8 @@ void WarehouseViewer::createNewMeshDialog()
   panel->setTitle("New Mesh Collision Object");
 
   QVBoxLayout* panelLayout = new QVBoxLayout(panel);
+  mesh_object_name_ = new QLineEdit(this);
+  panelLayout->addWidget(mesh_object_name_);
 
   mesh_filename_field_ = new QLineEdit(this);
   mesh_filename_field_->setText("<mesh_filename>");
@@ -2001,9 +2094,11 @@ void WarehouseViewer::createObjectConfirmedPressed()
   }
 
 
-  createCollisionObject(pose, shape, (float)collision_object_scale_x_box_->value() / 100.0f,
+  createCollisionObject(collision_object_name_->text().toStdString(),
+                        pose, shape, (float)collision_object_scale_x_box_->value() / 100.0f,
                         (float)collision_object_scale_y_box_->value() / 100.0f,
                         (float)collision_object_scale_z_box_->value() / 100.0f, last_collision_object_color_);
+  new_object_dialog_->hide();
 }
 
 void WarehouseViewer::createRequestDialog()
@@ -2028,7 +2123,7 @@ void WarehouseViewer::createRequestDialog()
   }
 
   create_request_from_robot_box_ = new QCheckBox(box);
-  create_request_from_robot_box_->setChecked(false);
+  create_request_from_robot_box_->setChecked(params_.use_robot_data_);
   create_request_from_robot_box_->setText("Start From Current Robot State");
 
   boxLayout->addWidget(boxLabel);
@@ -2073,12 +2168,13 @@ void WarehouseViewer::trajectoryRenderTypeChanged(const QString& type)
   QComboBox* box = dynamic_cast<QComboBox*>(sender);
   std::string ID = box->toolTip().toStdString();
 
-  if(trajectory_map_->find(ID) == trajectory_map_->end())
-  {
+  if(!hasTrajectory(selected_motion_plan_name_,
+                   ID)) {
+    ROS_WARN_STREAM("Changing render type when we don't have trajectory");
     return;
   }
 
-  TrajectoryData& data = (*trajectory_map_)[ID];
+  TrajectoryData& data = trajectory_map_[selected_motion_plan_name_][ID];
 
   if(type == "Visual Mesh")
   {
@@ -2100,12 +2196,12 @@ void WarehouseViewer::motionPlanRenderTypeChanged(const QString& type)
   QComboBox* box = dynamic_cast<QComboBox*>(sender);
   std::string ID = box->toolTip().toStdString();
 
-  if(motion_plan_map_->find(ID) == motion_plan_map_->end())
+  if(motion_plan_map_.find(ID) == motion_plan_map_.end())
   {
     return;
   }
 
-  MotionPlanRequestData& data = (*motion_plan_map_)[ID];
+  MotionPlanRequestData& data = motion_plan_map_[ID];
 
   if(type == "Visual Mesh")
   {
@@ -2126,14 +2222,19 @@ void WarehouseViewer::planCallback(arm_navigation_msgs::ArmNavigationErrorCodes&
   if(errorCode.val != ArmNavigationErrorCodes::SUCCESS)
   {
     emit plannerFailure(errorCode.val);
+  } else {
+    selectTrajectory(selected_trajectory_name_);
   }
 }
+
 
 void WarehouseViewer::filterCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode)
 {
   if(errorCode.val != ArmNavigationErrorCodes::SUCCESS)
   {
     emit filterFailure(errorCode.val);
+  } else {
+    selectTrajectory(selected_trajectory_name_);
   }
 }
 
@@ -2155,11 +2256,11 @@ void WarehouseViewer::attachObject(const std::string& name)
 
 void WarehouseViewer::createAttachObjectDialog(const std::string& name)
 {
-  if(current_planning_scene_ID_ == "") {
+  if(current_planning_scene_name_ == "") {
     return;
   }
   
-  arm_navigation_msgs::PlanningScene planning_scene = (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene();
+  arm_navigation_msgs::PlanningScene planning_scene = planning_scene_map_[current_planning_scene_name_].getPlanningScene();
 
   std::stringstream ss;
   ss << "Attach object " << name;
@@ -2390,8 +2491,8 @@ void WarehouseViewer::jointStateSliderChanged(int nv)
   planning_environment::convertKinematicStateToRobotState(*robot_state_,
                                                           ros::Time::now(),
                                                           cm_->getWorldFrameId(),
-                                                          (*planning_scene_map_)[current_planning_scene_ID_].getPlanningScene().robot_state);
-  sendPlanningScene((*planning_scene_map_)[current_planning_scene_ID_]);
+                                                          planning_scene_map_[current_planning_scene_name_].getPlanningScene().robot_state);
+  sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
 }
  
 void WarehouseViewer::popupPlannerFailure(int value)

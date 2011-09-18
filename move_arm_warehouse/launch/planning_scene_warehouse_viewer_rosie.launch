@@ -1,8 +1,5 @@
 <launch>
-	  <node pkg="planning_environment" name="wall_clock_server" type="fake_time.py" />
-	<node name="mongo" type="wrapper.py" pkg="mongodb">
-		<param name="overwrite" value="false"/>
-	</node>
+	<node pkg="planning_environment" name="wall_clock_server" type="fake_time.py" />
 	<param name="/use_sim_time" value="true" />
 	<include file="$(find rosie_arm_navigation)/launch/rosie_planning_environment.launch" />
     <include file="$(find planning_environment)/launch/environment_server.launch">
@@ -12,10 +9,23 @@
 	<include file="$(find rosie_arm_navigation)/launch/constraint_aware_kinematics.launch" />
 	<include file="$(find rosie_arm_navigation)/launch/ompl_planning.launch" />
 	<include file="$(find rosie_arm_navigation)/launch/trajectory_filter_server.launch" />
-	<include file="$(find rosie_arm_navigation)/launch/move_groups.launch" />
-	<node name="collision_proximity_server_test" pkg="collision_proximity" type="collision_proximity_server_test" output="screen" respawn="false" />
-	<node name="collision_proximity_planner" pkg="collision_proximity_planner" type="collision_proximity_planner" output="screen" respawn="false" />
-	<param name="warehouse_port" value="27019"/>
+   	<param name="warehouse_host" value="localhost"/>
+  	<param name="warehouse_port" value="27020"/>
+	<node name="mongo" type="wrapper.py" pkg="mongodb">
+              <param name="overwrite" value="false"/>
+              <param name="database_path" value="/u/gjones/dbs/rosie_db_test"/>
+  	</node>
+ 	<node name="interpolated_ik_node_right" pkg="interpolated_ik_motion_planner" 
+	   type="interpolated_ik_motion_planner.py" args="r" respawn="false" output="screen">
+	   <param name="robot_prefix" type="string" value="rosie"/>
+	   <param name="consistent_angle" type="double" value="1.05"/>
+	</node>
+	<node name="interpolated_ik_node_left" pkg="interpolated_ik_motion_planner" 
+	   type="interpolated_ik_motion_planner.py" args="l" respawn="false" output="screen">
+	   <param name="robot_prefix" type="string" value="rosie"/>
+	   <param name="consistent_angle" type="double" value="1.05"/>
+	</node>
+
 	<node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
 	<node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
 	<!-- Called when left arm executes trajectory using controllers -->
@@ -45,17 +55,17 @@
 	<!-- Called to plan trajectories given motion plan requests -->
 	<param name="planner_service_name" value="/ompl_planning/plan_kinematic_path" />
 	<!-- Interpolates between end effector positions for the left arm -->
-	<param name="left_interpolate_service_name" value="none" />
+	<param name="left_interpolate_service_name" value="/l_interpolated_ik_motion_plan "/>
 	<!-- Interpolates between end effector positions for the right arm -->
-	<param name="right_interpolate_service_name" value="none" />
+	<param name="right_interpolate_service_name" value="/r_interpolated_ik_motion_plan" />
 	<!-- Called to smooth and optimize a planner trajectory -->
 	<param name="trajectory_filter_service_name" value="/trajectory_filter_server/filter_trajectory_with_constraints" />
 	<!-- Called to get the proximity space -->
-	<param name="proximity_space_service_name" value="/collision_proximity_server_test/get_distance_aware_plan" />
+	<param name="proximity_space_service_name" value="none" />
 	<!-- Called to get collision validity of robot state -->
-	<param name="proximity_space_validity_name" value="/collision_proximity_server_test/get_state_validity"/>
+	<param name="proximity_space_validity_name" value="none"/>
 	<!-- Called to produce a plan that pulls trajectories out of collision -->
-	<param name="proximity_space_planner_name" value="/collision_proximity_planner/plan"/>
+	<param name="proximity_space_planner_name" value="none"/>
 	<!-- Called to send the planning scene to the environment server -->
 	<param name="set_planning_scene_diff_name" value="environment_server/set_planning_scene_diff"/>
 	<param name="vis_topic_name" value="planning_scene_visualizer_markers"/>

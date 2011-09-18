@@ -65,19 +65,20 @@ public:
   /// LOGGING FUNCTIONS
   ///
 
-  void pushPlanningSceneToWarehouse(const arm_navigation_msgs::PlanningScene planning_scene);
+  void pushPlanningSceneToWarehouse(const arm_navigation_msgs::PlanningScene planning_scene,
+                                    const int& ID = -1);
 
   void pushMotionPlanRequestToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
+                                        const unsigned int& id, 
                                         const std::string& stage_name,
-                                        const arm_navigation_msgs::MotionPlanRequest& motion_plan_request,
-                                        const std::string& ID);
+                                        const arm_navigation_msgs::MotionPlanRequest& motion_plan_request);
     
   void pushJointTrajectoryToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
                                       const std::string& trajectory_source,
                                       const ros::Duration& production_time, 
                                       const trajectory_msgs::JointTrajectory& trajectory,
-                                      const std::string& ID,
-                                      const std::string& motion_plan_ID,
+                                      const unsigned int& ID,
+                                      const unsigned int& motion_plan_ID,
                                       const arm_navigation_msgs::ArmNavigationErrorCodes& error_code);
     
   void pushOutcomeToWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,
@@ -91,10 +92,15 @@ public:
   /// READING FUNCTIONS
   ///
 
-  void getAvailablePlanningSceneList(const std::string& hostname, std::vector<ros::Time>& creation_times);
+  void getAvailablePlanningSceneList(const std::string& hostname, 
+                                     std::vector<unsigned int>& planning_scene_ids_,
+                                     std::vector<ros::Time>& creation_times);
 
-  bool getPlanningScene(const std::string& hostname, const ros::Time& time, 
-                        arm_navigation_msgs::PlanningScene& planning_scene,std::string& hostnameOut);
+  bool getPlanningScene(const std::string& hostname,
+                        const unsigned int& id,
+                        const ros::Time& time, 
+                        arm_navigation_msgs::PlanningScene& planning_scene,
+                        std::string& hostname_out);
 
   bool getAssociatedOutcomes(const std::string& hostname,
                              const ros::Time& time,
@@ -102,19 +108,20 @@ public:
                              std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes);
 
   bool getAssociatedMotionPlanRequestsStageNames(const std::string& hostname, 
+                                                 const unsigned int id, 
                                                  const ros::Time& time,
                                                  std::vector<std::string>& stage_names);
 
   bool getAssociatedMotionPlanRequest(const std::string& hostname, 
+                                      const unsigned int id, 
                                       const ros::Time& time,
                                       const std::string& stage_name,
-                                      arm_navigation_msgs::MotionPlanRequest& request,
-                                      std::string& ID_out);
+                                      arm_navigation_msgs::MotionPlanRequest& request);
 
   bool getAssociatedMotionPlanRequests(const std::string& hostname,
                                        const ros::Time& time,
+                                       std::vector<unsigned int>& IDs,
                                        std::vector<std::string>& stage_names,
-                                       std::vector<std::string>& IDs,
                                        std::vector<arm_navigation_msgs::MotionPlanRequest>& requests);
 
   bool getAssociatedJointTrajectorySources(const std::string& hostname, 
@@ -123,6 +130,7 @@ public:
 
   bool getAssociatedJointTrajectory(const std::string& hostname, 
                                     const ros::Time& time,
+                                    const unsigned int& motion_plan_id, 
                                     const std::string& trajectory_source,
                                     const unsigned int& trajectory_index,
                                     ros::Duration& processing_time, 
@@ -130,10 +138,10 @@ public:
 
   bool getAssociatedJointTrajectories(const std::string& hostname,
                                       const ros::Time& time,
-                                      const std::string& motion_plan_ID,
+                                      const unsigned int& motion_plan_ID,
                                       std::vector<trajectory_msgs::JointTrajectory>& trajectories,
                                       std::vector<std::string>& sources,
-                                      std::vector<std::string>& IDs,
+                                      std::vector<unsigned int>& IDs,
                                       std::vector<ros::Duration>& durations,
                                       std::vector<int32_t>& error_codes);
 
@@ -152,11 +160,17 @@ public:
   bool removePlanningSceneAndAssociatedDataFromWarehouse(const std::string& hostname,
                                                          const ros::Time& time);
 
+  unsigned int determineNextPlanningSceneId();
+
 protected:
+  
+  void resetPlanningSceneIds();
 
   mongo_ros::Metadata initializeMetadataWithHostname();
 
   void addPlanningSceneTimeToMetadata(const arm_navigation_msgs::PlanningScene& planning_scene, mongo_ros::Metadata& metadata);
+  void addPlanningSceneIdToMetadata(const unsigned int& id,
+                                    mongo_ros::Metadata& metadata);
 
   mongo_ros::Query makeQueryForPlanningSceneTime(const ros::Time& time);
 

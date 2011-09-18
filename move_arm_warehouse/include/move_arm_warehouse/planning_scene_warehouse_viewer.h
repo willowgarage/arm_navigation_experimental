@@ -401,7 +401,7 @@ public slots:
   /// @brief Called when the user presses the "filter trajectory" button.
   void filterButtonPressed();
   /// @brief Called when the user drags the trajectory slider.
-  void sliderDragged();
+  void sliderDragged(int nv);
   /// @brief Called when the user presses the "Plan New Trajectory" button.
   void replanButtonPressed();
   /// @brief Called when the user changes the box displaying the current trajectory point.
@@ -492,6 +492,9 @@ public slots:
   void editJointBoxChanged(const QString& joint);
   void jointStateSliderChanged(int nv);
 
+  void primaryPlannerTriggered();
+  void secondaryPlannerTriggered();
+
 protected:
   
   bool planning_scene_initialized_;
@@ -505,6 +508,10 @@ protected:
   QAction* new_mesh_action_;
   QAction* refresh_action_;
   QAction* view_outcomes_action_;
+  
+  QMenu* planner_configuration_menu_;
+  QAction* set_primary_planner_action_;
+  QAction* set_secondary_planner_action_;
   
   QAction* alter_link_padding_action_;
   QDialog* alter_link_padding_dialog_;
@@ -566,6 +573,7 @@ protected:
   TableLoadThread* table_load_thread_;
 
   QComboBox* collision_object_type_box_;
+  QLineEdit* collision_object_name_;
   QComboBox* request_group_name_box_;
   QSpinBox* collision_object_scale_x_box_;
   QSpinBox* collision_object_scale_y_box_;
@@ -575,6 +583,7 @@ protected:
   QSpinBox* collision_object_pos_z_box_;
   QPushButton* make_object_button_;
 
+  QLineEdit* mesh_object_name_;
   QSpinBox* mesh_object_pos_x_box_;
   QSpinBox* mesh_object_pos_y_box_;
   QSpinBox* mesh_object_pos_z_box_;
