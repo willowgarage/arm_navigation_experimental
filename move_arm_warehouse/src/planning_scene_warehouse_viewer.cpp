@@ -1520,6 +1520,8 @@ void WarehouseViewer::createTrajectoryTable()
     trajectory_point_edit_->setRange(0,0);
   }
 
+  selectTrajectory(selected_trajectory_name_);
+
   if(motion_plan_map_.find(selected_motion_plan_name_) == motion_plan_map_.end()) {
     ROS_INFO_STREAM("Going to be generating empty MPR");
   }
@@ -1537,6 +1539,7 @@ void WarehouseViewer::createTrajectoryTable()
       trajectory_map_[selected_motion_plan_name_][getTrajectoryNameFromId(*it)];
 
     QTreeWidgetItem* nameItem = new QTreeWidgetItem(QStringList(QString::fromStdString(trajectory.getName())));
+    ROS_INFO_STREAM("Trajectory name is " << getTrajectoryNameFromId(*it) << " " << *it << " traj " << trajectory.getName());
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     nameItem->setToolTip(0, nameItem->text(0));
     trajectory_tree_->insertTopLevelItem(count, nameItem);

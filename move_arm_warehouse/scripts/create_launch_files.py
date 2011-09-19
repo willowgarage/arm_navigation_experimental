@@ -23,6 +23,11 @@ yamlFileName = directoryName + '/config/' + robotName + '_planning_description.y
 # Get dictionary of yaml defs
 data = yaml.safe_load(open(yamlFileName, 'r'))
 
+#getting world frame for rviz
+multi_dof = data['multi_dof_joints']
+world_joint = multi_dof[0]
+world_frame = world_joint['parent_frame_id']
+
 # List of groups
 groups = data['groups']
 
@@ -77,10 +82,20 @@ text = re.sub('__RIGHT_GROUP__', right_arm_name, text)
 text = re.sub('__LEFT_IK__', left_arm_ik, text)
 text = re.sub('__RIGHT_IK__', right_arm_ik, text)
 
-launch = open('planning_scene_warehouse_viewer_'+sys.argv[1]+'.launch', 'w')
+launch = open(directoryName+'/launch/planning_scene_warehouse_viewer_'+sys.argv[1]+'.launch', 'w')
 launch.write(text)
 
 launch.close()
 template.close()
+
+#Now we do the rviz template 
+
+rviz_template = open(roslib.packages.get_pkg_dir('move_arm_warehouse')+'/scripts/planning_scene_warehouse_viewer_template.vcg', 'r')
+rviz_text = rviz_template.read()
+rviz_text = re.sub('__WORLD_FRAME__', world_frame, rviz_text)
+out_vcg = open(directoryName+'/config/planning_scene_warehouse_viewer.vcg', 'w')
+out_vcg.write(rviz_text)
+out_vcg.close()
+rviz_template.close()
 
 exit(0)

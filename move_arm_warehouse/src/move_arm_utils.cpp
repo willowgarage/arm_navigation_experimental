@@ -1574,11 +1574,11 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   requestData.addTrajectoryId(id);
 
   data.trajectory_error_code_.val = filter_res.error_code.val;
-  trajectory_map_[requestData.getName()][data.getName()];
+  trajectory_map_[requestData.getName()][data.getName()] = data;
   filter_id = data.getId();
   data.setVisible(true);
   data.play();
-  selected_trajectory_name_ = data.getId();
+  selected_trajectory_name_ = data.getName();
 
   bool success = (filter_res.error_code.val == filter_res.error_code.SUCCESS);
   if(!success) {
@@ -2584,8 +2584,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
     {
       MotionPlanRequestData& data = motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)];
       unsigned int trajectory;
-      if(selected_trajectory_name_ != "" && trajectory_map_.find(selected_trajectory_name_) != trajectory_map_.end())
-      {
+      if(selected_trajectory_name_ != "" && hasTrajectory(data.getName(), selected_trajectory_name_)) {
         filterTrajectory(data, trajectory_map_[data.getName()][selected_trajectory_name_], trajectory);
         selected_trajectory_name_ = getTrajectoryNameFromId(trajectory); 
         playTrajectory(data, trajectory_map_[data.getName()][selected_trajectory_name_]);
