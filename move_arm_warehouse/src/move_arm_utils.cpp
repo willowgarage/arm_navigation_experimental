@@ -912,11 +912,10 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
   /// Load planning scene
   /////
   PlanningSceneData& scene = planning_scene_map_[planning_scene_name];
-  ros::Time time = scene.getTimeStamp();
   error_map_.clear();
   scene.getPipelineStages().clear();
   scene.getErrorCodes().clear();
-  getPlanningSceneOutcomes(time, scene.getPipelineStages(), scene.getErrorCodes(), error_map_);
+  getPlanningSceneOutcomes(scene.getId(), scene.getPipelineStages(), scene.getErrorCodes(), error_map_);
   
   /////
   /// Create collision object.
@@ -949,7 +948,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
     vector<unsigned int> ids;
     vector<string> stageNames;
     vector<MotionPlanRequest> requests;
-    move_arm_warehouse_logger_reader_->getAssociatedMotionPlanRequests("", time, ids, stageNames, requests);
+    move_arm_warehouse_logger_reader_->getAssociatedMotionPlanRequests("", scene.getId(), ids, stageNames, requests);
     unsigned int planning_scene_id = getPlanningSceneIdFromName(planning_scene_name);
     initMotionPlanRequestData(planning_scene_id, ids, stageNames, requests);
     
@@ -972,7 +971,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       /////
       if(loadTrajectories)
       {
-        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", time, motion_id, trajs, sources,
+        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", scene.getId(), motion_id, trajs, sources,
                                                                           traj_ids, durations, errors);
         
         for(size_t k = 0; k < trajs.size(); k++)
@@ -1059,28 +1058,33 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
           {
           case VisualMesh:
             cm_->getRobotMarkersGivenState(*(it2->second.getCurrentState()), arr, it2->second.getColor(),
-                                           it2->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), 
+                                           getMotionPlanRequestNameFromId(it2->second.getMotionPlanRequestId())+" "+it2->first + "_trajectory", 
+                                           ros::Duration(MARKER_REFRESH_TIME), 
                                            &lnames, 1.0, false);
             // Bodies held by robot
-            cm_->getAttachedCollisionObjectMarkers(*(it2->second.getCurrentState()), arr, it2->first + "_trajectory",
+            cm_->getAttachedCollisionObjectMarkers(*(it2->second.getCurrentState()), arr, 
+                                                   getMotionPlanRequestNameFromId(it2->second.getMotionPlanRequestId())+" "+it2->first + "_trajectory", 
                                                    it2->second.getColor(), ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
 
             break;
           case CollisionMesh:
             cm_->getRobotMarkersGivenState(*(it2->second.getCurrentState()), arr, it2->second.getColor(),
-                                           it2->first + "_trajectory", ros::Duration(MARKER_REFRESH_TIME), 
+                                           getMotionPlanRequestNameFromId(it2->second.getMotionPlanRequestId())+" "+it2->first + "_trajectory", 
+                                           ros::Duration(MARKER_REFRESH_TIME), 
                                            &lnames, 1.0, true);
-            cm_->getAttachedCollisionObjectMarkers(*(it2->second.getCurrentState()), arr, it2->first + "_trajectory",
+            cm_->getAttachedCollisionObjectMarkers(*(it2->second.getCurrentState()), arr, 
+                                                   getMotionPlanRequestNameFromId(it2->second.getMotionPlanRequestId())+" "+it2->first + "_trajectory", 
                                                    it2->second.getColor(), ros::Duration(MARKER_REFRESH_TIME), false, &lnames);
             break;
           case PaddingMesh:
             cm_->getRobotPaddedMarkersGivenState((const KinematicState&)*(it2->second.getCurrentState()),
                                                  arr,
                                                  it2->second.getColor(),
-                                                 it2->first + "_trajectory",
+                                                 getMotionPlanRequestNameFromId(it2->second.getMotionPlanRequestId())+" "+it2->first + "_trajectory", 
                                                  ros::Duration(MARKER_REFRESH_TIME)*2.0,
                                                  (const vector<string>*)&lnames);
-            cm_->getAttachedCollisionObjectMarkers(*(it2->second.getCurrentState()), arr, it2->first + "_trajectory",
+            cm_->getAttachedCollisionObjectMarkers(*(it2->second.getCurrentState()), arr,
+                                                   getMotionPlanRequestNameFromId(it2->second.getMotionPlanRequestId())+" "+it2->first + "_trajectory", 
                                                    it2->second.getColor(), ros::Duration(MARKER_REFRESH_TIME)*2.0, true, &lnames);
             break;
           }
@@ -1647,11 +1651,12 @@ void PlanningSceneEditor::sendMarkers()
   unlockScene();
 }
 
-bool PlanningSceneEditor::getPlanningSceneOutcomes(const ros::Time& time, vector<string>& pipeline_stages,
+bool PlanningSceneEditor::getPlanningSceneOutcomes(const unsigned int id,
+                                                   vector<string>& pipeline_stages,
                                                    vector<ArmNavigationErrorCodes>& error_codes,
                                                    map<std::string, ArmNavigationErrorCodes>& error_map)
 {
-  if(!move_arm_warehouse_logger_reader_->getAssociatedOutcomes("", time, pipeline_stages, error_codes))
+  if(!move_arm_warehouse_logger_reader_->getAssociatedOutcomes("", id, pipeline_stages, error_codes))
   {
     ROS_DEBUG_STREAM("No outcome associated with planning scene");
     return false;
@@ -1684,6 +1689,8 @@ std::string PlanningSceneEditor::createNewPlanningScene()
   PlanningSceneData data;
   data.setId(generateNewPlanningSceneId());
   data.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
+
+  ROS_INFO_STREAM("Setting timestamp to " << data.getTimeStamp().toSec());
 
   convertKinematicStateToRobotState(*robot_state_, data.getTimeStamp(), cm_->getWorldFrameId(),
                                     data.getPlanningScene().robot_state);
@@ -1741,7 +1748,7 @@ void PlanningSceneEditor::loadAllWarehouseData()
     PlanningSceneData& data = planning_scene_map_[getPlanningSceneNameFromId(planning_scene_ids[i])];
     data.getPipelineStages().clear();
     data.getErrorCodes().clear();
-    getPlanningSceneOutcomes(time, data.getPipelineStages(), data.getErrorCodes(), error_map_);
+    getPlanningSceneOutcomes(planning_scene_ids[i], data.getPipelineStages(), data.getErrorCodes(), error_map_);
     onPlanningSceneLoaded((int)i, (int)planning_scene_times.size());
   }
 
@@ -1751,26 +1758,29 @@ void PlanningSceneEditor::loadAllWarehouseData()
 void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
 {
   PlanningScene* actual_planning_scene;
+  unsigned int id_to_push;
 
   std::string name_to_push = "";
 
   warehouse_data_loaded_once_ = false;
+  
+  //overwriting timestamp
+  data.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
 
   // Have to do this in case robot state was corrupted by sim time.
   if(!copy) {
-    data.setTimeStamp(data.getTimeStamp());
-    //bool has;
-    //has = move_arm_warehouse_logger_reader_->hasPlanningScene(data.getHostName(),
-    //data.getTimeStamp());
+    bool has;
+    has = move_arm_warehouse_logger_reader_->hasPlanningScene(data.getHostName(),
+                                                              data.getId());
     //ROS_INFO_STREAM("Has is " << has);
 
     ROS_INFO_STREAM("Name is " << data.getHostName() << " stamp is " << data.getTimeStamp());
 
-    if(1) {
+    if(has) {
       move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(),
-                                                                                           data.getTimeStamp());
+                                                                                           data.getId());
     }
-
+    id_to_push = data.getId();
 
     actual_planning_scene = &(data.getPlanningScene());
 
@@ -1779,27 +1789,34 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
     //force reload
     PlanningSceneData ndata = data;
     ndata.setId(generateNewPlanningSceneId());
-    ndata.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
+    id_to_push = ndata.getId();
     ROS_INFO("Copying Planning Scene %s to %s", data.getName().c_str(), ndata.getName().c_str());
     planning_scene_map_[ndata.getName()] = ndata;
     name_to_push = ndata.getName();
     actual_planning_scene = &planning_scene_map_[ndata.getName()].getPlanningScene();
   }
 
-  move_arm_warehouse_logger_reader_->pushPlanningSceneToWarehouse(*actual_planning_scene);
+  move_arm_warehouse_logger_reader_->pushPlanningSceneToWarehouse(*actual_planning_scene, 
+                                                                  id_to_push);
   
   for(std::set<unsigned int>::iterator it = data.getRequests().begin(); it != data.getRequests().end(); it++) {
     MotionPlanRequestData& req = motion_plan_map_[getMotionPlanRequestNameFromId(*it)];
-    move_arm_warehouse_logger_reader_->pushMotionPlanRequestToWarehouse(*actual_planning_scene, req.getId(),
+    move_arm_warehouse_logger_reader_->pushMotionPlanRequestToWarehouse(id_to_push, 
+                                                                        req.getId(),
                                                                         req.getSource(),
                                                                         req.getMotionPlanRequest());
     ROS_INFO_STREAM("Saving Request " << req.getId());
     for(std::set<unsigned int>::iterator it2 = req.getTrajectories().begin(); it2 != req.getTrajectories().end(); it2++) {
       TrajectoryData& traj = trajectory_map_[req.getName()][getTrajectoryNameFromId(*it2)];
-      move_arm_warehouse_logger_reader_->pushJointTrajectoryToWarehouse(*actual_planning_scene, traj.getSource(),
-                                                                        traj.getDuration(), traj.getTrajectory(),
-                                                                        traj.getId(), traj.getMotionPlanRequestId(), traj.trajectory_error_code_);
-      move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(*actual_planning_scene, traj.getSource(),
+      move_arm_warehouse_logger_reader_->pushJointTrajectoryToWarehouse(id_to_push,
+                                                                        traj.getSource(),
+                                                                        traj.getDuration(), 
+                                                                        traj.getTrajectory(),
+                                                                        traj.getId(), 
+                                                                        traj.getMotionPlanRequestId(), 
+                                                                        traj.trajectory_error_code_);
+      move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(id_to_push,
+                                                                traj.getSource(),
                                                                 traj.trajectory_error_code_);
       ROS_INFO_STREAM("Saving Trajectory " << traj.getId());
     }
@@ -1827,7 +1844,7 @@ bool PlanningSceneEditor::loadPlanningScene(const ros::Time& time,
   data.setTimeStamp(time);
   data.setId(id);
   std::string host;
-  if(!move_arm_warehouse_logger_reader_->getPlanningScene("", id, time, data.getPlanningScene(), host))
+  if(!move_arm_warehouse_logger_reader_->getPlanningScene("", id, data.getPlanningScene(), host))
   {
     return false;
   }
@@ -1839,12 +1856,12 @@ bool PlanningSceneEditor::loadPlanningScene(const ros::Time& time,
   return true;
 }
 
-bool PlanningSceneEditor::getAllAssociatedMotionPlanRequests(const ros::Time& time, 
+bool PlanningSceneEditor::getAllAssociatedMotionPlanRequests(const unsigned int id,
                                                              vector<unsigned int>& ids,
                                                              vector<string>& stages,
                                                              vector<MotionPlanRequest>& requests)
 {
-  move_arm_warehouse_logger_reader_->getAssociatedMotionPlanRequests("", time, ids, stages, requests);
+  move_arm_warehouse_logger_reader_->getAssociatedMotionPlanRequests("", id, ids, stages, requests);
   return true;
 }
 
@@ -1903,10 +1920,11 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
   SetPlanningSceneDiff::Response planning_scene_res;
 
   planning_scene_req.planning_scene_diff = data.getPlanningScene();
-  // if(params_.use_robot_data_) {
-  //   arm_navigation_msgs::RobotState emp;
-  //   planning_scene_req.planning_scene_diff.robot_state = emp;
-  // }
+  if(params_.use_robot_data_) {
+    //just will get latest data from the monitor
+    arm_navigation_msgs::RobotState emp;
+    planning_scene_req.planning_scene_diff.robot_state = emp;
+  }
 
   collision_space::EnvironmentModel::AllowedCollisionMatrix acm; 
   if(planning_scene_req.planning_scene_diff.allowed_collision_matrix.link_names.empty()) {
@@ -2200,28 +2218,35 @@ void PlanningSceneEditor::initMotionPlanRequestData(const unsigned int& planning
 //   return true;
 // }
 
-bool PlanningSceneEditor::getAllAssociatedTrajectorySources(const ros::Time& time, vector<string>& trajectory_sources)
+bool PlanningSceneEditor::getAllAssociatedTrajectorySources(const unsigned int planning_id, 
+                                                            const unsigned int mpr_id, 
+                                                            vector<unsigned int>& trajectory_ids,
+                                                            vector<string>& trajectory_sources)
 {
-  if(!move_arm_warehouse_logger_reader_->getAssociatedJointTrajectorySources("", time, trajectory_sources))
+  if(!move_arm_warehouse_logger_reader_->getAssociatedJointTrajectorySources("", planning_id, mpr_id, 
+                                                                             trajectory_ids,
+                                                                             trajectory_sources))
   {
     return false;
   }
   return true;
 }
 
-bool PlanningSceneEditor::getAllAssociatedPausedStates(const ros::Time& time, vector<ros::Time>& paused_times)
+bool PlanningSceneEditor::getAllAssociatedPausedStates(const unsigned int id, 
+                                                       vector<ros::Time>& paused_times)
 {
-  if(!move_arm_warehouse_logger_reader_->getAssociatedPausedStates("", time, paused_times))
+  if(!move_arm_warehouse_logger_reader_->getAssociatedPausedStates("", id, paused_times))
   {
     return false;
   }
   return true;
 }
 
-bool PlanningSceneEditor::getPausedState(const ros::Time& time, const ros::Time& paused_time,
+bool PlanningSceneEditor::getPausedState(const unsigned int id, 
+                                         const ros::Time& paused_time,
                                          HeadMonitorFeedback& paused_state)
 {
-  if(!move_arm_warehouse_logger_reader_->getAssociatedPausedState("", time, paused_time, paused_state))
+  if(!move_arm_warehouse_logger_reader_->getAssociatedPausedState("", id, paused_time, paused_state))
   {
     return false;
   }
@@ -3092,7 +3117,10 @@ void PlanningSceneEditor::attachCollisionObject(const std::string& name,
   selectable.attached_collision_object_.object.operation.operation = selectable.attached_collision_object_.object.operation.ADD; 
   selectable.attach_ = true;
   //now we need to map the collision object pose into the attached object pose
+  geometry_msgs::Pose p = selectable.attached_collision_object_.object.poses[0];
   geometry_msgs::PoseStamped ret_pose;
+  ROS_INFO_STREAM("Before attach object pose frame " << selectable.attached_collision_object_.object.header.frame_id << " is " 
+                  << p.position.x << " " << p.position.y << " " << p.position.z); 
   cm_->convertPoseGivenWorldTransform(*robot_state_,
                                       link_name, 
                                       selectable.attached_collision_object_.object.header,
@@ -3100,6 +3128,7 @@ void PlanningSceneEditor::attachCollisionObject(const std::string& name,
                                       ret_pose);
   selectable.attached_collision_object_.object.header = ret_pose.header;
   selectable.attached_collision_object_.object.poses[0] = ret_pose.pose;
+  ROS_INFO_STREAM("Converted attach object pose frame " << ret_pose.header.frame_id << " is " << ret_pose.pose.position.x << " " << ret_pose.pose.position.y << " " << ret_pose.pose.position.z); 
   sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
   unlockScene();
 }

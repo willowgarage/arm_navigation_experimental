@@ -7,7 +7,7 @@
   <param name="warehouse_port" value="27020"/>
   <node name="mongo" type="wrapper.py" pkg="mongodb">
     <param name="overwrite" value="false"/>
-    <param name="database_path" value="~/arm_navigation_dbs/__ROBOT_NAME__"/>
+    <param name="database_path" value="arm_navigation_dbs/__ROBOT_NAME__"/>
   </node>
 
   <include file="$(find planning_environment)/launch/environment_server.launch">

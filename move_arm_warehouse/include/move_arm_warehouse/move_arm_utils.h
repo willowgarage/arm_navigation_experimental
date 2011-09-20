@@ -196,6 +196,7 @@ public:
   inline void setTimeStamp(const ros::Time& time)
   {
     timestamp_ = time;
+    ROS_INFO_STREAM("Setting timestamp internal to " << timestamp_.toSec());
     planning_scene_.robot_state.joint_state.header.stamp = time;
   }
 
@@ -1438,7 +1439,7 @@ public:
   /// @param requests vector of MotionPlanRequests to be filled with the requests associated with the given time.
   /// @return true if query to warehouse was successful, false otherwise.
   /////
-  bool getAllAssociatedMotionPlanRequests(const ros::Time& time, 
+  bool getAllAssociatedMotionPlanRequests(const unsigned int id, 
                                           std::vector<unsigned int>& ids,
                                           std::vector<std::string>& stages,
                                           std::vector<arm_navigation_msgs::MotionPlanRequest>& requests);
@@ -1449,7 +1450,8 @@ public:
   /// @param paused_times vector of time stamps corresponding to each paused time.
   /// @return true if the query to warehouse was successful, false otherwise.
   //////
-  bool getAllAssociatedPausedStates(const ros::Time& time, std::vector<ros::Time>& paused_times);
+  bool getAllAssociatedPausedStates(const unsigned int id, 
+                                    std::vector<ros::Time>& paused_times);
 
   //////
   /// @brief loads all trajectory sources from the warehouse associated with the given time stamp.
@@ -1457,7 +1459,10 @@ public:
   /// @param trajectory_sources a vector of strings to be filled with the trajectory sources (planner, filter, etc.)
   /// @return true if the query to the warehouse was successful, false otherwise.
   //////
-  bool getAllAssociatedTrajectorySources(const ros::Time& time, std::vector<std::string>& trajectory_sources);
+  bool getAllAssociatedTrajectorySources(const unsigned int planning_id,
+                                         const unsigned int mpr_id,
+                                         std::vector<unsigned int>& trajectory_ids,
+                                         std::vector<std::string>& trajectory_sources);
 
   /////
   /// @brief loads all planning scene times from the warehouse.
@@ -1488,7 +1493,8 @@ public:
   /// @param paused_state message to be filled by the warehouse.
   /// @return true if the query to teh warehouse was successful, false otherwise
   /////
-  bool getPausedState(const ros::Time& time, const ros::Time& paused_time,
+  bool getPausedState(const unsigned int id, 
+                      const ros::Time& paused_time,
                       head_monitor_msgs::HeadMonitorFeedback& paused_state);
 
   //////
@@ -1499,7 +1505,8 @@ public:
   /// @param error_map associates each error code with a trajectory id. To be filled by the warehouse.
   /// @return true if the query to the warehouse was successful, false otherwise.
   //////
-  bool getPlanningSceneOutcomes(const ros::Time& time, std::vector<std::string>& pipeline_stages,
+  bool getPlanningSceneOutcomes(const unsigned int id, 
+                                std::vector<std::string>& pipeline_stages,
                                 std::vector<arm_navigation_msgs::ArmNavigationErrorCodes>& error_codes,
                                 std::map<std::string, arm_navigation_msgs::ArmNavigationErrorCodes>& error_map);
 

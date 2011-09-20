@@ -1363,7 +1363,7 @@ void WarehouseViewer::removePlanningSceneButtonPressed()
     QTableWidgetItem* item = items[i];
     QTableWidgetItem* nameItem = planning_scene_table_->item(item->row(),1);
     PlanningSceneData& data = planning_scene_map_[nameItem->text().toStdString()];
-    move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(), data.getTimeStamp());
+    move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(), data.getId());
     planning_scene_map_.erase(nameItem->text().toStdString());
     planning_scene_table_->removeRow(item->row());
   }
@@ -1539,7 +1539,6 @@ void WarehouseViewer::createTrajectoryTable()
       trajectory_map_[selected_motion_plan_name_][getTrajectoryNameFromId(*it)];
 
     QTreeWidgetItem* nameItem = new QTreeWidgetItem(QStringList(QString::fromStdString(trajectory.getName())));
-    ROS_INFO_STREAM("Trajectory name is " << getTrajectoryNameFromId(*it) << " " << *it << " traj " << trajectory.getName());
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     nameItem->setToolTip(0, nameItem->text(0));
     trajectory_tree_->insertTopLevelItem(count, nameItem);
