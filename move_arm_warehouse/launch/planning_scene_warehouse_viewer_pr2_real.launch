@@ -4,13 +4,15 @@
   <param name="warehouse_port" value="27021"/>
   <node name="mongo" type="wrapper.py" pkg="mongodb">
     <param name="overwrite" value="false"/>
-    <param name="database_path" value="arm_navigation_dbs/pr2_real_launch"/>
+    <param name="database_path" value="arm_navigation_dbs/pr2_real"/>
   </node>
 
   <!-- send parameters for multidof -->
   <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
 
   <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+
+  <include file="$(find pr2_arm_navigation_perception)/launch/laser+stereo-perception.launch"/>
 
   <node pkg="planning_environment" type="environment_server" output="screen" name="environment_server">      
     <param name="use_monitor" type="bool" value="true"/>
@@ -44,8 +46,6 @@
     <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
     <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
   </node>
-
-  <node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
 
   <!-- Called when left arm executes trajectory using controllers -->
   <param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />
@@ -110,7 +110,5 @@
   <param name="use_robot_data" value="true"/>
   
   <param name="vis_topic_name" value="planning_scene_visualizer_markers"/>
-
-  <include file="$(find pr2_arm_navigation_perception)/launch/laser-perception.launch"/>
 
 </launch>

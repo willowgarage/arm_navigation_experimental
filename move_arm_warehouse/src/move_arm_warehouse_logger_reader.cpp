@@ -342,7 +342,7 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequests(const std::st
     stage_names.push_back(motion_plan_requests[i]->lookupString("stage_name"));
     ids.push_back(motion_plan_requests[i]->lookupInt(MOTION_PLAN_REQUEST_ID_NAME));
     requests.push_back(*motion_plan_requests[i]);
-    ROS_INFO_STREAM("Loading motion plan request " << ids[i] << " from warehouse...");
+    ROS_INFO_STREAM("Loading planning scene " << planning_scene_id << " motion plan request " << ids[i] << " from warehouse...");
   }
 
   return true;

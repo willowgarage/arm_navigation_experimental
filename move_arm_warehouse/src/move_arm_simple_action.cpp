@@ -132,10 +132,6 @@ static const double MAX_TRAJECTORY_MONITORING_FREQUENCY = 100.0;
 class MoveArm
 {
 public:
-    unsigned int max_mpr_ID_;
-    unsigned int max_trajectory_ID_;
-    unsigned int last_mpr_ID_;
-
   MoveArm(const std::string &group_name) :
     group_(group_name),
     private_handle_("~")
@@ -1167,10 +1163,10 @@ private:
     original_request_ = req;
 
     if(log_to_warehouse_) {
-      unsigned int cur_mpr = max_mpr_ID_;
+      last_mpr_ID_ = max_mpr_ID_;
       max_mpr_ID_++;
       warehouse_logger_->pushMotionPlanRequestToWarehouse(current_planning_scene_id_,
-                                                          cur_mpr,
+                                                          last_mpr_ID_,
                                                           "original",
                                                           req.motion_plan_request);
     }
@@ -1518,6 +1514,10 @@ private:
   arm_navigation_msgs::SetPlanningSceneDiff::Response set_planning_scene_diff_res_;
   arm_navigation_msgs::PlanningScene current_planning_scene_;
   unsigned int current_planning_scene_id_;
+  unsigned int max_mpr_ID_;
+  unsigned int max_trajectory_ID_;
+  unsigned int last_mpr_ID_;
+
   planning_models::KinematicState* planning_scene_state_;
 
   tf::TransformListener *tf_;

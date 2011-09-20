@@ -1401,6 +1401,10 @@ void WarehouseViewer::trajectoryTableSelection()
 
 void WarehouseViewer::selectTrajectory(std::string ID)
 {
+  if(ID == "") {
+    ROS_WARN_STREAM("Empty trajectory being selected - that's bad");
+    return;
+  }
   selected_trajectory_name_ = ID;
   TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
   unsigned int point = trajectory.getCurrentPoint();
@@ -1520,9 +1524,9 @@ void WarehouseViewer::createTrajectoryTable()
     trajectory_slider_->setMaximum(0);
     trajectory_slider_->setMinimum(0);
     trajectory_point_edit_->setRange(0,0);
+  } else {
+    selectTrajectory(selected_trajectory_name_);
   }
-
-  selectTrajectory(selected_trajectory_name_);
 
   if(motion_plan_map_.find(selected_motion_plan_name_) == motion_plan_map_.end()) {
     ROS_INFO_STREAM("Going to be generating empty MPR");

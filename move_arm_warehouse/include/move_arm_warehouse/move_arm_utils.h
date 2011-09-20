@@ -196,7 +196,6 @@ public:
   inline void setTimeStamp(const ros::Time& time)
   {
     timestamp_ = time;
-    ROS_INFO_STREAM("Setting timestamp internal to " << timestamp_.toSec());
     planning_scene_.robot_state.joint_state.header.stamp = time;
   }
 

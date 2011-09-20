@@ -827,7 +827,6 @@ void PlanningSceneEditor::makeSelectableAttachedObjectFromPlanningScene(const ar
   //intentionally copying object
   arm_navigation_msgs::CollisionObject coll = att.object;
   {
-    ROS_INFO_STREAM("Object header is in frame " << att.object.header.frame_id);
     planning_models::KinematicState state(cm_->getKinematicModel());
     planning_environment::setRobotStateAndComputeTransforms(scene.robot_state,
                                                             state);
@@ -859,10 +858,10 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
   // Need to do this to clear old scene state.
   deleteKinematicStates();
 
-  current_planning_scene_name_ = planning_scene_name;
   if(planning_scene_name == "")
   {
     ROS_INFO_STREAM("No new scene");
+    current_planning_scene_name_ = planning_scene_name;
     unlockScene();
     return;
   }
@@ -911,6 +910,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
   /////
   /// Load planning scene
   /////
+  current_planning_scene_name_ = planning_scene_name;
   PlanningSceneData& scene = planning_scene_map_[planning_scene_name];
   error_map_.clear();
   scene.getPipelineStages().clear();
@@ -973,7 +973,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       {
         move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", scene.getId(), motion_id, trajs, sources,
                                                                           traj_ids, durations, errors);
-        
+
         for(size_t k = 0; k < trajs.size(); k++)
         {
           TrajectoryData trajectory_data;
@@ -2107,6 +2107,8 @@ void PlanningSceneEditor::initMotionPlanRequestData(const unsigned int& planning
   lockScene();
   for(size_t i = 0; i < requests.size(); i++)
   {
+    ROS_INFO_STREAM("Planning scene " << planning_scene_id << " requests " << ids.size());
+    
     const MotionPlanRequest& mpr = requests[i];
     cm_->disableCollisionsForNonUpdatedLinks(mpr.group_name);
 
@@ -3119,7 +3121,7 @@ void PlanningSceneEditor::attachCollisionObject(const std::string& name,
   //now we need to map the collision object pose into the attached object pose
   geometry_msgs::Pose p = selectable.attached_collision_object_.object.poses[0];
   geometry_msgs::PoseStamped ret_pose;
-  ROS_INFO_STREAM("Before attach object pose frame " << selectable.attached_collision_object_.object.header.frame_id << " is " 
+  ROS_DEBUG_STREAM("Before attach object pose frame " << selectable.attached_collision_object_.object.header.frame_id << " is " 
                   << p.position.x << " " << p.position.y << " " << p.position.z); 
   cm_->convertPoseGivenWorldTransform(*robot_state_,
                                       link_name, 
@@ -3128,7 +3130,7 @@ void PlanningSceneEditor::attachCollisionObject(const std::string& name,
                                       ret_pose);
   selectable.attached_collision_object_.object.header = ret_pose.header;
   selectable.attached_collision_object_.object.poses[0] = ret_pose.pose;
-  ROS_INFO_STREAM("Converted attach object pose frame " << ret_pose.header.frame_id << " is " << ret_pose.pose.position.x << " " << ret_pose.pose.position.y << " " << ret_pose.pose.position.z); 
+  ROS_DEBUG_STREAM("Converted attach object pose frame " << ret_pose.header.frame_id << " is " << ret_pose.pose.position.x << " " << ret_pose.pose.position.y << " " << ret_pose.pose.position.z); 
   sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
   unlockScene();
 }
@@ -3895,6 +3897,9 @@ void PlanningSceneEditor::deleteTrajectory(unsigned int mpr_id, unsigned int tra
 
   traj.reset();
   trajectory_map_[getMotionPlanRequestNameFromId(mpr_id)].erase(getTrajectoryNameFromId(traj_id));
+  if(trajectory_map_[getMotionPlanRequestNameFromId(mpr_id)].empty()) {
+    trajectory_map_.erase(getMotionPlanRequestNameFromId(mpr_id));
+  }
 
   unlockScene();
   interactive_marker_server_->applyChanges();
@@ -3944,7 +3949,7 @@ void PlanningSceneEditor::deleteMotionPlanRequest(const unsigned int& id,
   } else {
     PlanningSceneData& data = planning_scene_map_[current_planning_scene_name_];
     if(!data.hasMotionPlanRequestId(id)) {
-      ROS_WARN_STREAM("Planning scene doesn't have mpr id " << id << " for delete");
+      ROS_WARN_STREAM("Planning scene " << data.getId() << " doesn't have mpr id " << id << " for delete");
     } else {
       data.removeMotionPlanRequestId(id);
     }
