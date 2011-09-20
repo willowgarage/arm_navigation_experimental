@@ -1403,12 +1403,14 @@ void WarehouseViewer::selectTrajectory(std::string ID)
 {
   selected_trajectory_name_ = ID;
   TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
-  trajectory_slider_->setMaximum((int)trajectory.getTrajectory().points.size() - 1);
+  unsigned int point = trajectory.getCurrentPoint();
+  int sz = ((int)trajectory.getTrajectory().points.size()) - 1;
+  trajectory_slider_->setMaximum(sz);
   trajectory_slider_->setMinimum(0);
-  trajectory_slider_->setValue(trajectory.getCurrentPoint());
+  trajectory_slider_->setValue(point);
 
-  trajectory_point_edit_->setRange(0,(int)trajectory.getTrajectory().points.size()-1);
-  trajectory_point_edit_->setValue(trajectory.getCurrentPoint());
+  trajectory_point_edit_->setRange(0,sz);
+  trajectory_point_edit_->setValue(point);
 
   std::stringstream ss;
   ss << trajectory.trajectory_error_code_.val;

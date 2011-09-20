@@ -82,6 +82,11 @@ text = re.sub('__RIGHT_GROUP__', right_arm_name, text)
 text = re.sub('__LEFT_IK__', left_arm_ik, text)
 text = re.sub('__RIGHT_IK__', right_arm_ik, text)
 
+#interpolated ik will only work with two arms for now
+if right_arm_name == 'none':
+  text = re.sub('/l_interpolated_ik_motion_plan', 'none', text)
+  text = re.sub('/r_interpolated_ik_motion_plan', 'none', text)
+
 launch = open(directoryName+'/launch/planning_scene_warehouse_viewer_'+sys.argv[1]+'.launch', 'w')
 launch.write(text)
 
