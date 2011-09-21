@@ -42,7 +42,7 @@
 	type="interpolated_ik_motion_planner.py" args="r" respawn="false"/>
   <node name="interpolated_ik_node_left" pkg="interpolated_ik_motion_planner" 
 	type="interpolated_ik_motion_planner.py" args="l" respawn="false"/>
-  <node pkg="trajectory_filter_server" name="trajectory_filter" type="trajectory_filter_server" output="screen">
+  <node pkg="trajectory_filter_server" name="trajectory_filter_server" type="trajectory_filter_server" output="screen">
     <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
     <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
   </node>
@@ -93,7 +93,7 @@
   <param name="right_interpolate_service_name" value="/r_interpolated_ik_motion_plan" />
 
   <!-- Called to smooth and optimize a planner trajectory -->
-  <param name="trajectory_filter_service_name" value="/trajectory_filter/filter_trajectory_with_constraints" />
+  <param name="trajectory_filter_service_name" value="/trajectory_filter_server/filter_trajectory_with_constraints" />
 
   <!-- Called to get the proximity space -->
   <param name="proximity_space_service_name" value="none" />

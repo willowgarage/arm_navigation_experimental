@@ -65,7 +65,7 @@ MoveArmWarehouseLoggerReader::MoveArmWarehouseLoggerReader()
 
   hostname_ = hostname;
 
-  ROS_INFO_STREAM("Hostname is " << hostname_);
+  ROS_DEBUG_STREAM("Hostname is " << hostname_);
 
 
   planning_scene_collection_ = new mongo_ros::MessageCollection<arm_navigation_msgs::PlanningScene>(DATABASE_NAME, "planning_scene");
@@ -220,7 +220,7 @@ void MoveArmWarehouseLoggerReader::getAvailablePlanningSceneList(const std::stri
       break;
     }
     planning_scene_ids[i] = planning_scenes[i]->lookupInt(PLANNING_SCENE_ID_NAME);
-    ROS_INFO_STREAM("Got planning scene id " << planning_scene_ids[i]);
+    ROS_DEBUG_STREAM("Got planning scene id " << planning_scene_ids[i]);
     creation_times[i] = ros::Time(planning_scenes[i]->lookupDouble(PLANNING_SCENE_TIME_NAME));
   }
   if(no_ids) {
@@ -342,7 +342,7 @@ bool MoveArmWarehouseLoggerReader::getAssociatedMotionPlanRequests(const std::st
     stage_names.push_back(motion_plan_requests[i]->lookupString("stage_name"));
     ids.push_back(motion_plan_requests[i]->lookupInt(MOTION_PLAN_REQUEST_ID_NAME));
     requests.push_back(*motion_plan_requests[i]);
-    ROS_INFO_STREAM("Loading planning scene " << planning_scene_id << " motion plan request " << ids[i] << " from warehouse...");
+    ROS_DEBUG_STREAM("Loading planning scene " << planning_scene_id << " motion plan request " << ids[i] << " from warehouse...");
   }
 
   return true;
@@ -424,7 +424,7 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectories(const std::str
     trajectories.push_back(*joint_trajectories[i]);
     sources.push_back(joint_trajectories[i]->lookupString("trajectory_source"));
     ids.push_back(joint_trajectories[i]->lookupInt(TRAJECTORY_ID_NAME));
-    ROS_INFO_STREAM("Loading mpr id " << motion_request_id << " trajectory " << ids[i] << " from warehouse...");
+    ROS_DEBUG_STREAM("Loading mpr id " << motion_request_id << " trajectory " << ids[i] << " from warehouse...");
     durations.push_back(ros::Duration(joint_trajectories[i]->lookupDouble("production_time")));
     error_codes.push_back(joint_trajectories[i]->lookupInt("trajectory_error_code"));
   }
@@ -487,21 +487,21 @@ bool MoveArmWarehouseLoggerReader::removePlanningSceneAndAssociatedDataFromWareh
   q.append("hostname", hostname);
 
   unsigned int rem = planning_scene_collection_->removeMessages(q);
-  ROS_INFO_STREAM("Removed " << rem << " planning scenes");
+  ROS_DEBUG_STREAM("Removed " << rem << " planning scenes");
 
   bool has_planning_scene = (rem > 0);
   
   rem = motion_plan_request_collection_->removeMessages(q);
-  ROS_INFO_STREAM("Removed " << rem << " motion plan requests");
+  ROS_DEBUG_STREAM("Removed " << rem << " motion plan requests");
 
   rem = trajectory_collection_->removeMessages(q);
-  ROS_INFO_STREAM("Removed " << rem << " trajectories");
+  ROS_DEBUG_STREAM("Removed " << rem << " trajectories");
 
   rem = outcome_collection_->removeMessages(q);
-  ROS_INFO_STREAM("Removed " << rem << " outcomes");
+  ROS_DEBUG_STREAM("Removed " << rem << " outcomes");
 
   rem = paused_state_collection_->removeMessages(q);
-  ROS_INFO_STREAM("Removed " << rem << " paused states");
+  ROS_DEBUG_STREAM("Removed " << rem << " paused states");
 
   return has_planning_scene;
 }
@@ -516,5 +516,5 @@ bool MoveArmWarehouseLoggerReader::removePlanningSceneAndAssociatedDataFromWareh
 //   std::vector<MotionPlanRequestWithMetadata> motion_plan_requests = motion_plan_request_collection_->pullAllResults(q, false);
 //   coll.removeMessages(q);
 //   std::vector<MotionPlanRequestWithMetadata> motion_plan_requests_after = motion_plan_request_collection_->pullAllResults(q, false);
-//   ROS_INFO_STREAM("Removing " << motion_plan_requests.size()-motion_plan_requests_after.size() << " motion plan requests");
+//   ROS_DEBUG_STREAM("Removing " << motion_plan_requests.size()-motion_plan_requests_after.size() << " motion plan requests");
 // }

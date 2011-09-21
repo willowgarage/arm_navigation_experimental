@@ -1954,7 +1954,12 @@ void WarehouseViewer::createMeshConfirmedPressed()
   pose.orientation.z = 0;
   pose.orientation.w = 1;
 
-  createMeshObject(mesh_object_name_->text().toStdString(), pose, "file://"+mesh_filename_field_->text().toStdString(), last_mesh_object_color_);
+  btVector3 scale;
+  scale.setX(mesh_object_scale_x_box_->value());
+  scale.setY(mesh_object_scale_y_box_->value());
+  scale.setZ(mesh_object_scale_z_box_->value());
+
+  createMeshObject(mesh_object_name_->text().toStdString(), pose, "file://"+mesh_filename_field_->text().toStdString(), scale, last_mesh_object_color_);
   new_mesh_dialog_->hide();
 }
 
@@ -2004,9 +2009,39 @@ void WarehouseViewer::createNewMeshDialog()
   posLayout->addWidget(mesh_object_pos_x_box_);
   posLayout->addWidget(mesh_object_pos_y_box_);
   posLayout->addWidget(mesh_object_pos_z_box_);
-
   posBox->setLayout(posLayout);
+
+  QGroupBox* scaleBox = new QGroupBox(panel);
+  scaleBox->setTitle("Scale (x,y,z)");
+  QHBoxLayout* scaleLayout = new QHBoxLayout(scaleBox);
+
+  mesh_object_scale_x_box_ = new QDoubleSpinBox(scaleBox);
+  mesh_object_scale_y_box_ = new QDoubleSpinBox(scaleBox);
+  mesh_object_scale_z_box_ = new QDoubleSpinBox(scaleBox);
+  mesh_object_scale_x_box_->setDecimals(4);
+  mesh_object_scale_x_box_->setSingleStep(.0001);
+  mesh_object_scale_y_box_->setDecimals(4);
+  mesh_object_scale_y_box_->setSingleStep(.0001);
+  mesh_object_scale_z_box_->setDecimals(4);
+  mesh_object_scale_z_box_->setSingleStep(.0001);
+  mesh_object_scale_x_box_->setRange(0, 10.0);
+  mesh_object_scale_y_box_->setRange(0, 10.0);
+  mesh_object_scale_z_box_->setRange(0, 10.0);
+  mesh_object_scale_x_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  mesh_object_scale_y_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  mesh_object_scale_z_box_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  mesh_object_scale_x_box_->setValue(1.0);
+  mesh_object_scale_y_box_->setValue(1.0);
+  mesh_object_scale_z_box_->setValue(1.0);
+
+  scaleLayout->addWidget(mesh_object_scale_x_box_);
+  scaleLayout->addWidget(mesh_object_scale_y_box_);
+  scaleLayout->addWidget(mesh_object_scale_z_box_);
+
+  scaleBox->setLayout(scaleLayout);
+
   panelLayout->addWidget(posBox);
+  panelLayout->addWidget(scaleBox);
 
   panel->setLayout(panelLayout);
   layout->addWidget(panel);

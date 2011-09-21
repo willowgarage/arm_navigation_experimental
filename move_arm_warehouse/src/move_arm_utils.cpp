@@ -1690,8 +1690,6 @@ std::string PlanningSceneEditor::createNewPlanningScene()
   data.setId(generateNewPlanningSceneId());
   data.setTimeStamp(ros::Time(ros::WallTime::now().toSec()));
 
-  ROS_INFO_STREAM("Setting timestamp to " << data.getTimeStamp().toSec());
-
   convertKinematicStateToRobotState(*robot_state_, data.getTimeStamp(), cm_->getWorldFrameId(),
                                     data.getPlanningScene().robot_state);
   //end_effector_state_ = planning_state_;
@@ -3007,9 +3005,10 @@ void PlanningSceneEditor::attachedCollisionObjectInteractiveCallback(const Inter
 std::string PlanningSceneEditor::createMeshObject(const std::string& name,
                                                   geometry_msgs::Pose pose,
                                                   const std::string& filename,
+                                                  const btVector3& scale,
                                                   std_msgs::ColorRGBA color)
 {
-  shapes::Mesh* mesh = shapes::createMeshFromFilename(filename);
+  shapes::Mesh* mesh = shapes::createMeshFromFilename(filename, &scale);
   if(mesh == NULL) {
     return "";
   }

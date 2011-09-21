@@ -1648,6 +1648,7 @@ public:
   std::string createMeshObject(const std::string& name, 
                                geometry_msgs::Pose pose,
                                const std::string& filename,
+                               const btVector3& scale,
                                std_msgs::ColorRGBA color);
   //////
   /// @brief creates a 6DOF control over the end effector of either the start or goal position of the given request.

@@ -587,6 +587,9 @@ protected:
   QSpinBox* mesh_object_pos_x_box_;
   QSpinBox* mesh_object_pos_y_box_;
   QSpinBox* mesh_object_pos_z_box_;
+  QDoubleSpinBox* mesh_object_scale_x_box_;
+  QDoubleSpinBox* mesh_object_scale_y_box_;
+  QDoubleSpinBox* mesh_object_scale_z_box_;
   QPushButton* mesh_color_button_;
   QPushButton* make_mesh_button_;
 
