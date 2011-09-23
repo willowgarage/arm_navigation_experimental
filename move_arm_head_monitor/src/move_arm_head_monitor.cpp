@@ -101,6 +101,9 @@ protected:
   std::string current_group_name_;
   actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>* current_arm_controller_action_client_;
 
+  bool use_left_arm_;
+  bool use_right_arm_;
+
   planning_environment::CollisionModelsInterface* collision_models_interface_;
   planning_environment::KinematicModelStateMonitor* kmsm_;
 
@@ -151,6 +154,8 @@ public:
     private_handle_.param<double>("max_point_distance", max_point_distance_, 1.0);
     private_handle_.param<bool>("do_preplan_scan", do_preplan_scan_, true);
     private_handle_.param<bool>("do_monitoring", do_monitoring_, true);
+    private_handle_.param<bool>("use_left_arm", use_left_arm_, true);
+    private_handle_.param<bool>("use_right_arm", use_right_arm_, true);
 
     std::string robot_description_name = root_handle_.resolveName("robot_description", true);
     
@@ -169,13 +174,16 @@ public:
     head_monitor_action_server_.registerGoalCallback(boost::bind(&HeadMonitor::monitorGoalCallback, this));
     head_monitor_action_server_.registerPreemptCallback(boost::bind(&HeadMonitor::monitorPreemptCallback, this));
 
-    right_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/r_arm_controller/follow_joint_trajectory", true);
-    left_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory", true);
-    while(ros::ok() && !right_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
-      ROS_INFO("Waiting for the right_joint_trajectory_action server to come up.");
-    }
-    while(ros::ok() && !left_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
-      ROS_INFO("Waiting for the right_joint_trajectory_action server to come up.");
+    if(use_right_arm_) {
+      right_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/r_arm_controller/follow_joint_trajectory", true);
+      while(ros::ok() && !right_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
+        ROS_INFO("Waiting for the right joint_trajectory_action server to come up.");
+      }
+    } else {
+      left_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory", true);
+      while(ros::ok() && !left_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
+        ROS_INFO("Waiting for the left joint_trajectory_action server to come up.");
+      }
     }
 
     ROS_INFO("Connected to the controllers");
@@ -420,7 +428,17 @@ public:
                               const planning_models::KinematicState& state) {
     const planning_models::KinematicModel::JointModelGroup* joint_model_group = collision_models_interface_->getKinematicModel()->getModelGroup(goal->group_name);
     const std::vector<std::string>& joint_names = joint_model_group->getJointModelNames();
-    ROS_INFO_STREAM("Group name " << goal->group_name);
+    ROS_DEBUG_STREAM("Group name " << goal->group_name);
+
+    if(goal->group_name == RIGHT_ARM_GROUP && !use_right_arm_) {
+      ROS_WARN_STREAM("Not configured for use with group name " << RIGHT_ARM_GROUP);
+      return;
+    }
+    if(goal->group_name == LEFT_ARM_GROUP && !use_left_arm_) {
+      ROS_WARN_STREAM("Not configured for use with group name " << LEFT_ARM_GROUP);
+      return;
+    }
+
     if(state.areJointsWithinBounds(joint_names)) {
       return;
     }
@@ -579,6 +597,19 @@ public:
     }
     monitor_goal_ = head_monitor_msgs::HeadMonitorGoal(*head_monitor_action_server_.acceptNewGoal());
     current_group_name_ = convertFromGroupNameToArmName(monitor_goal_.group_name);
+
+    if(current_group_name_ == RIGHT_ARM_GROUP && !use_right_arm_) {
+      ROS_WARN_STREAM("Not configured for use with group name " << RIGHT_ARM_GROUP);
+      monitor_result_.error_code.val = monitor_result_.error_code.INVALID_GROUP_NAME;
+      head_monitor_action_server_.setAborted(monitor_result_);
+      return;
+    }
+    if(current_group_name_ == LEFT_ARM_GROUP && !use_left_arm_) {
+      ROS_WARN_STREAM("Not configured for use with group name " << LEFT_ARM_GROUP);
+      monitor_result_.error_code.val = monitor_result_.error_code.INVALID_GROUP_NAME;
+      head_monitor_action_server_.setAborted(monitor_result_);
+      return;
+    }
 
     if(current_group_name_.empty()) {
       ROS_WARN_STREAM("Group name doesn't have left or right arm in it, gonna be bad");
