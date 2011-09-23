@@ -34,7 +34,7 @@
  *
  *********************************************************************/
 
-/* \author: Matthew Klingensmith */
+/* \author: Matthew Klingensmith, E. Gil Jones */
 
 #include <move_arm_warehouse/move_arm_utils.h>
 #include <assert.h>
