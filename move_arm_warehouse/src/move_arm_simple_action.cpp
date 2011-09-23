@@ -905,7 +905,7 @@ private:
             }
             if(log_to_warehouse_) {
               warehouse_logger_->pushOutcomeToWarehouse(current_planning_scene_id_,
-                                                        "planner",
+                                                        "planner invalid",
                                                         error_code);
             }
 	    num_planning_attempts_++;
@@ -943,7 +943,7 @@ private:
           error_code.val = error_code.PLANNING_FAILED;
           if(log_to_warehouse_) {
 	    warehouse_logger_->pushOutcomeToWarehouse(current_planning_scene_id_,
-						      "planner",
+						      "planner failed",
 						      error_code);
 	  }
           if(num_planning_attempts_ > req.motion_plan_request.num_planning_attempts)
@@ -1009,9 +1009,6 @@ private:
             ROS_DEBUG("Trajectory validity check was successful");
           }
           if(log_to_warehouse_) {
-            warehouse_logger_->pushOutcomeToWarehouse(current_planning_scene_id_,
-                                                      "filter",
-                                                      error_code);
             warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_id_,
                                                               "filter",
                                                               ros::Duration(move_arm_stats_.smoothing_time),

@@ -284,12 +284,12 @@ void WarehouseViewer::createOutcomeDialog()
   stage_outcome_table_->setRowCount((int)error_map_.size());
 
   stage_outcome_table_->setHorizontalHeaderLabels(stageHeaders);
-  stage_outcome_table_->setColumnWidth(0, 150);
-  stage_outcome_table_->setColumnWidth(1, 200);
-  stage_outcome_table_->setMinimumWidth(350);
+  stage_outcome_table_->setColumnWidth(0, 250);
+  stage_outcome_table_->setColumnWidth(1, 400);
+  stage_outcome_table_->setMinimumWidth(650);
 
   int r = 0;
-  for(map<string, ArmNavigationErrorCodes>::iterator it = error_map_.begin(); it != error_map_.end(); it++)
+  for(map<string, ArmNavigationErrorCodes>::iterator it = error_map_.begin(); it != error_map_.end(); it++, r++)
   {
     QTableWidgetItem* stageItem = new QTableWidgetItem(QString::fromStdString(it->first));
     stageItem->setFlags(Qt::ItemIsEnabled);
@@ -304,10 +304,7 @@ void WarehouseViewer::createOutcomeDialog()
       outcomeItem->setTextColor(QColor(150, 0, 0));
     }
 
-    r++;
   }
-
-
   QGroupBox* trajectoryBox = new QGroupBox(outcome_dialog_);
   trajectoryBox->setTitle("Trajectory Outcomes");
 
@@ -318,46 +315,61 @@ void WarehouseViewer::createOutcomeDialog()
   trajectoryLayout->addWidget(trajectory_outcome_table_);
 
   QStringList trajectoryHeaders;
-  trajectoryHeaders.append("Trajectory");
-  trajectoryHeaders.append("Stage");
+  trajectoryHeaders.append("MPR ID");
+  trajectoryHeaders.append("Trajectory ID");
+  trajectoryHeaders.append("Source");
   trajectoryHeaders.append("Outcome");
 
-  // trajectory_outcome_table_->setColumnCount(3);
-  // trajectory_outcome_table_->setRowCount((int)(trajectory_map_.find(selected_motion_plan_name_)->second.size()));
-  // trajectory_outcome_table_->setHorizontalHeaderLabels(trajectoryHeaders);
-  // trajectory_outcome_table_->setColumnWidth(0, 150);
-  // trajectory_outcome_table_->setColumnWidth(1, 150);
-  // trajectory_outcome_table_->setColumnWidth(2, 200);
-  // trajectory_outcome_table_->setMinimumWidth(550);
+  unsigned int count = 0;
+  for(map<string, map<string, TrajectoryData> >::iterator it = trajectory_map_.begin();
+      it != trajectory_map_.end();
+      it++) {
+    count += it->second.size();
+  }
 
-  // r = 0;
-  // for(map<string, TrajectoryData>::iterator it = trajectory_map_->begin(); it != trajectory_map_->end(); it++)
-  // {
-  //   QTableWidgetItem* trajectoryItem = new QTableWidgetItem(QString::fromStdString(it->first));
-  //   trajectoryItem->setFlags(Qt::ItemIsEnabled);
-  //   trajectory_outcome_table_->setItem(r, 0, trajectoryItem);
+  trajectory_outcome_table_->setColumnCount(4);
+  trajectory_outcome_table_->setRowCount(count);
+  trajectory_outcome_table_->setColumnWidth(0, 150);
+  trajectory_outcome_table_->setColumnWidth(1, 150);
+  trajectory_outcome_table_->setColumnWidth(2, 200);
+  trajectory_outcome_table_->setColumnWidth(3, 200);
+  trajectory_outcome_table_->setMinimumWidth(700);
 
-  //   QTableWidgetItem* stageItem = new QTableWidgetItem(QString::fromStdString(it->second.getSource()));
-  //   stageItem->setFlags(Qt::ItemIsEnabled);
-  //   trajectory_outcome_table_->setItem(r, 1, stageItem);
+  r = 0;
+  for(map<string, map<string, TrajectoryData> >::iterator it = trajectory_map_.begin();
+      it != trajectory_map_.end();
+      it++) {
+    
+    for(map<string, TrajectoryData>::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++, r++)
+    {
+      QTableWidgetItem* motionPlanRequestItem = new QTableWidgetItem(QString::fromStdString(it->first));
+      motionPlanRequestItem->setFlags(Qt::ItemIsEnabled);
+      trajectory_outcome_table_->setItem(r, 0, motionPlanRequestItem);
 
-  //   QTableWidgetItem* outcomeItem = new QTableWidgetItem(QString::fromStdString(armNavigationErrorCodeToString(it->second.trajectory_error_code_)));
-  //   outcomeItem ->setFlags(Qt::ItemIsEnabled);
-  //   trajectory_outcome_table_->setItem(r, 2, outcomeItem);
+      QTableWidgetItem* trajectoryItem = new QTableWidgetItem(QString::fromStdString(it2->first));
+      trajectoryItem->setFlags(Qt::ItemIsEnabled);
+      trajectory_outcome_table_->setItem(r, 1, trajectoryItem);
+      
+      QTableWidgetItem* sourceItem = new QTableWidgetItem(QString::fromStdString(it2->second.getSource()));
+      sourceItem->setFlags(Qt::ItemIsEnabled);
+      trajectory_outcome_table_->setItem(r, 2, sourceItem);
+      
+      QTableWidgetItem* outcomeItem = new QTableWidgetItem(QString::fromStdString(armNavigationErrorCodeToString(it2->second.trajectory_error_code_)));
+      outcomeItem ->setFlags(Qt::ItemIsEnabled);
+      trajectory_outcome_table_->setItem(r, 3, outcomeItem);
 
-  //   if(it->second.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS)
-  //   {
-  //     outcomeItem->setTextColor(QColor(150, 0, 0));
-  //     std::stringstream ss;
-  //     ss << "Bad point: " << it->second.getBadPoint();
-  //     outcomeItem->setToolTip(QString::fromStdString(ss.str()));
-  //   }
-
-  //   r++;
-  // }
-
-  // layout->addWidget(stagesBox);
-  // layout->addWidget(trajectoryBox);
+      if(it2->second.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS)
+      {
+        outcomeItem->setTextColor(QColor(150, 0, 0));
+        std::stringstream ss;
+        ss << "Bad point: " << it2->second.getBadPoint();
+        outcomeItem->setToolTip(QString::fromStdString(ss.str()));
+      }
+      
+    }
+  }
+  layout->addWidget(stagesBox);
+  layout->addWidget(trajectoryBox);
   outcome_dialog_->setLayout(layout);
 
 }
@@ -1985,7 +1997,7 @@ void WarehouseViewer::createNewMeshDialog()
   file_selector_->setFileMode(QFileDialog::ExistingFile);
   file_selector_->setOption(QFileDialog::ReadOnly, true);
   QStringList filters;
-  filters << "Mesh files (*.stl *.stla *.stlb *.dae)";
+  filters << "Mesh files (*.stl *.stla *.stlb *.dae *.ply)";
   file_selector_->setNameFilters(filters);
 
   connect(file_selector_, SIGNAL(fileSelected(const QString&)), this, SLOT(meshFileSelected(const QString&)));
