@@ -919,9 +919,7 @@ void WarehouseViewer::createMotionPlanTable()
   if(motion_plan_map_.find(selected_motion_plan_name_) == motion_plan_map_.end()) {
     selected_request_label_->setText("Selected Request: None");
     selected_motion_plan_name_ = "";
-  } else {
-    ROS_INFO_STREAM("Have selected motion plan " << selected_motion_plan_name_);
-  }
+  } 
 
   if(current_planning_scene_name_ != "")
   {
@@ -1212,8 +1210,8 @@ void WarehouseViewer::copyPlanningSceneSlot() {
 
 void WarehouseViewer::saveCurrentPlanningScene(bool copy)
 {
-  ROS_INFO_STREAM("Current planning scene id is " << current_planning_scene_name_);
-  ROS_INFO_STREAM("Hostname is " << planning_scene_map_[current_planning_scene_name_].getHostName());
+  ROS_DEBUG_STREAM("Current planning scene id is " << current_planning_scene_name_);
+  ROS_DEBUG_STREAM("Hostname is " << planning_scene_map_[current_planning_scene_name_].getHostName());
  savePlanningScene(planning_scene_map_[current_planning_scene_name_], copy);
   QMessageBox msgBox(QMessageBox::Information, "Saved", "Saved planning scene successfully.");
   msgBox.addButton(QMessageBox::Ok);
@@ -1740,7 +1738,6 @@ void WarehouseViewer::createPlanningSceneTable()
   loadAllWarehouseData();
   warehouse_data_loaded_once_ = true;
   planning_scene_table_->clear();
-  ROS_INFO_STREAM("Running clear");
   int count = 0;
   for(map<string, PlanningSceneData>::iterator it = planning_scene_map_.begin(); it != planning_scene_map_.end(); it++)
   {

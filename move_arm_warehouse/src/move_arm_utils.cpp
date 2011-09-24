@@ -730,7 +730,6 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   /////
   if(params.use_robot_data_)
   {
-    ROS_INFO_STREAM("Subscribing");
     joint_state_subscriber_ = nh_.subscribe("joint_states", 25, &PlanningSceneEditor::jointStateCallback, this);
   }
 }
@@ -1772,8 +1771,6 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
                                                               data.getId());
     //ROS_INFO_STREAM("Has is " << has);
 
-    ROS_INFO_STREAM("Name is " << data.getHostName() << " stamp is " << data.getTimeStamp());
-
     if(has) {
       move_arm_warehouse_logger_reader_->removePlanningSceneAndAssociatedDataFromWarehouse(data.getHostName(),
                                                                                            data.getId());
@@ -1803,7 +1800,7 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
                                                                         req.getId(),
                                                                         req.getSource(),
                                                                         req.getMotionPlanRequest());
-    ROS_INFO_STREAM("Saving Request " << req.getId());
+    ROS_DEBUG_STREAM("Saving Request " << req.getId());
     for(std::set<unsigned int>::iterator it2 = req.getTrajectories().begin(); it2 != req.getTrajectories().end(); it2++) {
       TrajectoryData& traj = trajectory_map_[req.getName()][getTrajectoryNameFromId(*it2)];
       move_arm_warehouse_logger_reader_->pushJointTrajectoryToWarehouse(id_to_push,
@@ -1816,11 +1813,10 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
       move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(id_to_push,
                                                                 traj.getSource(),
                                                                 traj.trajectory_error_code_);
-      ROS_INFO_STREAM("Saving Trajectory " << traj.getId());
+      ROS_DEBUG_STREAM("Saving Trajectory " << traj.getId());
     }
   }
   if(!name_to_push.empty()) {
-    ROS_INFO_STREAM("Setting current planning scene to " << name_to_push);
     setCurrentPlanningScene(name_to_push);
   }
 }
@@ -1994,7 +1990,6 @@ bool PlanningSceneEditor::sendPlanningScene(PlanningSceneData& data)
         acm.removeEntry(object.id);
       }
       removals.push_back(it->first);
-      ROS_INFO_STREAM("Removing " << it->first);
       interactive_marker_server_->erase(it->first);
     }
   }
@@ -2105,8 +2100,6 @@ void PlanningSceneEditor::initMotionPlanRequestData(const unsigned int& planning
   lockScene();
   for(size_t i = 0; i < requests.size(); i++)
   {
-    ROS_INFO_STREAM("Planning scene " << planning_scene_id << " requests " << ids.size());
-    
     const MotionPlanRequest& mpr = requests[i];
     cm_->disableCollisionsForNonUpdatedLinks(mpr.group_name);
 

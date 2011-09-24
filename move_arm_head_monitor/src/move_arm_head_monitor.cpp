@@ -179,11 +179,17 @@ public:
       while(ros::ok() && !right_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
         ROS_INFO("Waiting for the right joint_trajectory_action server to come up.");
       }
-    } else {
+    }
+    if(use_left_arm_) {
       left_arm_controller_action_client_ = new actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction>("/l_arm_controller/follow_joint_trajectory", true);
       while(ros::ok() && !left_arm_controller_action_client_->waitForServer(ros::Duration(1.0))){
         ROS_INFO("Waiting for the left joint_trajectory_action server to come up.");
       }
+    }
+
+    if(!use_left_arm_ && !use_right_arm_) {
+      ROS_ERROR_STREAM("No arms specified.  Exiting");
+      exit(0);
     }
 
     ROS_INFO("Connected to the controllers");
