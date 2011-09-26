@@ -782,13 +782,30 @@ void WarehouseViewer::deleteSelectedTrajectory()
 {
   if(selected_trajectory_name_ != "")
   {
+    int index_of_deleted = -1;
+    QList<QTreeWidgetItem*> selected = trajectory_tree_->selectedItems();
+    if(selected.size() > 0)
+    {
+      index_of_deleted = trajectory_tree_->indexOfTopLevelItem( selected[0] );
+    }
+
     lockScene();
     unsigned int mpr_id = motion_plan_map_[selected_motion_plan_name_].getId();
     unsigned int traj_id = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_].getId();
-    deleteTrajectory(mpr_id, 
-                     traj_id);
+    deleteTrajectory( mpr_id, traj_id );
     emit updateTables();
     unlockScene();
+
+    int index_to_select = index_of_deleted;
+
+    if( index_to_select >= trajectory_tree_->topLevelItemCount() )
+    {
+      index_to_select--;
+    }
+    if( index_to_select >= 0 )
+    {
+      trajectory_tree_->topLevelItem( index_to_select )->setSelected( true );
+    }
   }
   else
   {
