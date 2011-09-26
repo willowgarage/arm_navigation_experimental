@@ -2708,6 +2708,7 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
   marker.name = data.getName() + nametag;
   marker.description = data.getName() + nametag;
 
+/*
   InteractiveMarkerControl control;
   control.orientation.w = 1;
   control.orientation.x = 1;
@@ -2736,6 +2737,69 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
   marker.controls.push_back(control);
   control.interaction_mode = InteractiveMarkerControl::MOVE_AXIS;
   marker.controls.push_back(control);
+*/
+
+  InteractiveMarkerControl control;
+  control.always_visible = false;
+  control.interaction_mode = InteractiveMarkerControl::ROTATE_AXIS;
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 0;
+  control.orientation.z = 0;
+
+  marker.controls.push_back( control );
+
+  InteractiveMarkerControl control2;
+  control2.always_visible = false;
+  control2.interaction_mode = InteractiveMarkerControl::MOVE_ROTATE;
+  control2.orientation.w = 1;
+  control2.orientation.x = 0;
+  control2.orientation.y = 1;
+  control2.orientation.z = 0;
+
+  Marker marker2;
+  marker2.type = Marker::CUBE;
+  marker2.scale.x = .2;
+  marker2.scale.y = .15;
+  marker2.scale.z = .002;
+  marker2.pose.position.x = .1;
+  marker2.color.r = 0;
+  marker2.color.g = 0;
+  marker2.color.b = 0.5;
+  marker2.color.a = 1;
+  control2.markers.push_back( marker2 );
+  marker2.scale.x = .1;
+  marker2.scale.y = .35;
+  marker2.pose.position.x = 0;
+  control2.markers.push_back( marker2 );
+
+  marker.controls.push_back( control2 );
+
+  InteractiveMarkerControl control3;
+  control3.always_visible = false;
+  control3.interaction_mode = InteractiveMarkerControl::MOVE_ROTATE;
+  control3.orientation.w = 1;
+  control3.orientation.x = 0;
+  control3.orientation.y = 0;
+  control3.orientation.z = 1;
+
+  Marker marker3;
+  marker3.type = Marker::CUBE;
+  marker3.scale.x = .2;
+  marker3.scale.y = .002;
+  marker3.scale.z = .15;
+  marker3.pose.position.x = .1;
+  marker3.color.r = 0;
+  marker3.color.g = .5;
+  marker3.color.b = 0;
+  marker3.color.a = 1;
+  control3.markers.push_back( marker3 );
+  marker3.scale.x = .1;
+  marker3.scale.z = .35;
+  marker3.pose.position.x = 0;
+  control3.markers.push_back( marker3 );
+
+  marker.controls.push_back( control3 );
 
   interactive_marker_server_->insert(marker, ik_control_feedback_ptr_);
   control.interaction_mode = InteractiveMarkerControl::MENU;
