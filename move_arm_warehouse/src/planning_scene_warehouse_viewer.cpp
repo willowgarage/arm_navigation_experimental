@@ -1446,6 +1446,17 @@ void WarehouseViewer::selectTrajectory(std::string ID)
   std::stringstream ss;
   ss << trajectory.trajectory_error_code_.val;
   selected_trajectory_label_->setText(QString::fromStdString(ID + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+
+  // Find the selected trajectory in the tree and make it visibly selected.
+  for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
+  {
+    QTreeWidgetItem* item = trajectory_tree_->topLevelItem(i);
+
+    if(item->text(0).toStdString() == selected_trajectory_name_)
+    {
+      item->setSelected( true );
+    }
+  }
 }
 
 void WarehouseViewer::playButtonPressed()
@@ -1506,6 +1517,7 @@ void WarehouseViewer::filterButtonPressed()
     ss << trajectory.trajectory_error_code_.val;
     selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_name_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
     createTrajectoryTable();
+    selectTrajectory(getTrajectoryNameFromId(filterID));
   }
   else
   {
