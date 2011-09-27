@@ -405,8 +405,8 @@ public slots:
   void playButtonPressed();
   /// @brief Called when the user presses the "filter trajectory" button.
   void filterButtonPressed();
-  /// @brief Called when the user drags the trajectory slider.
-  void sliderDragged(int nv);
+  /// @brief Called when the trajectory slider is changed.
+  void trajectorySliderChanged(int nv);
   /// @brief Called when the user presses the "Plan New Trajectory" button.
   void replanButtonPressed();
   /// @brief Called when the user changes the box displaying the current trajectory point.
@@ -606,5 +606,9 @@ protected:
 
   QFileDialog* file_selector_;
   QLineEdit* mesh_filename_field_;
+
+  /// @brief Find the currently-selected trajectory in the
+  /// trajectory_tree_ and set its visibility checkbox to checked.
+  void setSelectedTrajectoryCheckboxVisible();
 };
 #endif

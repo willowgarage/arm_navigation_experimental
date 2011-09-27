@@ -225,7 +225,7 @@ void WarehouseViewer::initQtWidgets()
   connect(quit_action_, SIGNAL(triggered()), this, SLOT(quit()));
   connect(play_button_, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
   connect(filter_button_, SIGNAL(clicked()), this, SLOT(filterButtonPressed()));
-  connect(trajectory_slider_, SIGNAL(sliderMoved(int)), this, SLOT(sliderDragged(int)));
+  connect(trajectory_slider_, SIGNAL(valueChanged(int)), this, SLOT(trajectorySliderChanged(int)));
   connect(trajectory_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(trajectoryTableSelection()));
   connect(replan_button_, SIGNAL(clicked()), this, SLOT(replanButtonPressed()));
   connect(trajectory_point_edit_, SIGNAL(valueChanged(int)), this, SLOT(trajectoryEditChanged()));
@@ -828,6 +828,15 @@ void WarehouseViewer::trajectoryEditChanged()
     TrajectoryData& trajectory = trajectory_map_[selected_motion_plan_name_][selected_trajectory_name_];
     trajectory.setCurrentPoint(trajectory_point_edit_->value());
     trajectory_slider_->setValue(trajectory_point_edit_->value());
+    if( !trajectory.isVisible() )
+    {
+      trajectory.setVisible(true);
+      setSelectedTrajectoryCheckboxVisible();
+    }
+    if( trajectory.getCurrentState() == NULL )
+    {
+      trajectory.setCurrentState(new KinematicState(*robot_state_));
+    }
   }
 }
 
@@ -1460,6 +1469,34 @@ void WarehouseViewer::selectTrajectory(std::string ID)
   }
 }
 
+void WarehouseViewer::setSelectedTrajectoryCheckboxVisible()
+{
+  // Set checkbox to visible.
+  for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
+  {
+    QTreeWidgetItem* item = trajectory_tree_->topLevelItem(i);
+
+    if(item->text(0).toStdString() == selected_trajectory_name_)
+    {
+      for(int j = 0; j < item->childCount(); j++)
+      {
+        QTreeWidgetItem* child = item->child(j);
+        QCheckBox* box = dynamic_cast<QCheckBox*>(trajectory_tree_->itemWidget(child, 0));
+
+        if(box != NULL)
+        {
+          if(box->text().toStdString() == "Visible")
+          {
+            box->setChecked(true);
+            break;
+          }
+        }
+      }
+      break;
+    }
+  }
+}
+
 void WarehouseViewer::playButtonPressed()
 {
   if(selected_trajectory_name_ != "")
@@ -1471,31 +1508,7 @@ void WarehouseViewer::playButtonPressed()
     ss << trajectory.trajectory_error_code_.val;
     selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_name_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
 
-    // Set checkbox to visible.
-    for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
-    {
-      QTreeWidgetItem* item = trajectory_tree_->topLevelItem(i);
-
-      if(item->text(0).toStdString() == selected_trajectory_name_)
-      {
-        for(int j = 0; j < item->childCount(); j++)
-        {
-          QTreeWidgetItem* child = item->child(j);
-          QCheckBox* box = dynamic_cast<QCheckBox*>(trajectory_tree_->itemWidget(child, 0));
-
-          if(box != NULL)
-          {
-            if(box->text().toStdString() == "Visible")
-            {
-              box->setChecked(true);
-              break;
-            }
-          }
-        }
-        break;
-      }
-    }
-
+    setSelectedTrajectoryCheckboxVisible();
   }
   else
   {
@@ -1528,13 +1541,13 @@ void WarehouseViewer::filterButtonPressed()
   }
 }
 
-void WarehouseViewer::sliderDragged(int nv)
+void WarehouseViewer::trajectorySliderChanged(int nv)
 {
   if(selected_trajectory_name_ != "")
   {
     trajectory_point_edit_->setValue(nv);
   }
-  else
+  else if( nv != 0 )
   {
     QMessageBox msg(QMessageBox::Warning, "Control Trajectory", "No Trajectory Selected!");
     msg.addButton("Ok", QMessageBox::AcceptRole);
