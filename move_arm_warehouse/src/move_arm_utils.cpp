@@ -1016,6 +1016,11 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
       if(it2->second.isPlaying())
       {
         it2->second.moveThroughTrajectory(2);
+        if( it->first == selected_motion_plan_name_ &&
+            it2->first == selected_trajectory_name_ )
+        {
+          selectedTrajectoryCurrentPointChanged( it2->second.getCurrentPoint() );
+        }
       }
 
       if(it2->second.getCurrentState() == NULL)

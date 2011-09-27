@@ -243,6 +243,7 @@ void WarehouseViewer::initQtWidgets()
   connect(this, SIGNAL(allScenesLoaded()), this, SLOT(refreshPlanningSceneDialog()));
   connect(set_primary_planner_action_, SIGNAL(triggered()), this, SLOT(primaryPlannerTriggered()));
   connect(set_secondary_planner_action_, SIGNAL(triggered()), this, SLOT(secondaryPlannerTriggered()));
+  connect(this, SIGNAL(selectedTrajectoryPointChanged(unsigned int)), this, SLOT(onSelectedTrajectoryPointChanged(unsigned int)));
   load_planning_scene_dialog_ = new QDialog(this);
 
   setupPlanningSceneDialog();
@@ -1539,6 +1540,17 @@ void WarehouseViewer::sliderDragged(int nv)
     msg.addButton("Ok", QMessageBox::AcceptRole);
     msg.exec();
   }
+}
+
+void WarehouseViewer::selectedTrajectoryCurrentPointChanged( unsigned int new_current_point )
+{
+  emit selectedTrajectoryPointChanged( new_current_point );
+}
+
+void WarehouseViewer::onSelectedTrajectoryPointChanged( unsigned int new_current_point )
+{
+  trajectory_slider_->setValue( new_current_point );
+  trajectory_point_edit_->setValue( new_current_point );
 }
 
 void WarehouseViewer::createTrajectoryTable()

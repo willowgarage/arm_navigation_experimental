@@ -351,6 +351,9 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
     emit attachObjectSignal(name);
   }
 
+  /// @brief overridden to update trajectory_slider_
+  virtual void selectedTrajectoryCurrentPointChanged( unsigned int new_current_point );
+
   void setEnabledDisabledDisplay(const QString& qs1, const QString& qs2);
   void getEntryList(const std::string& s1, 
                     std::vector<std::string>& sv1);
@@ -368,6 +371,8 @@ signals:
   void attachObjectSignal(const std::string& name);
 
   void allScenesLoaded();
+
+  void selectedTrajectoryPointChanged( unsigned int new_point );
 
 public slots:
 
@@ -495,6 +500,8 @@ public slots:
   void primaryPlannerTriggered();
   void secondaryPlannerTriggered();
 
+  void onSelectedTrajectoryPointChanged( unsigned int new_point );
+
 protected:
   
   bool planning_scene_initialized_;
@@ -599,6 +606,5 @@ protected:
 
   QFileDialog* file_selector_;
   QLineEdit* mesh_filename_field_;
-
 };
 #endif

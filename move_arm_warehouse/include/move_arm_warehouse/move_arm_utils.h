@@ -1278,6 +1278,13 @@ protected:
 
   void changeToAttached(const std::string& name);
 
+  //////
+  /// @brief Called when the selected trajectory of the selected motion plan updates its current point.
+  /// Override to do something useful.
+  /// @param new_current_point the new current point in the selected trajectory.
+  //////
+  virtual void selectedTrajectoryCurrentPointChanged( unsigned int new_current_point ) {}
+
   boost::recursive_mutex lock_scene_;
   arm_navigation_msgs::ArmNavigationErrorCodes last_collision_set_error_code_;
   move_arm_warehouse::MoveArmWarehouseLoggerReader* move_arm_warehouse_logger_reader_;
