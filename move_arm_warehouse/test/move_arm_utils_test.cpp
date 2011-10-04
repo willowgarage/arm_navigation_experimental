@@ -127,7 +127,7 @@ TEST(TestSuite, createDeleteMotionPlanTest)
     ROS_INFO("Creating motion plan request ...");
     editor->createMotionPlanRequest(*(editor->getRobotState()),
                                     *(editor->getRobotState()),
-                                    rightarm, rightik, false,
+                                    rightarm, rightik,
                                     getPlanningSceneIdFromName(planningSceneID), false, id);
     ROS_INFO_STREAM("Deleting motion plan request " << id);
     std::vector<unsigned int> traj;
@@ -152,7 +152,7 @@ TEST(TestSuite, planTrajectoryTest)
   ROS_INFO("Creating motion plan request ...");
   editor->createMotionPlanRequest(*(editor->getRobotState()),
                                   *(editor->getRobotState()),
-                                  rightarm, rightik,false,
+                                  rightarm, rightik,
                                   getPlanningSceneIdFromName(planningSceneID), 
                                   false, id);
 
@@ -192,7 +192,7 @@ TEST(TestSuite, filterTrajectoryTest)
   ROS_INFO("Creating motion plan request ...");
   editor->createMotionPlanRequest(*(editor->getRobotState()),
                                   *(editor->getRobotState()),
-                                  rightarm, rightik,false,
+                                  rightarm, rightik,
                                   getPlanningSceneIdFromName(planningSceneID), 
                                   false, id);
 

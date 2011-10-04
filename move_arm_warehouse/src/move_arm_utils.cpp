@@ -204,10 +204,14 @@ void TrajectoryData::updateCollisionMarkers(CollisionModels* cm_, MotionPlanRequ
     const KinematicState::JointStateGroup* jsg = state->getJointStateGroup(getGroupName());
     Constraints empty_constraints;
     ArmNavigationErrorCodes code;
-
+    Constraints path_constraints;
+    if(motionPlanRequest.hasPathConstraints()) {
+      path_constraints = motionPlanRequest.getMotionPlanRequest().path_constraints;
+    }
+    
     // Update validity of the current state.
     cm_->isKinematicStateValid(*state, jsg->getJointNames(), code, empty_constraints,
-                               motionPlanRequest.getMotionPlanRequest().path_constraints, true);
+                               path_constraints, true);
 
     cm_->setAlteredAllowedCollisionMatrix(acm);
     GetStateValidity::Request val_req;
@@ -238,6 +242,13 @@ MotionPlanRequestData::MotionPlanRequestData(const KinematicState* robot_state)
   setHasGoodIKSolution(true, StartPosition);
   setHasGoodIKSolution(true, GoalPosition);
   setId(0);
+  setPathConstraints(false);
+  setConstrainRoll(false);
+  setConstrainPitch(false);
+  setConstrainYaw(false);
+  setRollTolerance(.05);
+  setPitchTolerance(.05);
+  setYawTolerance(.05);
   name_ = "";
   show();
   showCollisions();
@@ -252,7 +263,8 @@ MotionPlanRequestData::MotionPlanRequestData(const KinematicState* robot_state)
 }
 
 MotionPlanRequestData::MotionPlanRequestData(const unsigned int& id, const string& source, const MotionPlanRequest& request,
-                                             const KinematicState* robot_state)
+                                             const KinematicState* robot_state,
+                                             const std::string& end_effector_name)
 {
   // Note: these must be registered as StateRegistry entries after this request has been created.
   start_state_ = new KinematicState(*robot_state);
@@ -260,6 +272,7 @@ MotionPlanRequestData::MotionPlanRequestData(const unsigned int& id, const strin
 
   setId(id);
   setSource(source);
+  setEndEffectorLink(end_effector_name);
   setMotionPlanRequest(request);
 
   setStartColor(makeRandomColor(0.3f, 0.6f));
@@ -268,6 +281,40 @@ MotionPlanRequestData::MotionPlanRequestData(const unsigned int& id, const strin
   setGoalEditable(true);
   setHasGoodIKSolution(true, StartPosition);
   setHasGoodIKSolution(true, GoalPosition);
+
+  if(request.path_constraints.orientation_constraints.size() > 0) {
+    const OrientationConstraint& oc = request.path_constraints.orientation_constraints[0];
+    setPathConstraints(true);
+    if(oc.absolute_roll_tolerance < 3.0) {
+      setConstrainRoll(true);
+      setRollTolerance(oc.absolute_roll_tolerance);
+    } else {
+      setConstrainRoll(false);
+      setRollTolerance(0.05);
+    }
+    if(oc.absolute_pitch_tolerance < 3.0) {
+      setConstrainPitch(true);
+      setPitchTolerance(oc.absolute_pitch_tolerance);
+    } else {
+      setConstrainPitch(false);
+      setPitchTolerance(0.05);
+    }
+    if(oc.absolute_yaw_tolerance < 3.0) {
+      setConstrainYaw(true);
+      setYawTolerance(oc.absolute_yaw_tolerance);
+    } else {
+      setConstrainYaw(false);
+      setYawTolerance(0.05);
+    }
+  } else {
+    setPathConstraints(false);
+    setConstrainRoll(false);
+    setConstrainPitch(false);
+    setConstrainYaw(false);
+    setRollTolerance(.05);
+    setPitchTolerance(.05);
+    setYawTolerance(.05);
+  }
   show();
   showCollisions();
 
@@ -282,6 +329,8 @@ MotionPlanRequestData::MotionPlanRequestData(const unsigned int& id, const strin
 // Kinematic states must be converted to joint constraint message
 void MotionPlanRequestData::updateGoalState()
 {
+  setRobotStateAndComputeTransforms(getMotionPlanRequest().start_state, *goal_state_);
+
   vector<JointConstraint>& constraints = getMotionPlanRequest().goal_constraints.joint_constraints;
 
   map<string, double> jointValues;
@@ -291,8 +340,26 @@ void MotionPlanRequestData::updateGoalState()
     jointValues[constraint.joint_name] = constraint.position;
   }
 
-  goal_state_->setKinematicState(jointValues);  
+  goal_state_->setKinematicState(jointValues);
 
+  if(getMotionPlanRequest().goal_constraints.position_constraints.size() > 0 &&
+     getMotionPlanRequest().goal_constraints.orientation_constraints.size() > 0) {
+    if(getMotionPlanRequest().goal_constraints.position_constraints[0].link_name != end_effector_link_) {
+      ROS_WARN_STREAM("Can't apply position constraints to link " 
+                      << getMotionPlanRequest().goal_constraints.position_constraints[0].link_name
+                      << " instead of link " << end_effector_link_);
+      return;
+    }
+    ROS_DEBUG_STREAM("Tolerances are " << motion_plan_request_.path_constraints.orientation_constraints[0].absolute_roll_tolerance 
+                    << " " << motion_plan_request_.path_constraints.orientation_constraints[0].absolute_pitch_tolerance 
+                    << " " << motion_plan_request_.path_constraints.orientation_constraints[0].absolute_yaw_tolerance);
+
+    geometry_msgs::PoseStamped pose = 
+      arm_navigation_msgs::poseConstraintsToPoseStamped(getMotionPlanRequest().goal_constraints.position_constraints[0],
+                                                        getMotionPlanRequest().goal_constraints.orientation_constraints[0]);
+    btTransform end_effector_pose = toBulletTransform(pose.pose);
+    goal_state_->updateKinematicStateWithLinkAt(end_effector_link_, end_effector_pose);
+  }
 }
 
 // Kinematic state must be converted to robot state message
@@ -351,6 +418,94 @@ void MotionPlanRequestData::setGoalStateValues(std::map<std::string, double>& jo
     getMotionPlanRequest().goal_constraints.joint_constraints[constraints].tolerance_above = 0.001;
     getMotionPlanRequest().goal_constraints.joint_constraints[constraints].tolerance_below = 0.001;
   }
+
+  if(getMotionPlanRequest().goal_constraints.position_constraints.size() > 0 &&
+     getMotionPlanRequest().goal_constraints.orientation_constraints.size() > 0) {
+    if(getMotionPlanRequest().goal_constraints.position_constraints[0].link_name != end_effector_link_) {
+      ROS_WARN_STREAM("Can't apply position constraints to link " 
+                      << getMotionPlanRequest().goal_constraints.position_constraints[0].link_name
+                      << " instead of link " << end_effector_link_);
+      return;
+    }
+    MotionPlanRequest mpr;
+    setGoalAndPathPositionOrientationConstraints(mpr, GoalPosition);
+    motion_plan_request_.goal_constraints.position_constraints = mpr.goal_constraints.position_constraints;
+    motion_plan_request_.goal_constraints.orientation_constraints = mpr.goal_constraints.orientation_constraints;
+    motion_plan_request_.path_constraints.position_constraints = mpr.path_constraints.position_constraints;
+    motion_plan_request_.path_constraints.orientation_constraints = mpr.path_constraints.orientation_constraints;
+
+    ROS_DEBUG_STREAM("Tolerances are " << motion_plan_request_.path_constraints.orientation_constraints[0].absolute_roll_tolerance 
+                     << " " << motion_plan_request_.path_constraints.orientation_constraints[0].absolute_pitch_tolerance 
+                     << " " << motion_plan_request_.path_constraints.orientation_constraints[0].absolute_yaw_tolerance);
+  }
+}
+
+void MotionPlanRequestData::setGoalAndPathPositionOrientationConstraints(arm_navigation_msgs::MotionPlanRequest& mpr, 
+                                                                         planning_scene_utils::PositionType type) const
+{
+  mpr = motion_plan_request_;
+
+  KinematicState* state = NULL;
+
+  if(type == StartPosition)
+  {
+    state = start_state_;
+  }
+  else
+  {
+    state = goal_state_;
+  }
+
+  std::string world_frame = state->getKinematicModel()->getRoot()->getParentFrameId();
+
+  mpr.goal_constraints.joint_constraints.clear();
+
+  mpr.goal_constraints.position_constraints.resize(1);
+  mpr.goal_constraints.orientation_constraints.resize(1);    
+  geometry_msgs::PoseStamped end_effector_wrist_pose;
+  tf::poseTFToMsg(goal_state_->getLinkState(end_effector_link_)->getGlobalLinkTransform(),
+                  end_effector_wrist_pose.pose);
+  end_effector_wrist_pose.header.frame_id = world_frame;
+  arm_navigation_msgs::poseStampedToPositionOrientationConstraints(end_effector_wrist_pose,
+                                                                   end_effector_link_,
+                                                                   mpr.goal_constraints.position_constraints[0],
+                                                                   mpr.goal_constraints.orientation_constraints[0]);
+  mpr.path_constraints.orientation_constraints.resize(1);
+
+  arm_navigation_msgs::OrientationConstraint& goal_constraint = mpr.goal_constraints.orientation_constraints[0];
+  arm_navigation_msgs::OrientationConstraint& path_constraint = mpr.path_constraints.orientation_constraints[0];
+
+  btTransform cur = state->getLinkState(end_effector_link_)->getGlobalLinkTransform();
+  //btScalar roll, pitch, yaw;
+  //cur.getBasis().getRPY(roll,pitch,yaw);
+  goal_constraint.header.frame_id = world_frame;
+  goal_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
+  goal_constraint.link_name = end_effector_link_;
+  tf::quaternionTFToMsg(cur.getRotation(), goal_constraint.orientation);
+  goal_constraint.absolute_roll_tolerance = 0.04;
+  goal_constraint.absolute_pitch_tolerance = 0.04;
+  goal_constraint.absolute_yaw_tolerance = 0.04;
+
+  path_constraint.header.frame_id = world_frame;
+  path_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
+  path_constraint.link_name = end_effector_link_;
+  tf::quaternionTFToMsg(cur.getRotation(), path_constraint.orientation);
+  path_constraint.type = path_constraint.HEADER_FRAME;
+  if(getConstrainRoll()) {
+    path_constraint.absolute_roll_tolerance = getRollTolerance();
+  } else {
+    path_constraint.absolute_roll_tolerance = M_PI;
+  }
+  if(getConstrainPitch()) {
+    path_constraint.absolute_pitch_tolerance = getPitchTolerance();
+  } else {
+    path_constraint.absolute_pitch_tolerance = M_PI;
+  }
+  if(getConstrainYaw()) {
+    path_constraint.absolute_yaw_tolerance = getYawTolerance();
+  } else {
+    path_constraint.absolute_yaw_tolerance = M_PI;
+  }
 }
 
 void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
@@ -382,8 +537,12 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
       ArmNavigationErrorCodes code;
       Constraints empty_constraints;
       // Ensure that the state is valid.
+      Constraints path_constraints;
+      if(hasPathConstraints()) {
+        path_constraints = getMotionPlanRequest().path_constraints;
+      }
       cm_->isKinematicStateValid(*state, jsg->getJointNames(), code, empty_constraints,
-                                 getMotionPlanRequest().path_constraints, true);
+                                 path_constraints, true);
       
       GetStateValidity::Request val_req;
       GetStateValidity::Response val_res;
@@ -410,8 +569,12 @@ void MotionPlanRequestData::updateCollisionMarkers(CollisionModels* cm_,
       const KinematicState::JointStateGroup* jsg = state->getJointStateGroup(getGroupName());
       ArmNavigationErrorCodes code;
       Constraints empty_constraints;
+      Constraints path_constraints;
+      if(hasPathConstraints()) {
+        path_constraints = getMotionPlanRequest().path_constraints;
+      }
       cm_->isKinematicStateValid(*state, jsg->getJointNames(), code, empty_constraints,
-                                 getMotionPlanRequest().path_constraints, true);
+                                 path_constraints, true);
 
       GetStateValidity::Request val_req;
       GetStateValidity::Response val_res;
@@ -714,6 +877,7 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   menu_entry_maps_["Collision Object"]["Shrink"] = shrink;
   registerMenuEntry("IK Control", "Map to Robot State", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Map from Robot State", ik_control_feedback_ptr_);
+  registerMenuEntry("IK Control", "Map to Other Orientation", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Go To Last Good State", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Randomly Perturb", ik_control_feedback_ptr_);
   registerMenuEntry("IK Control", "Plan New Trajectory", ik_control_feedback_ptr_);
@@ -1007,8 +1171,6 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
 
 void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& arr)
 {
-  trajectory_map_.erase("");
-
   // For each trajectory...
   for(map<string, map<string, TrajectoryData> >::iterator it = trajectory_map_.begin(); it != trajectory_map_.end(); it++)
   {
@@ -1046,7 +1208,10 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
       {
         if(it2->second.isVisible())
         {
-          ROS_DEBUG_STREAM("Should be showing trajectory");
+          ROS_DEBUG_STREAM("Should be showing trajectory for " <<
+                           it->first << " " << it2->first
+                           << it2->second.getGroupName() << 
+                           " " << (cm_->getKinematicModel()->getModelGroup(it2->second.getGroupName()) == NULL));
           const vector<const KinematicModel::LinkModel*>& updated_links =
             cm_->getKinematicModel()->getModelGroup(it2->second.getGroupName())->getUpdatedLinkModels();
 
@@ -1332,7 +1497,6 @@ void PlanningSceneEditor::createMotionPlanRequest(const planning_models::Kinemat
                                                   const planning_models::KinematicState& end_state, 
                                                   const std::string& group_name,
                                                   const std::string& end_effector_name, 
-                                                  const bool constrain,
                                                   const unsigned int& planning_scene_id, 
                                                   const bool from_robot_state,
                                                   unsigned int& motion_plan_id_out)
@@ -1356,24 +1520,6 @@ void PlanningSceneEditor::createMotionPlanRequest(const planning_models::Kinemat
     motion_plan_request.goal_constraints.joint_constraints[i].tolerance_below = 0.001;
   }
 
-  // Constraining pitch and roll
-  if(constrain)
-  {
-    motion_plan_request.group_name += "_cartesian";
-    motion_plan_request.goal_constraints.position_constraints.resize(1);
-    motion_plan_request.goal_constraints.orientation_constraints.resize(1);
-    geometry_msgs::PoseStamped end_effector_wrist_pose;
-    tf::poseTFToMsg(end_state.getLinkState(end_effector_name)->getGlobalLinkTransform(), end_effector_wrist_pose.pose);
-    end_effector_wrist_pose.header.frame_id = cm_->getWorldFrameId();
-    poseStampedToPositionOrientationConstraints(end_effector_wrist_pose, end_effector_name,
-                                                motion_plan_request.goal_constraints.position_constraints[0],
-                                                motion_plan_request.goal_constraints.orientation_constraints[0]);
-    motion_plan_request.path_constraints.orientation_constraints.resize(1);
-    determinePitchRollConstraintsGivenState(end_state, end_effector_name,
-                                            motion_plan_request.goal_constraints.orientation_constraints[0],
-                                            motion_plan_request.path_constraints.orientation_constraints[0]);
-  }
-
   // Create start state from kinematic state passed in if robot data is being used
   if(!from_robot_state)
   {
@@ -1395,9 +1541,8 @@ void PlanningSceneEditor::createMotionPlanRequest(const planning_models::Kinemat
   
   // Turn the motion plan request message into a MotionPlanData
   unsigned int id = planningSceneData.getNextMotionPlanRequestId();
-  MotionPlanRequestData data(id, "Planner", motion_plan_request, robot_state_);
-  data.setGroupName(motion_plan_request.group_name);
-  data.setEndEffectorLink(end_effector_name);
+  motion_plan_request.group_name = group_name;
+  MotionPlanRequestData data(id, "Planner", motion_plan_request, robot_state_, end_effector_name);
   data.setGoalEditable(true);
   if(from_robot_state)
   {
@@ -1426,10 +1571,10 @@ void PlanningSceneEditor::createMotionPlanRequest(const planning_models::Kinemat
 }
 
 bool PlanningSceneEditor::planToKinematicState(const KinematicState& state, const string& group_name, const string& end_effector_name,
-                                               const bool constrain, unsigned int& trajectory_id_out, unsigned int& planning_scene_id)
+                                               unsigned int& trajectory_id_out, unsigned int& planning_scene_id)
 {
   unsigned int motion_plan_id;
-  createMotionPlanRequest(*robot_state_, state, group_name, end_effector_name, constrain, planning_scene_id,
+  createMotionPlanRequest(*robot_state_, state, group_name, end_effector_name, planning_scene_id,
                           false, motion_plan_id);
   MotionPlanRequestData& data = motion_plan_map_[getMotionPlanRequestNameFromId(motion_plan_id)];
   return planToRequest(data, trajectory_id_out);
@@ -1473,7 +1618,16 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   } else {
     source = "Planner";
     planner = &planning_service_client_;
-    plan_req.motion_plan_request = data.getMotionPlanRequest();
+    if(data.hasPathConstraints()) {
+      data.setGoalAndPathPositionOrientationConstraints(plan_req.motion_plan_request, GoalPosition);
+      plan_req.motion_plan_request.group_name += "_cartesian";
+    } else {
+      plan_req.motion_plan_request = data.getMotionPlanRequest();
+      plan_req.motion_plan_request.goal_constraints.position_constraints.clear();
+      plan_req.motion_plan_request.goal_constraints.orientation_constraints.clear();
+      plan_req.motion_plan_request.path_constraints.position_constraints.clear();
+      plan_req.motion_plan_request.path_constraints.orientation_constraints.clear();
+    }
     plan_req.motion_plan_request.allowed_planning_time = ros::Duration(10.0);
   }
   GetMotionPlan::Response plan_res;
@@ -1499,13 +1653,15 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   trajectory_data.setVisible(true);
   trajectory_data.setPlaying(true);
 
-  bool success = (plan_res.error_code.val != plan_res.error_code.SUCCESS);
+  bool success = (plan_res.error_code.val == plan_res.error_code.SUCCESS);
   trajectory_data.trajectory_error_code_.val = plan_res.error_code.val;
-  trajectory_map_[data.getName()][trajectory_data.getName()] = trajectory_data;
+  lockScene();
   data.addTrajectoryId(id);
+  trajectory_map_[data.getName()][trajectory_data.getName()] = trajectory_data;
+  unlockScene();
 
   if(success) {
-    selected_trajectory_name_ = trajectory_data.getId();
+    selected_trajectory_name_ = trajectory_data.getName();
   } else {
     ROS_INFO_STREAM("Bad planning error code " << plan_res.error_code.val);
   }
@@ -1513,30 +1669,43 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   return success;
 }
 
-void PlanningSceneEditor::determinePitchRollConstraintsGivenState(const KinematicState& state,
-                                                                  const std::string& end_effector_link,
-                                                                  OrientationConstraint& goal_constraint,
-                                                                  OrientationConstraint& path_constraint)
-{
-  btTransform cur = state.getLinkState(end_effector_link)->getGlobalLinkTransform();
-  //btScalar roll, pitch, yaw;
-  //cur.getBasis().getRPY(roll,pitch,yaw);
-  goal_constraint.header.frame_id = cm_->getWorldFrameId();
-  goal_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
-  goal_constraint.link_name = end_effector_link;
-  tf::quaternionTFToMsg(cur.getRotation(), goal_constraint.orientation);
-  goal_constraint.absolute_roll_tolerance = 0.04;
-  goal_constraint.absolute_pitch_tolerance = 0.04;
-  goal_constraint.absolute_yaw_tolerance = M_PI;
-  path_constraint.header.frame_id = cm_->getWorldFrameId();
-  path_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
-  path_constraint.link_name = end_effector_link;
-  tf::quaternionTFToMsg(cur.getRotation(), path_constraint.orientation);
-  path_constraint.type = path_constraint.HEADER_FRAME;
-  path_constraint.absolute_roll_tolerance = 0.1;
-  path_constraint.absolute_pitch_tolerance = 0.1;
-  path_constraint.absolute_yaw_tolerance = M_PI;
-}
+// void PlanningSceneEditor::determineOrientationConstraintsGivenState(const MotionPlanRequestData& mpr,
+//                                                                     const KinematicState& state,
+//                                                                     OrientationConstraint& goal_constraint,
+//                                                                     OrientationConstraint& path_constraint)
+// {
+//   btTransform cur = state.getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
+//   //btScalar roll, pitch, yaw;
+//   //cur.getBasis().getRPY(roll,pitch,yaw);
+//   goal_constraint.header.frame_id = cm_->getWorldFrameId();
+//   goal_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
+//   goal_constraint.link_name = mpr.getEndEffectorLink();
+//   tf::quaternionTFToMsg(cur.getRotation(), goal_constraint.orientation);
+//   goal_constraint.absolute_roll_tolerance = 0.04;
+//   goal_constraint.absolute_pitch_tolerance = 0.04;
+//   goal_constraint.absolute_yaw_tolerance = 0.04;
+
+//   path_constraint.header.frame_id = cm_->getWorldFrameId();
+//   path_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
+//   path_constraint.link_name = mpr.getEndEffectorLink();
+//   tf::quaternionTFToMsg(cur.getRotation(), path_constraint.orientation);
+//   path_constraint.type = path_constraint.HEADER_FRAME;
+//   if(mpr.getConstrainRoll()) {
+//     path_constraint.absolute_roll_tolerance = mpr.getRollTolerance();
+//   } else {
+//     path_constraint.absolute_roll_tolerance = M_PI;
+//   }
+//   if(mpr.getConstrainPitch()) {
+//     path_constraint.absolute_pitch_tolerance = mpr.getPitchTolerance();
+//   } else {
+//     path_constraint.absolute_pitch_tolerance = M_PI;
+//   }
+//   if(mpr.getConstrainYaw()) {
+//     path_constraint.absolute_yaw_tolerance = mpr.getYawTolerance();
+//   } else {
+//     path_constraint.absolute_yaw_tolerance = M_PI;
+//   }
+// }
 
 void PlanningSceneEditor::printTrajectoryPoint(const vector<string>& joint_names, const vector<double>& joint_values)
 {
@@ -1801,10 +1970,16 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
   
   for(std::set<unsigned int>::iterator it = data.getRequests().begin(); it != data.getRequests().end(); it++) {
     MotionPlanRequestData& req = motion_plan_map_[getMotionPlanRequestNameFromId(*it)];
+    MotionPlanRequest mpr;
+    if(req.hasPathConstraints()) {
+      req.setGoalAndPathPositionOrientationConstraints(mpr, GoalPosition);
+    } else {
+      mpr = req.getMotionPlanRequest();
+    }
     move_arm_warehouse_logger_reader_->pushMotionPlanRequestToWarehouse(id_to_push, 
                                                                         req.getId(),
                                                                         req.getSource(),
-                                                                        req.getMotionPlanRequest());
+                                                                        mpr);
     ROS_DEBUG_STREAM("Saving Request " << req.getId());
     for(std::set<unsigned int>::iterator it2 = req.getTrajectories().begin(); it2 != req.getTrajectories().end(); it2++) {
       TrajectoryData& traj = trajectory_map_[req.getName()][getTrajectoryNameFromId(*it2)];
@@ -2121,12 +2296,16 @@ void PlanningSceneEditor::initMotionPlanRequestData(const unsigned int& planning
       }
     }
 
-    MotionPlanRequestData data(robot_state_);
-    data.setId(ids[i]);
-    data.setMotionPlanRequest(mpr);
+    const KinematicModel::GroupConfig& config =
+        cm_->getKinematicModel()->getJointModelGroupConfigMap().at(mpr.group_name);
+    std::string tip = config.tip_link_;
+
+    MotionPlanRequestData data(ids[i],
+                               stages[i], 
+                               mpr,
+                               robot_state_,
+                               tip);
     data.setPlanningSceneId(planning_scene_id);
-    data.setGroupName(mpr.group_name);
-    data.setSource("Planner");
 
     StateRegistry start;
     start.state = data.getStartState();
@@ -2137,10 +2316,6 @@ void PlanningSceneEditor::initMotionPlanRequestData(const unsigned int& planning
     states_.push_back(start);
     states_.push_back(end);
 
-    const KinematicModel::GroupConfig& config =
-        cm_->getKinematicModel()->getJointModelGroupConfigMap().at(mpr.group_name);
-    std::string tip = config.tip_link_;
-    data.setEndEffectorLink(tip);
 
     PlanningSceneData& planningSceneData = planning_scene_map_[getPlanningSceneNameFromId(planning_scene_id)];
     planningSceneData.addMotionPlanRequestId(ids[i]);
@@ -2289,9 +2464,13 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
   cm_->disableCollisionsForNonUpdatedLinks(data.getGroupName());
 
   vector<ArmNavigationErrorCodes> trajectory_error_codes;
+  arm_navigation_msgs::Constraints path_constraints;
+  if(requestData.hasPathConstraints()) {
+    path_constraints = requestData.getMotionPlanRequest().path_constraints;
+  }
   cm_->isJointTrajectoryValid(*(data.getCurrentState()), data.getTrajectory(),
                               requestData.getMotionPlanRequest().goal_constraints,
-                              requestData.getMotionPlanRequest().path_constraints, errorCode,
+                              path_constraints, errorCode,
                               trajectory_error_codes, false);
 
   cm_->setAlteredAllowedCollisionMatrix(acm);
@@ -2493,8 +2672,9 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
 
     if(type == StartPosition)
     {
-      motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getStartState()->updateKinematicStateWithLinkAt(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getEndEffectorLink(),
-                                                                                                      pose);
+      motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getStartState()->
+        updateKinematicStateWithLinkAt(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getEndEffectorLink(),
+                                       pose);
       findIKSolution = true;
       if(selected_motion_plan_name_ != getMotionPlanRequestNameFromId(controller.motion_plan_id_))
       {
@@ -2504,8 +2684,9 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
     }
     else
     {
-      motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getGoalState()->updateKinematicStateWithLinkAt(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getEndEffectorLink(),
-                                                                                                     pose);
+      motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getGoalState()->
+        updateKinematicStateWithLinkAt(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].getEndEffectorLink(),
+                                       pose);
       findIKSolution = true;
       if(selected_motion_plan_name_ != getMotionPlanRequestNameFromId(controller.motion_plan_id_))
       {
@@ -2559,6 +2740,31 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
       interactive_marker_server_->setPose(feedback->marker_name, 
                                           toGeometryPose(state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform()),
                                           feedback->header);
+    } else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Map to Other Orientation"])
+    {
+      MotionPlanRequestData& data = motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)];
+      if(type == StartPosition)
+      {
+        btTransform cur_transform = data.getStartState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        btTransform other_transform = data.getGoalState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        cur_transform.setRotation(other_transform.getRotation());
+        data.getStartState()->updateKinematicStateWithLinkAt(data.getEndEffectorLink(), cur_transform);
+        interactive_marker_server_->setPose(feedback->marker_name, 
+                                            toGeometryPose(cur_transform),
+                                            feedback->header);
+        findIKSolution = true;
+      }
+      else
+      {
+        btTransform cur_transform = data.getGoalState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        btTransform other_transform = data.getStartState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        cur_transform.setRotation(other_transform.getRotation());
+        data.getGoalState()->updateKinematicStateWithLinkAt(data.getEndEffectorLink(), cur_transform);
+        interactive_marker_server_->setPose(feedback->marker_name, 
+                                            toGeometryPose(cur_transform),
+                                            feedback->header);
+        findIKSolution = true;
+      }
     } else if(feedback->menu_entry_id == menu_entry_maps_["IK Control"]["Go To Last Good State"])
     {
       MotionPlanRequestData& data = motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)];
@@ -2632,7 +2838,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
 
   if(findIKSolution)
   {
-    if(!solveIKForEndEffectorPose(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)], type, true, false))
+    if(!solveIKForEndEffectorPose(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)], type, true))
     {
       if(motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)].hasGoodIKSolution(type))
       {
@@ -3196,27 +3402,27 @@ void PlanningSceneEditor::attachCollisionObject(const std::string& name,
   unlockScene();
 }
 
-bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
-                                                    planning_scene_utils::PositionType type, bool coll_aware,
-                                                    bool constrain_pitch_and_roll, double change_redundancy)
+bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& data,
+                                                    planning_scene_utils::PositionType type, 
+                                                    bool coll_aware,
+                                                    double change_redundancy)
 {
   kinematics_msgs::PositionIKRequest ik_request;
-  ik_request.ik_link_name = mpr.getEndEffectorLink();
+  ik_request.ik_link_name = data.getEndEffectorLink();
   ik_request.pose_stamped.header.frame_id = cm_->getWorldFrameId();
   ik_request.pose_stamped.header.stamp = ros::Time(ros::WallTime::now().toSec());
-
+  
   KinematicState* state = NULL;
-
   if(type == StartPosition)
   {
-    state = mpr.getStartState();
+    state = data.getStartState();
   }
   else
   {
-    state = mpr.getGoalState();
+    state = data.getGoalState();
   }
 
-  tf::poseTFToMsg(state->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform(), ik_request.pose_stamped.pose);
+  tf::poseTFToMsg(state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform(), ik_request.pose_stamped.pose);
 
   convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
                                     ik_request.robot_state);
@@ -3229,27 +3435,32 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
   {
     kinematics_msgs::GetConstraintAwarePositionIK::Request ik_req;
     kinematics_msgs::GetConstraintAwarePositionIK::Response ik_res;
-    if(constrain_pitch_and_roll)
+    if(data.hasPathConstraints())
     {
-      arm_navigation_msgs::Constraints goal_constraints;
-      goal_constraints.orientation_constraints.resize(1);
-      arm_navigation_msgs::Constraints path_constraints;
-      path_constraints.orientation_constraints.resize(1);
-      std::string name = mpr.getEndEffectorLink();
-      determinePitchRollConstraintsGivenState(*state, name, goal_constraints.orientation_constraints[0],
-                                              path_constraints.orientation_constraints[0]);
-
-      arm_navigation_msgs::ArmNavigationErrorCodes err;
-      if(!cm_->isKinematicStateValid(*state, std::vector<std::string>(), err, goal_constraints, path_constraints))
+      planning_scene_utils::PositionType other_type;
+      if(type == StartPosition)
       {
-        ROS_INFO_STREAM("Violates rp constraints");
+        other_type = GoalPosition;
+      }
+      else
+      {
+        other_type = StartPosition;
+      }
+      MotionPlanRequest mpr;
+      data.setGoalAndPathPositionOrientationConstraints(mpr, other_type);
+      mpr.goal_constraints.position_constraints.clear();
+        
+      arm_navigation_msgs::ArmNavigationErrorCodes err;
+      if(!cm_->isKinematicStateValid(*state, std::vector<std::string>(), err, mpr.goal_constraints, mpr.path_constraints))
+      {
+        ROS_DEBUG_STREAM("Violates rp constraints");
         return false;
       }
-      ik_req.constraints = goal_constraints;
+      ik_req.constraints = mpr.goal_constraints;
     }
     ik_req.ik_request = ik_request;
     ik_req.timeout = ros::Duration(0.2);
-    if(!(*collision_aware_ik_services_)[mpr.getEndEffectorLink()]->call(ik_req, ik_res))
+    if(!(*collision_aware_ik_services_)[data.getEndEffectorLink()]->call(ik_req, ik_res))
     {
       ROS_INFO("Problem with ik service call");
       return false;
@@ -3273,7 +3484,7 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
     kinematics_msgs::GetPositionIK::Response ik_res;
     ik_req.ik_request = ik_request;
     ik_req.timeout = ros::Duration(0.2);
-    if(!(*non_collision_aware_ik_services_)[mpr.getEndEffectorLink()]->call(ik_req, ik_res))
+    if(!(*non_collision_aware_ik_services_)[data.getEndEffectorLink()]->call(ik_req, ik_res))
     {
       ROS_INFO("Problem with ik service call");
       return false;
@@ -3299,7 +3510,7 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
     ArmNavigationErrorCodes error_code;
 
     collision_space::EnvironmentModel::AllowedCollisionMatrix acm = cm_->getCurrentAllowedCollisionMatrix();
-    cm_->disableCollisionsForNonUpdatedLinks(mpr.getGroupName());
+    cm_->disableCollisionsForNonUpdatedLinks(data.getGroupName());
 
     if(!cm_->isKinematicStateValid(*state, joint_names, error_code, emp_con, emp_con, true))
     {
@@ -3313,15 +3524,15 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& mpr,
 
   if(type == StartPosition)
   {
-    mpr.setStartStateValues(joint_values);
+    data.setStartStateValues(joint_values);
     convertKinematicStateToRobotState(*state, ros::Time(ros::WallTime::now().toSec()), cm_->getWorldFrameId(),
-                                      mpr.getMotionPlanRequest().start_state);
-    mpr.setLastGoodStartPose((state->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform()));
+                                      data.getMotionPlanRequest().start_state);
+    data.setLastGoodStartPose((state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform()));
   }
   else
   {
-    mpr.setGoalStateValues(joint_values);
-    mpr.setLastGoodGoalPose((state->getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform()));
+    data.setGoalStateValues(joint_values);
+    data.setLastGoodGoalPose((state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform()));
   }
   unlockScene();
 

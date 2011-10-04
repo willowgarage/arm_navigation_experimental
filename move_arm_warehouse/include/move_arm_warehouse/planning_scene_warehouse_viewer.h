@@ -331,6 +331,8 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   /// @brief Creates the "new motion plan request" dialog
   void createRequestDialog();
 
+  void createSetPathConstraintsDialog(planning_scene_utils::MotionPlanRequestData& data);
+
   /// @brief resets the trajectory and motion plan tables.
   void updateState();
   /// @brief callback that occurs when a planning scene is loaded from the warehouse
@@ -497,6 +499,9 @@ public slots:
   void editJointBoxChanged(const QString& joint);
   void jointStateSliderChanged(int nv);
 
+  void motionPlanHasPathConstraintsButtonClicked(bool checked);
+  void setPathConstraintsButtonClicked();
+
   void primaryPlannerTriggered();
   void secondaryPlannerTriggered();
 
@@ -544,6 +549,14 @@ protected:
   QLineEdit* lower_bound_edit_window_;
   QLineEdit* upper_bound_edit_window_;
   QLineEdit* current_value_window_;
+
+  QDialog* set_path_constraints_dialog_;
+  QCheckBox* constrain_roll_check_box_;
+  QCheckBox* constrain_pitch_check_box_;
+  QCheckBox* constrain_yaw_check_box_;
+  QDoubleSpinBox* constrain_roll_tolerance_;
+  QDoubleSpinBox* constrain_pitch_tolerance_;
+  QDoubleSpinBox* constrain_yaw_tolerance_;
 
   QDialog* load_planning_scene_dialog_;
   QDialog* new_object_dialog_;

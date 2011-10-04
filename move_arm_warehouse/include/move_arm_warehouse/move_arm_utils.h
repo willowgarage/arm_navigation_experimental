@@ -83,6 +83,27 @@ typedef map<std::string, interactive_markers::MenuHandler> MenuHandlerMap;
 namespace planning_scene_utils
 {
 
+inline static geometry_msgs::Pose toGeometryPose(btTransform transform)
+{
+  geometry_msgs::Pose toReturn;
+  toReturn.position.x = transform.getOrigin().x();
+  toReturn.position.y = transform.getOrigin().y();
+  toReturn.position.z = transform.getOrigin().z();
+  toReturn.orientation.x = transform.getRotation().x();
+  toReturn.orientation.y = transform.getRotation().y();
+  toReturn.orientation.z = transform.getRotation().z();
+  toReturn.orientation.w = transform.getRotation().w();
+  return toReturn;
+}
+
+inline static btTransform toBulletTransform(geometry_msgs::Pose pose)
+{
+  btQuaternion quat =
+    btQuaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
+  btVector3 vec = btVector3(pose.position.x, pose.position.y, pose.position.z);
+  return btTransform(quat, vec);
+}
+
 inline static std::string getPlanningSceneNameFromId(const unsigned int id) {
   std::stringstream ss;
   ss << "Planning Scene " << id;
@@ -288,11 +309,21 @@ protected:
   bool is_goal_visible_;
   bool should_refresh_colors_;
   bool has_refreshed_colors_;
+  bool has_path_constraints_;
   bool has_good_goal_ik_solution_;
   bool has_good_start_ik_solution_;
   bool are_collisions_visible_;
   bool has_state_changed_;
   bool are_joint_controls_visible_;
+
+  double roll_tolerance_;
+  double pitch_tolerance_;
+  double yaw_tolerance_;
+
+  bool constrain_roll_;
+  bool constrain_pitch_;
+  bool constrain_yaw_;
+
   std_msgs::ColorRGBA start_color_;
   std_msgs::ColorRGBA goal_color_;
   std::set<unsigned int> trajectories_;
@@ -312,8 +343,11 @@ public:
   }
 
   MotionPlanRequestData(const planning_models::KinematicState* robot_state);
-  MotionPlanRequestData(const unsigned int& id, const std::string& source, const arm_navigation_msgs::MotionPlanRequest& request,
-                        const planning_models::KinematicState* robot_state);
+  MotionPlanRequestData(const unsigned int& id, 
+                        const std::string& source, 
+                        const arm_navigation_msgs::MotionPlanRequest& request,
+                        const planning_models::KinematicState* robot_state, 
+                        const std::string& end_effector_link);
 
   /// @brief If the color of the motion plan request changes, this counter is incremented until it reaches
   /// a value specified by the planning scene editor. This is done to allow the display markers time to disappear
@@ -711,9 +745,9 @@ public:
   inline void setMotionPlanRequest(const arm_navigation_msgs::MotionPlanRequest& request)
   {
     motion_plan_request_ = request;
+    setGroupName(request.group_name);
     updateStartState();
     updateGoalState();
-
   }
 
   /// @brief Sets the planning scene Id that this motion plan request is associated with.
@@ -754,6 +788,65 @@ public:
   bool hasTrajectoryId(unsigned int id) const {
     return (trajectories_.find(id) != trajectories_.end());
   }
+
+  bool hasPathConstraints() const {
+    return has_path_constraints_;
+  }
+  
+  void setPathConstraints(bool has) {
+    has_path_constraints_ = has;
+  }
+
+  bool getConstrainRoll() const {
+    return constrain_roll_;
+  }
+
+  void setConstrainRoll(bool s) {
+    constrain_roll_ = s;
+  }
+
+  bool getConstrainPitch() const {
+    return constrain_pitch_;
+  }
+
+  void setConstrainPitch(bool s) {
+    constrain_pitch_ = s;
+  }
+
+  bool getConstrainYaw() const {
+    return constrain_yaw_;
+  }
+
+  void setConstrainYaw(bool s) {
+    constrain_yaw_ = s;
+  }
+
+  double getRollTolerance() const {
+    return roll_tolerance_;
+  }
+
+  void setRollTolerance(double s) {
+    roll_tolerance_ = s;
+  }
+
+  double getPitchTolerance() const {
+    return pitch_tolerance_;
+  }
+
+  void setPitchTolerance(double s) {
+    pitch_tolerance_ = s;
+  }
+
+  double getYawTolerance() const {
+    return yaw_tolerance_;
+  }
+
+  void setYawTolerance(double s) {
+    yaw_tolerance_ = s;
+  }
+
+  void setGoalAndPathPositionOrientationConstraints(arm_navigation_msgs::MotionPlanRequest& mpr,
+                                                    planning_scene_utils::PositionType type) const;
 
   /// @brief Fills the member marker array with small red spheres associated with collision points.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_,
@@ -1388,26 +1481,6 @@ protected:
   
   
 public:
-  static geometry_msgs::Pose toGeometryPose(btTransform transform)
-  {
-    geometry_msgs::Pose toReturn;
-    toReturn.position.x = transform.getOrigin().x();
-    toReturn.position.y = transform.getOrigin().y();
-    toReturn.position.z = transform.getOrigin().z();
-    toReturn.orientation.x = transform.getRotation().x();
-    toReturn.orientation.y = transform.getRotation().y();
-    toReturn.orientation.z = transform.getRotation().z();
-    toReturn.orientation.w = transform.getRotation().w();
-    return toReturn;
-  }
-
-  static btTransform toBulletTransform(geometry_msgs::Pose pose)
-  {
-    btQuaternion quat =
-      btQuaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
-    btVector3 vec = btVector3(pose.position.x, pose.position.y, pose.position.z);
-    return btTransform(quat, vec);
-  }
 
   /// @brief Map containing all planning scenes, indexed by (unique) name.
   std::map<std::string, PlanningSceneData> planning_scene_map_;
@@ -1537,7 +1610,7 @@ public:
   /// @return true if the planner was successful, and false otherwise
   //////
   bool planToKinematicState(const planning_models::KinematicState& state, const std::string& group_name,
-                            const std::string& end_effector_name, const bool constrain, unsigned int& trajectoryid_Out,
+                            const std::string& end_effector_name, unsigned int& trajectoryid_Out,
                             unsigned int& planning_scene_id);
 
   /////
@@ -1582,7 +1655,7 @@ public:
   /// @return true if an IK solution was found, false otherwise.
   //////
   bool solveIKForEndEffectorPose(MotionPlanRequestData& mpr, PositionType type, bool coll_aware = true,
-                                 bool constrain_pitch_and_roll = false, double change_redundancy = 0.0);
+                                 double change_redundancy = 0.0);
 
 
   ///////
@@ -1696,7 +1769,6 @@ public:
                                const planning_models::KinematicState& end_state, 
                                const std::string& group_name,
                                const std::string& end_effector_name, 
-                               const bool constrain, 
                                const unsigned int& planning_scene_name,
                                const bool fromRobotState, 
                                unsigned int& motionPlan_id_Out);
@@ -1749,10 +1821,10 @@ public:
   /// @param goal_constraint constraint filled by the function which maintains the pitch and roll of end effector.
   /// @param path_constraint constraint filled by the function which maintains the pitch and roll of end effector.
   /////
-  void determinePitchRollConstraintsGivenState(const planning_models::KinematicState& state,
-                                               const std::string& end_effector_link,
-                                               arm_navigation_msgs::OrientationConstraint& goal_constraint,
-                                               arm_navigation_msgs::OrientationConstraint& path_constraint);
+  // void determineOrientationConstraintsGivenState(const MotionPlanRequestData& mpr,
+  //                                                const planning_models::KinematicState& state,
+  //                                                arm_navigation_msgs::OrientationConstraint& goal_constraint,
+  //                                                arm_navigation_msgs::OrientationConstraint& path_constraint);
 
   /////
   /// @brief if real robot data is being used, this can be used to send a trajectory to the robot for execution.

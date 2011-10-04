@@ -986,7 +986,6 @@ void WarehouseViewer::createMotionPlanTable()
       QTreeWidgetItem* collisionItem = new QTreeWidgetItem(collisionList);
       collisionItem->setToolTip(0, nameItem->text(0));
       QCheckBox* collisionsVisible = new QCheckBox(motion_plan_tree_);
-      collisionsVisible->setText("Show Collisions");
       collisionsVisible->setToolTip(nameItem->text(0));
       nameItem->insertChild(1, collisionItem);
       motion_plan_tree_->setItemWidget(collisionItem, 1, collisionsVisible);
@@ -1055,11 +1054,28 @@ void WarehouseViewer::createMotionPlanTable()
       controlItem->setToolTip(0, nameItem->text(0));
       nameItem->insertChild(4, controlItem);
       QCheckBox* controlsVisible = new QCheckBox(motion_plan_tree_);
-      controlsVisible->setText("Joint Control");
       controlsVisible->setToolTip(nameItem->text(0));
       connect(controlsVisible, SIGNAL(clicked(bool)), this, SLOT(motionPlanJointControlsActiveButtonClicked(bool)));
       motion_plan_tree_->setItemWidget(controlItem,1, controlsVisible);
 
+      QStringList path_constraints_list;
+      path_constraints_list.append("Has Path Constraints");
+      QTreeWidgetItem* pathItem = new QTreeWidgetItem(path_constraints_list);
+      pathItem->setToolTip(0, nameItem->text(0));
+      nameItem->insertChild(5, pathItem);
+      QCheckBox* path_check_box = new QCheckBox(motion_plan_tree_);
+      path_check_box->setToolTip(nameItem->text(0));
+      path_check_box->setChecked(requestData.hasPathConstraints());
+      connect(path_check_box, SIGNAL(clicked(bool)), this, SLOT(motionPlanHasPathConstraintsButtonClicked(bool)));
+      motion_plan_tree_->setItemWidget(pathItem,1, path_check_box);
+
+      QPushButton* setPathConstraintsButton = new QPushButton(motion_plan_tree_);
+      setPathConstraintsButton->setText("Set Path Constraints");
+      setPathConstraintsButton->setToolTip(nameItem->text(0));
+      setPathConstraintsButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+      connect(setPathConstraintsButton, SIGNAL(clicked()), this, SLOT(setPathConstraintsButtonClicked()));
+      motion_plan_tree_->setItemWidget(pathItem, 3, setPathConstraintsButton);
+      
       QStringList renderTypeList;
       renderTypeList.append("Render Mode");
       QTreeWidgetItem* renderTypeItem = new QTreeWidgetItem(renderTypeList);
@@ -1073,7 +1089,7 @@ void WarehouseViewer::createMotionPlanTable()
       renderTypeBox->addItems(items);
       connect(renderTypeBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(motionPlanRenderTypeChanged(const QString&)));
       renderTypeBox->setToolTip(nameItem->text(0));
-      nameItem->insertChild(5, renderTypeItem);
+      nameItem->insertChild(6, renderTypeItem);
       motion_plan_tree_->setItemWidget(renderTypeItem, 1, renderTypeBox);
 
       switch(requestData.getRenderType())
@@ -1209,7 +1225,7 @@ void WarehouseViewer::createNewMotionPlanRequest(std::string group_name, std::st
   {
     unsigned int motion_plan_id;
     createMotionPlanRequest(*robot_state_, *robot_state_, 
-                            group_name, end_effector_name, false,
+                            group_name, end_effector_name,
                             getPlanningSceneIdFromName(current_planning_scene_name_), 
                             create_request_from_robot_box_->isChecked(), 
                             motion_plan_id);
@@ -1239,7 +1255,7 @@ void WarehouseViewer::saveCurrentPlanningScene(bool copy)
 {
   ROS_DEBUG_STREAM("Current planning scene id is " << current_planning_scene_name_);
   ROS_DEBUG_STREAM("Hostname is " << planning_scene_map_[current_planning_scene_name_].getHostName());
- savePlanningScene(planning_scene_map_[current_planning_scene_name_], copy);
+  savePlanningScene(planning_scene_map_[current_planning_scene_name_], copy);
   QMessageBox msgBox(QMessageBox::Information, "Saved", "Saved planning scene successfully.");
   msgBox.addButton(QMessageBox::Ok);
   msgBox.exec();
@@ -1650,9 +1666,9 @@ void WarehouseViewer::createTrajectoryTable()
     QStringList collisionList;
     collisionList.append("");
     QTreeWidgetItem* collisionItem = new QTreeWidgetItem(collisionList);
+    collisionList.append("Show Collisions");
     collisionItem->setToolTip(0, nameItem->text(0));
     QCheckBox* collisionsVisibleBox = new QCheckBox(trajectory_tree_);
-    collisionsVisibleBox->setText("Show Collisions");
     collisionsVisibleBox->setChecked(trajectory.areCollisionsVisible());
     collisionsVisibleBox->setToolTip(nameItem->text(0));
     nameItem->insertChild(2, collisionItem);
@@ -2266,6 +2282,154 @@ void WarehouseViewer::createRequestPressed()
   createNewMotionPlanRequest(group_name, end_effector_name);
   createMotionPlanTable();
   new_request_dialog_->close();
+}
+
+void WarehouseViewer::motionPlanHasPathConstraintsButtonClicked(bool checked) 
+{
+  QObject* sender = QObject::sender();
+  QCheckBox* box = dynamic_cast<QCheckBox*>(sender);
+  
+  if(box == NULL)
+  {
+    ROS_WARN_STREAM("Path constraints dispatch failed");
+    return;
+  }
+  
+  std::string ID = box->toolTip().toStdString();
+
+  if(motion_plan_map_.find(ID) == motion_plan_map_.end())
+  {
+    ROS_WARN_STREAM("No MPR ID " << ID << " in path constraints");
+    return;
+  }
+  
+  MotionPlanRequestData& data = motion_plan_map_[ID];
+  
+  data.setPathConstraints(checked);
+  data.updateGoalState();
+}
+
+void WarehouseViewer::setPathConstraintsButtonClicked() 
+{
+  QObject* sender = QObject::sender();
+  QPushButton* box = dynamic_cast<QPushButton*>(sender);
+  
+  if(box == NULL)
+  {
+    ROS_WARN_STREAM("Dispatch not working");
+    return;
+  }
+  
+  std::string ID = box->toolTip().toStdString();
+
+  if(motion_plan_map_.find(ID) == motion_plan_map_.end())
+  {
+    ROS_WARN_STREAM("No motion plan id " << ID);
+    return;
+  }
+  
+  MotionPlanRequestData& data = motion_plan_map_[ID];
+
+  createSetPathConstraintsDialog(data);
+  int res = set_path_constraints_dialog_->exec();
+  
+  if(res == QDialog::Accepted) {
+    data.setConstrainRoll(constrain_roll_check_box_->isChecked());
+    data.setConstrainPitch(constrain_pitch_check_box_->isChecked());
+    data.setConstrainYaw(constrain_yaw_check_box_->isChecked());
+
+    if(constrain_roll_check_box_->isChecked()) {
+      data.setRollTolerance(constrain_roll_tolerance_->value());
+    }
+    if(constrain_pitch_check_box_->isChecked()) {
+      data.setPitchTolerance(constrain_pitch_tolerance_->value());
+    }
+    if(constrain_yaw_check_box_->isChecked()) {
+      data.setYawTolerance(constrain_yaw_tolerance_->value());
+    }
+    data.updateGoalState();
+  }
+
+  delete set_path_constraints_dialog_;
+
+}
+
+void WarehouseViewer::createSetPathConstraintsDialog(MotionPlanRequestData& data) {
+  set_path_constraints_dialog_ = new QDialog(this);
+  std::stringstream window_title;
+  window_title << "Set RPY Path Constraints for " << data.getName();
+  set_path_constraints_dialog_->setWindowTitle(QString::fromStdString(window_title.str()));
+
+  QVBoxLayout* layout = new QVBoxLayout(set_path_constraints_dialog_);
+
+  QGridLayout* grid_layout = new QGridLayout(set_path_constraints_dialog_);
+
+  QLabel* con_label = new QLabel(set_path_constraints_dialog_);
+  con_label->setText("Enable Constraints");
+  
+  QLabel* tol_label = new QLabel(set_path_constraints_dialog_);
+  tol_label->setText("Absolute Tolerance");
+  
+  grid_layout->addWidget(con_label, 0, 0);
+  grid_layout->addWidget(tol_label, 0, 1);
+
+  constrain_roll_check_box_ = new QCheckBox(set_path_constraints_dialog_);
+  constrain_roll_check_box_->setChecked(data.getConstrainRoll());
+  constrain_roll_check_box_->setText("Constrain Roll");
+
+  constrain_pitch_check_box_ = new QCheckBox(set_path_constraints_dialog_);
+  constrain_pitch_check_box_->setChecked(data.getConstrainPitch());
+  constrain_pitch_check_box_->setText("Constrain Pitch");
+
+  constrain_yaw_check_box_ = new QCheckBox(set_path_constraints_dialog_);
+  constrain_yaw_check_box_->setChecked(data.getConstrainYaw());
+  constrain_yaw_check_box_->setText("Constrain Yaw");
+
+  grid_layout->addWidget(constrain_roll_check_box_, 1, 0);
+  grid_layout->addWidget(constrain_pitch_check_box_, 2, 0);
+  grid_layout->addWidget(constrain_yaw_check_box_, 3, 0);
+  
+  constrain_roll_tolerance_ = new QDoubleSpinBox(set_path_constraints_dialog_);
+  constrain_roll_tolerance_->setDecimals(2);
+  constrain_roll_tolerance_->setRange(0, M_PI);
+  constrain_roll_tolerance_->setSingleStep(.01);
+  constrain_roll_tolerance_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  constrain_roll_tolerance_->setValue(data.getRollTolerance());
+  constrain_roll_tolerance_->setEnabled(constrain_roll_check_box_->isChecked());
+
+  constrain_pitch_tolerance_ = new QDoubleSpinBox(set_path_constraints_dialog_);
+  constrain_pitch_tolerance_->setDecimals(2);
+  constrain_pitch_tolerance_->setRange(0, M_PI);
+  constrain_pitch_tolerance_->setSingleStep(.01);
+  constrain_pitch_tolerance_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  constrain_pitch_tolerance_->setValue(data.getPitchTolerance());
+  constrain_pitch_tolerance_->setEnabled(constrain_pitch_check_box_->isChecked());
+
+  constrain_yaw_tolerance_ = new QDoubleSpinBox(set_path_constraints_dialog_);
+  constrain_yaw_tolerance_->setDecimals(2);
+  constrain_yaw_tolerance_->setRange(0, M_PI);
+  constrain_yaw_tolerance_->setSingleStep(.01);
+  constrain_yaw_tolerance_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  constrain_yaw_tolerance_->setValue(data.getYawTolerance());
+  constrain_yaw_tolerance_->setEnabled(constrain_yaw_check_box_->isChecked());
+
+  connect(constrain_roll_check_box_, SIGNAL(clicked(bool)), constrain_roll_tolerance_, SLOT(setEnabled(bool)));
+  connect(constrain_pitch_check_box_, SIGNAL(clicked(bool)), constrain_pitch_tolerance_, SLOT(setEnabled(bool)));
+  connect(constrain_yaw_check_box_, SIGNAL(clicked(bool)), constrain_yaw_tolerance_, SLOT(setEnabled(bool)));
+
+  grid_layout->addWidget(constrain_roll_tolerance_, 1, 1);  
+  grid_layout->addWidget(constrain_pitch_tolerance_, 2, 1);  
+  grid_layout->addWidget(constrain_yaw_tolerance_, 3, 1);  
+
+  layout->addLayout(grid_layout);
+
+  QDialogButtonBox* qdb = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
+  connect(qdb, SIGNAL(accepted()), set_path_constraints_dialog_, SLOT(accept()));
+  connect(qdb, SIGNAL(rejected()), set_path_constraints_dialog_, SLOT(reject()));
+
+  layout->addWidget(qdb);
+
+  set_path_constraints_dialog_->setLayout(layout);
 }
 
 void WarehouseViewer::trajectoryRenderTypeChanged(const QString& type)
