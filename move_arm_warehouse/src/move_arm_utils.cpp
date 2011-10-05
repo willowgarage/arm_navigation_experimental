@@ -1163,6 +1163,16 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       }
     }
     sendPlanningScene(scene);
+    // if(loadRequests) {
+    //   for(map<string, MotionPlanRequestData>::iterator it = motion_plan_map_.begin(); it != motion_plan_map_.end(); it ++)
+    //   {
+    //     if(it->second->hasPathConstraints()) {
+    //       solveIKForEndEffectorPose(it->second,
+    //                                 GoalPosition,
+                                    
+    //                                 }
+    //     }
+    //   }
   }
 
   interactive_marker_server_->applyChanges();
@@ -2465,11 +2475,17 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
 
   vector<ArmNavigationErrorCodes> trajectory_error_codes;
   arm_navigation_msgs::Constraints path_constraints;
+  arm_navigation_msgs::Constraints goal_constraints;
   if(requestData.hasPathConstraints()) {
     path_constraints = requestData.getMotionPlanRequest().path_constraints;
+    goal_constraints.position_constraints = requestData.getMotionPlanRequest().goal_constraints.position_constraints;
+    goal_constraints.orientation_constraints = requestData.getMotionPlanRequest().goal_constraints.orientation_constraints;
+  } else {
+    goal_constraints.joint_constraints = requestData.getMotionPlanRequest().goal_constraints.joint_constraints;
   }
+  
   cm_->isJointTrajectoryValid(*(data.getCurrentState()), data.getTrajectory(),
-                              requestData.getMotionPlanRequest().goal_constraints,
+                              goal_constraints,
                               path_constraints, errorCode,
                               trajectory_error_codes, false);
 

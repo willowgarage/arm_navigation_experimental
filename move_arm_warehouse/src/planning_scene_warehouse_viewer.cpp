@@ -1832,7 +1832,7 @@ void WarehouseViewer::createPlanningSceneTable()
     hostItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     planning_scene_table_->setItem(r, 0, hostItem);
 
-    QTableWidgetItem* nameItem = new QTableWidgetItem(QString::fromStdString(data.getName()));
+    PlanningSceneNameTableItem* nameItem = new PlanningSceneNameTableItem(QString::fromStdString(data.getName()));
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     planning_scene_table_->setItem(r, 1, nameItem);
 
@@ -1841,7 +1841,7 @@ void WarehouseViewer::createPlanningSceneTable()
     stringstream timestampStream;
     timestampStream << time.toString().toStdString();
 
-    QTableWidgetItem* timeItem = new QTableWidgetItem(QString::fromStdString(timestampStream.str()));
+    PlanningSceneDateTableItem* timeItem = new PlanningSceneDateTableItem(QString::fromStdString(timestampStream.str()));
     timeItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     planning_scene_table_->setItem(r, 2, timeItem);
 
@@ -1874,7 +1874,7 @@ void WarehouseViewer::createPlanningSceneTable()
     r++;
   }
 
-  planning_scene_table_->sortByColumn(1, Qt::AscendingOrder);
+  planning_scene_table_->sortByColumn(1, Qt::DescendingOrder);
   connect(planning_scene_table_->horizontalHeader(), SIGNAL(sectionClicked(int)), this, SLOT(planningSceneTableHeaderClicked(int)));
   planning_scene_table_->horizontalHeader()->resizeSections(QHeaderView::Stretch);
   planning_scene_table_->setHorizontalHeaderLabels(labels);
@@ -2306,7 +2306,9 @@ void WarehouseViewer::motionPlanHasPathConstraintsButtonClicked(bool checked)
   MotionPlanRequestData& data = motion_plan_map_[ID];
   
   data.setPathConstraints(checked);
-  data.updateGoalState();
+  std::map<std::string, double> vals;
+  data.getGoalState()->getKinematicStateValues(vals);
+  data.setGoalStateValues(vals);
 }
 
 void WarehouseViewer::setPathConstraintsButtonClicked() 
@@ -2347,7 +2349,9 @@ void WarehouseViewer::setPathConstraintsButtonClicked()
     if(constrain_yaw_check_box_->isChecked()) {
       data.setYawTolerance(constrain_yaw_tolerance_->value());
     }
-    data.updateGoalState();
+    std::map<std::string, double> vals;
+    data.getGoalState()->getKinematicStateValues(vals);
+    data.setGoalStateValues(vals);
   }
 
   delete set_path_constraints_dialog_;

@@ -283,6 +283,42 @@ private:
 
 };
 
+class PlanningSceneNameTableItem: public QObject, public QTableWidgetItem
+{
+  Q_OBJECT
+  public:
+
+  PlanningSceneNameTableItem(const QString& qs) : QTableWidgetItem(qs) {}
+  
+  bool operator< (const QTableWidgetItem& other) const {
+    unsigned int other_id = planning_scene_utils::getPlanningSceneIdFromName(other.text().toStdString());
+    unsigned int my_id = planning_scene_utils::getPlanningSceneIdFromName(this->text().toStdString());
+    if(my_id < other_id) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
+class PlanningSceneDateTableItem: public QObject, public QTableWidgetItem
+{
+  Q_OBJECT
+  public:
+
+  PlanningSceneDateTableItem(const QString& qs) : QTableWidgetItem(qs) {}
+  
+  bool operator< (const QTableWidgetItem& other) const {
+    QDateTime other_time = QDateTime::fromString(other.text());
+    QDateTime my_time = QDateTime::fromString(this->text());
+    if(my_time < other_time) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
 /////
 /// @brief Main Warehouse Viewer application.
 /////
