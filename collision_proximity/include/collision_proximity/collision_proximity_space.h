@@ -60,7 +60,12 @@ class CollisionProximitySpace
 
 public:
 
-  CollisionProximitySpace(const std::string& robot_description_name, bool register_with_environment_server = true);
+    enum TrajectoryPointType
+    {
+      StartCollision, EndCollision, Middle, None
+    };
+
+  CollisionProximitySpace(const std::string& robot_description_name, bool register_with_environment_server = true, bool use_signed_environment_field = false, bool use_signed_self_field = false);
   ~CollisionProximitySpace();
 
   //this function sets up the collision proximity space for making a series of 
@@ -87,7 +92,7 @@ public:
   // returns the full gradient information for each group_link
   bool getStateGradients(std::vector<GradientInfo>& gradients, 
                          bool subtract_radii = false) const;
-  
+
   bool getIntraGroupCollisions(std::vector<bool>& collisions,
                                bool stop_at_first = false) const;
   
@@ -105,6 +110,11 @@ public:
   
   bool getEnvironmentProximityGradients(std::vector<GradientInfo>& gradients,
                                         bool subtract_radii = false) const;
+
+  bool isTrajectorySafe(const trajectory_msgs::JointTrajectory& trajectory,
+                        const arm_navigation_msgs::Constraints& goal_constraints,
+                        const arm_navigation_msgs::Constraints& path_constraints,
+                        const std::string& groupName);
 
   // returns true if current setup is in environment collision
   bool isEnvironmentCollision() const;
@@ -132,8 +142,9 @@ public:
                                    const std::string& ns, 
                                    visualization_msgs::MarkerArray& arr) const;
 
-  void visualizeDistanceField(distance_field::PropagationDistanceField* distance_field) const;
+  void visualizeDistanceField(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const;
 
+  void visualizeDistanceFieldPlane(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const;
   //void visualizeClosestCollisionSpheres(const std::vector<std::string>& link_names) const;
 
   void visualizeCollisions(const std::vector<std::string>& link_names, 
@@ -223,8 +234,8 @@ private:
 
   mutable std::vector<std::vector<double> > colors_;
 
-  distance_field::PropagationDistanceField* environment_distance_field_;
-  distance_field::PropagationDistanceField* self_distance_field_;
+  distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* environment_distance_field_;
+  distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* self_distance_field_;
 
   planning_environment::CollisionModelsInterface* collision_models_interface_;
 

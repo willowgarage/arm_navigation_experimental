@@ -1,0 +1,17 @@
+/build$
+~$
+/src/.*/msg/_.*
+/src/.*/srv/_.*
+/msg_gen$
+/srv_gen$
+/msg/lisp$
+/srv/lisp$
+/bin$
+/lib$
+.pyc$
+
+# An attempt at ignoring action generated messages
+/msg/.*Action\.msg$
+/msg/.*Feedback\.msg$
+/msg/.*Goal\.msg$
+/msg/.*Result\.msg$

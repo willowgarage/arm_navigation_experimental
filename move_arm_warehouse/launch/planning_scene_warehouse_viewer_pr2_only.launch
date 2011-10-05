@@ -1,51 +1,8 @@
 <launch>
-
   <param name="warehouse_host" value="localhost"/>
   <param name="warehouse_port" value="27021"/>
-  <node name="mongo" type="wrapper.py" pkg="mongodb">
-    <param name="overwrite" value="false"/>
-    <param name="database_path" value="arm_navigation_dbs/pr2_real"/>
-  </node>
 
-  <!-- send parameters for multidof -->
-  <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
-
-  <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
-
-  <include file="$(find pr2_arm_navigation_perception)/launch/laser+stereo-perception.launch"/>
-
-  <node pkg="planning_environment" type="environment_server" output="screen" name="environment_server">      
-    <param name="use_monitor" type="bool" value="true"/>
-    <param name="use_collision_map" type="bool" value="true"/>
-  </node>
-
-  <node pkg="planning_environment" type="planning_scene_validity_server" output="screen" name="planning_scene_validity_server"/>      
-  
-  <node pkg="pr2_arm_kinematics_constraint_aware" type="pr2_arm_kinematics_constraint_aware" name="pr2_right_arm_kinematics" output="screen">    
-    <!-- IK parameters -->
-    <param name="tip_name" value="r_wrist_roll_link" />     
-    <param name="root_name" value="torso_lift_link" />  
-
-    <param name="group" type="string" value="right_arm" />
-  </node>
-  <node pkg="pr2_arm_kinematics_constraint_aware" type="pr2_arm_kinematics_constraint_aware" name="pr2_left_arm_kinematics" output="screen">    
-    <!-- IK parameters -->
-    <param name="tip_name" value="l_wrist_roll_link" />     
-    <param name="root_name" value="torso_lift_link" />  
-
-    <param name="group" type="string" value="left_arm" />
-  </node>
-  <node pkg="ompl_ros_interface" type="ompl_ros" name="ompl_planning" output="screen">
-    <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/ompl_planning.yaml" />
-  </node>
-  <node name="interpolated_ik_node_right" pkg="interpolated_ik_motion_planner" 
-	type="interpolated_ik_motion_planner.py" args="r" respawn="false"/>
-  <node name="interpolated_ik_node_left" pkg="interpolated_ik_motion_planner" 
-	type="interpolated_ik_motion_planner.py" args="l" respawn="false"/>
-  <node pkg="trajectory_filter_server" name="trajectory_filter_server" type="trajectory_filter_server" output="screen">
-    <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
-    <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
-  </node>
+  <node name="planning_scene_warehouse_viewer" pkg="move_arm_warehouse" type="planning_scene_warehouse_viewer"/>
 
   <!-- Called when left arm executes trajectory using controllers -->
   <param name="execute_left_trajectory" value="/l_arm_controller/follow_joint_trajectory" />
@@ -110,5 +67,4 @@
   <param name="use_robot_data" value="true"/>
   
   <param name="vis_topic_name" value="planning_scene_visualizer_markers"/>
-
 </launch>

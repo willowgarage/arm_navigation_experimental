@@ -74,6 +74,7 @@ void ChompParameters::initFromNodeHandle()
   node_handle.param("collision_clearence", min_clearence_, 0.2);
   node_handle.param("collision_threshold", collision_threshold_, 0.07);
   node_handle.param("random_jump_amount", random_jump_amount_, 1.0);
+  node_handle.param("use_stochastic_descent", use_stochastic_descent_, true);
   filter_mode_ = false;
 }
 
