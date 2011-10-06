@@ -42,8 +42,8 @@ from kinematics_msgs.srv import GetKinematicSolverInfo, GetPositionIK, GetPositi
 from kinematics_msgs.msg import PositionIKRequest
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion, PointStamped, Vector3Stamped
 from visualization_msgs.msg import Marker
-from motion_planning_msgs.msg import RobotState, MultiDOFJointState, ArmNavigationErrorCodes
-from planning_environment_msgs.srv import GetStateValidity, GetStateValidityRequest
+from arm_navigation_msgs.msg import RobotState, MultiDOFJointState, ArmNavigationErrorCodes
+from arm_navigation_msgs.srv import GetStateValidity, GetStateValidityRequest
 from sensor_msgs.msg import JointState
 import math
 import random
