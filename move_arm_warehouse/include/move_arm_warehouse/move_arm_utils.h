@@ -880,6 +880,7 @@ protected:
   bool is_visible_;
   MarkerType marker_type_;
   bool is_playing_;
+  ros::Time playback_start_time_;
   bool collisions_visible_;
   bool state_changed_;
   std_msgs::ColorRGBA color_;
@@ -907,6 +908,10 @@ public:
   /// @brief Sets the current state of the trajectory to the current trajectory point + amount.
   /// Allows for negative values. Does not overshoot the trajectory's end or start.
   void moveThroughTrajectory(int amount);
+
+  /// @beif Gets the closest point on the trajectory whereby: 
+  /// point.time_from_start ~= time - playback_start_time_.
+  void getNextClosestPoint(ros::Time time);
 
   /// @brief Sets the joint states of the current state to those specified by the joint trajectory.
   void updateCurrentState();
@@ -1084,19 +1089,14 @@ public:
     return is_playing_;
   }
 
-  /// @brief Sets whether the the current state is automatically marching through trajectory points.
-  inline void setPlaying(bool playing)
-  {
-    is_playing_ = playing;
-  }
-
-  /// @brief Shorthand for setPlaying(true)
+  /// @brief Starts playback of trajectory
   inline void play()
   {
     is_playing_ = true;
+    playback_start_time_ = ros::Time::now();
   }
 
-  /// @brief Shorthand for setPlaying(false)
+  /// @brief Stops playback of trajectory
   inline void stop()
   {
     is_playing_ = false;

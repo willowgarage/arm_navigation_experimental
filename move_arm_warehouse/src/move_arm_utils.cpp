@@ -138,6 +138,39 @@ TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, con
   setRenderType(CollisionMesh);
 }
 
+void TrajectoryData::getNextClosestPoint(ros::Time time)
+{
+  unsigned int tsize = getTrajectorySize();
+
+  if(tsize == 0 || getCurrentState() == NULL)
+  {
+    return;
+  }
+
+  unsigned int current_point = getCurrentPoint();
+  unsigned int best_point = current_point;
+  ros::Duration playback_time_from_start = time - playback_start_time_;
+
+  // Assume strictly increasing timestamps
+  // Does not seach through all points, only the points after the current_point.
+  for( unsigned int point_index=current_point; point_index<tsize; point_index++ )
+  {
+    if( trajectory_.points[point_index].time_from_start < playback_time_from_start )
+    {
+      best_point = point_index;
+    }
+    else
+    {
+      break;
+    }
+  }
+  
+  if( best_point != getCurrentPoint() )
+  {
+    setCurrentPoint((int)best_point);
+  }
+}
+
 void TrajectoryData::moveThroughTrajectory(int step)
 {
   unsigned int tsize = getTrajectorySize();
@@ -961,7 +994,7 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
       point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
       point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
     }
-    point.time_from_start = ros::Time(ros::WallTime::now().toSec()) - logged_trajectory_start_time_;
+    point.time_from_start = ros::Time(ros::Time::now().toSec()) - logged_trajectory_start_time_;
     logged_trajectory_.points.push_back(point);
   }
 }
@@ -1181,13 +1214,14 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
 
 void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& arr)
 {
-  // For each trajectory...
+  // For each trajectory. 
   for(map<string, map<string, TrajectoryData> >::iterator it = trajectory_map_.begin(); it != trajectory_map_.end(); it++)
   {
     for(map<string, TrajectoryData>::iterator it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+      // If a trajectory is playing, then show the closest matching pose in the trajectory.
       if(it2->second.isPlaying())
       {
-        it2->second.moveThroughTrajectory(2);
+        it2->second.getNextClosestPoint(ros::Time::now());
         if( it->first == selected_motion_plan_name_ &&
             it2->first == selected_trajectory_name_ )
         {
@@ -1661,7 +1695,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   trajectory_data.setSource(source);
   trajectory_data.setDuration(plan_res.planning_time);
   trajectory_data.setVisible(true);
-  trajectory_data.setPlaying(true);
+  trajectory_data.play();
 
   bool success = (plan_res.error_code.val == plan_res.error_code.SUCCESS);
   trajectory_data.trajectory_error_code_.val = plan_res.error_code.val;
