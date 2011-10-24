@@ -869,6 +869,12 @@ public:
     PADDED
   };
 
+  enum TrajectoryType {
+    PLANNED,            // Trajectories are planned only, but do not have valid timestamps
+    FILTERED,           // Trajectories respect dynamics, have valid timestamps, and should be executable on the robot.
+    EXECUTED            // Trajectories have timestamps caused from actual execution of a trajectory
+  };
+
 protected:
   std::string name_;
   unsigned int id_;
@@ -892,7 +898,7 @@ protected:
   bool has_refreshed_colors_;
   visualization_msgs::MarkerArray collision_markers_;
   RenderType render_type_;
-
+  TrajectoryType trajectory_type_;
 public:
 
   /// @brief This counter is exhausted when the trajectory's color has changed.
@@ -907,11 +913,11 @@ public:
 
   /// @brief Sets the current state of the trajectory to the current trajectory point + amount.
   /// Allows for negative values. Does not overshoot the trajectory's end or start.
-  void moveThroughTrajectory(int amount);
+  void advanceThroughTrajectory(int amount);
 
-  /// @beif Gets the closest point on the trajectory whereby: 
-  /// point.time_from_start ~= time - playback_start_time_.
-  void getNextClosestPoint(ros::Time time);
+  /// @brief Gets the closest point on the trajectory whereby the 
+  /// point.time_from_start <= time - playback_start_time_.
+  void advanceToNextClosestPoint(ros::Time time);
 
   /// @brief Sets the joint states of the current state to those specified by the joint trajectory.
   void updateCurrentState();
@@ -1050,7 +1056,7 @@ public:
     return motion_plan_request_Id_;
   }
 
-  void setPlanningSceneId(const unsigned int id) {
+  inline void setPlanningSceneId(const unsigned int id) {
     planning_scene_id_ = id;
   }
 
@@ -1225,6 +1231,20 @@ public:
   /// for each collision point.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
                               ros::ServiceClient* distance_state_validity_service_client_);
+
+  /// @brief Gets the trajectory type.
+  inline TrajectoryType getTrajectoryType() const
+  {
+    return trajectory_type_;
+  }
+
+  // @brief Sets the trajectory type.
+  // This is useful for determining the type of rendering we need to perform.
+  inline void setTrajectoryType(TrajectoryType trajectory_type)
+  {
+    trajectory_type_ = trajectory_type;
+  }
+
 };
 
 ////

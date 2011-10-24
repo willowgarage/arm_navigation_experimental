@@ -119,6 +119,7 @@ TrajectoryData::TrajectoryData()
   refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
   setRenderType(CollisionMesh);
+  trajectory_type_ = PLANNED;
 }
 
 TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName, const JointTrajectory& trajectory)
@@ -136,9 +137,10 @@ TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, con
   refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
   setRenderType(CollisionMesh);
+  trajectory_type_ = PLANNED;
 }
 
-void TrajectoryData::getNextClosestPoint(ros::Time time)
+void TrajectoryData::advanceToNextClosestPoint(ros::Time time)
 {
   unsigned int tsize = getTrajectorySize();
 
@@ -155,7 +157,7 @@ void TrajectoryData::getNextClosestPoint(ros::Time time)
   // Does not seach through all points, only the points after the current_point.
   for( unsigned int point_index=current_point; point_index<tsize; point_index++ )
   {
-    if( trajectory_.points[point_index].time_from_start < playback_time_from_start )
+    if( trajectory_.points[point_index].time_from_start <= playback_time_from_start )
     {
       best_point = point_index;
     }
@@ -171,7 +173,7 @@ void TrajectoryData::getNextClosestPoint(ros::Time time)
   }
 }
 
-void TrajectoryData::moveThroughTrajectory(int step)
+void TrajectoryData::advanceThroughTrajectory(int step)
 {
   unsigned int tsize = getTrajectorySize();
 
@@ -1221,7 +1223,17 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
       // If a trajectory is playing, then show the closest matching pose in the trajectory.
       if(it2->second.isPlaying())
       {
-        it2->second.getNextClosestPoint(ros::Time::now());
+        if(it2->second.getTrajectoryType() == TrajectoryData::PLANNED)
+        {
+          // Assume that timestamps are invalid, and render based on index
+          it2->second.advanceThroughTrajectory(2);
+        }
+        else
+        {
+          // assume timestamps are fine, and render based on time.
+          it2->second.advanceToNextClosestPoint(ros::Time::now());
+        }
+
         if( it->first == selected_motion_plan_name_ &&
             it2->first == selected_trajectory_name_ )
         {
@@ -1695,6 +1707,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   trajectory_data.setSource(source);
   trajectory_data.setDuration(plan_res.planning_time);
   trajectory_data.setVisible(true);
+  trajectory_data.setTrajectoryType(TrajectoryData::PLANNED);
   trajectory_data.play();
 
   bool success = (plan_res.error_code.val == plan_res.error_code.SUCCESS);
@@ -1792,6 +1805,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   data.setPlanningSceneId(requestData.getPlanningSceneId());
   data.setMotionPlanRequestId(requestData.getId());
   data.setDuration(ros::Time(ros::WallTime::now().toSec()) - startTime);
+  data.setTrajectoryType(TrajectoryData::FILTERED);
   requestData.addTrajectoryId(id);
 
   data.trajectory_error_code_.val = filter_res.error_code.val;
@@ -2542,7 +2556,7 @@ bool PlanningSceneEditor::playTrajectory(MotionPlanRequestData& requestData, Tra
     errorCode.val = oldValue.val;
   }
 
-  data.moveThroughTrajectory(0);
+  data.setCurrentPoint(0);
   lock_scene_.unlock();
   return true;
 }
@@ -4094,6 +4108,7 @@ void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGo
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
+  logged.setTrajectoryType(TrajectoryData::EXECUTED);
   logged.setMotionPlanRequestId(mpr.getId());
   logged.trajectory_error_code_.val = result->error_code;
   mpr.addTrajectoryId(logged.getId());                    
