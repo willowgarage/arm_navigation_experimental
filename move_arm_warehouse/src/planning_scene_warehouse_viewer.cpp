@@ -1666,9 +1666,9 @@ void WarehouseViewer::createTrajectoryTable()
     QStringList collisionList;
     collisionList.append("");
     QTreeWidgetItem* collisionItem = new QTreeWidgetItem(collisionList);
-    collisionList.append("Show Collisions");
     collisionItem->setToolTip(0, nameItem->text(0));
     QCheckBox* collisionsVisibleBox = new QCheckBox(trajectory_tree_);
+    collisionsVisibleBox->setText("Show Collisions");
     collisionsVisibleBox->setChecked(trajectory.areCollisionsVisible());
     collisionsVisibleBox->setToolTip(nameItem->text(0));
     nameItem->insertChild(2, collisionItem);
@@ -1707,8 +1707,32 @@ void WarehouseViewer::createTrajectoryTable()
     nameItem->insertChild(4, colorItem);
     trajectory_tree_->setItemWidget(colorItem, 1, colorButton);
 
+    QStringList trajectoryTypeList;
+    trajectoryTypeList.append("Trajectory Rendering Mode");
+    QTreeWidgetItem* trajectoryRenderTypeItem = new QTreeWidgetItem(trajectoryTypeList);
+    trajectoryRenderTypeItem->setToolTip(0, nameItem->text(0));
+    QComboBox* trajectoryRenderTypeBox = new QComboBox(trajectory_tree_);
+    QStringList traj_items;
+    traj_items.append("Kinematic");
+    traj_items.append("Temporal");
+    trajectoryRenderTypeBox->addItems(traj_items);
+    trajectoryRenderTypeBox->setToolTip(nameItem->text(0));
+    connect(trajectoryRenderTypeBox, SIGNAL(currentIndexChanged(int)), this, SLOT(trajectoryRenderTypeChanged(const int&)));
+    nameItem->insertChild(5,trajectoryRenderTypeItem);
+    trajectory_tree_->setItemWidget(trajectoryRenderTypeItem, 1, trajectoryRenderTypeBox);
+
+    switch(trajectory.getTrajectoryRenderType())
+    {
+      case Kinematic:
+        trajectoryRenderTypeBox->setCurrentIndex(0);
+        break;
+      case Temporal:
+        trajectoryRenderTypeBox->setCurrentIndex(1);
+        break;
+    }
+
     QStringList renderTypeList;
-    renderTypeList.append("Render Mode");
+    renderTypeList.append("Model Rendering Mode");
     QTreeWidgetItem* renderTypeItem = new QTreeWidgetItem(renderTypeList);
     renderTypeItem->setToolTip(0, nameItem->text(0));
 
@@ -1719,9 +1743,9 @@ void WarehouseViewer::createTrajectoryTable()
     items.append("Padding Mesh");
     renderTypeBox->addItems(items);
     renderTypeBox->setToolTip(nameItem->text(0));
-    connect(renderTypeBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(trajectoryRenderTypeChanged(const QString&)));
+    connect(renderTypeBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(modelRenderTypeChanged(const QString&)));
 
-    nameItem->insertChild(5, renderTypeItem);
+    nameItem->insertChild(6, renderTypeItem);
     trajectory_tree_->setItemWidget(renderTypeItem, 1, renderTypeBox);
 
     switch(trajectory.getRenderType())
@@ -1737,7 +1761,6 @@ void WarehouseViewer::createTrajectoryTable()
         break;
     }
   }
-
 }
 
 void WarehouseViewer::trajectoryCollisionsVisibleButtonClicked(bool checked)
@@ -2436,7 +2459,7 @@ void WarehouseViewer::createSetPathConstraintsDialog(MotionPlanRequestData& data
   set_path_constraints_dialog_->setLayout(layout);
 }
 
-void WarehouseViewer::trajectoryRenderTypeChanged(const QString& type)
+void WarehouseViewer::modelRenderTypeChanged(const QString& type)
 {
   QObject* sender = QObject::sender();
   QComboBox* box = dynamic_cast<QComboBox*>(sender);
@@ -2463,6 +2486,35 @@ void WarehouseViewer::trajectoryRenderTypeChanged(const QString& type)
     data.setRenderType(PaddingMesh);
   }
 }
+
+void WarehouseViewer::trajectoryRenderTypeChanged(const int& index)
+{
+  QObject* sender = QObject::sender();
+  QComboBox* box = dynamic_cast<QComboBox*>(sender);
+  std::string ID = box->toolTip().toStdString();
+
+  if(!hasTrajectory(selected_motion_plan_name_,
+                   ID)) {
+    ROS_WARN_STREAM("Changing trajectory render type when we don't have trajectory");
+    return;
+  }
+
+  TrajectoryData& data = trajectory_map_[selected_motion_plan_name_][ID];
+
+  if(index == 0)
+  {
+    data.setTrajectoryRenderType(Kinematic);
+  }
+  else if(index == 1)
+  {
+    data.setTrajectoryRenderType(Temporal);
+  }
+  else
+  {
+    data.setTrajectoryRenderType(Kinematic);
+  }
+}
+
 
 void WarehouseViewer::motionPlanRenderTypeChanged(const QString& type)
 {

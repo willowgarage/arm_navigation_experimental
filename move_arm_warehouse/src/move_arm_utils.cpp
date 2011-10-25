@@ -119,7 +119,7 @@ TrajectoryData::TrajectoryData()
   refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
   setRenderType(CollisionMesh);
-  trajectory_type_ = PLANNED;
+  trajectory_render_type_ = Kinematic;
 }
 
 TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName, const JointTrajectory& trajectory)
@@ -137,7 +137,7 @@ TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, con
   refresh_timer_ = ros::Duration(0.0);
   trajectory_error_code_.val = 0;
   setRenderType(CollisionMesh);
-  trajectory_type_ = PLANNED;
+  trajectory_render_type_ = Kinematic;
 }
 
 void TrajectoryData::advanceToNextClosestPoint(ros::Time time)
@@ -171,6 +171,14 @@ void TrajectoryData::advanceToNextClosestPoint(ros::Time time)
   {
     setCurrentPoint((int)best_point);
   }
+
+  if( getCurrentPoint() >= tsize - 1)
+  {
+   setCurrentPoint(tsize-1);
+   stop();
+  }
+
+  updateCurrentState();
 }
 
 void TrajectoryData::advanceThroughTrajectory(int step)
@@ -1223,7 +1231,7 @@ void PlanningSceneEditor::getTrajectoryMarkers(visualization_msgs::MarkerArray& 
       // If a trajectory is playing, then show the closest matching pose in the trajectory.
       if(it2->second.isPlaying())
       {
-        if(it2->second.getTrajectoryType() == TrajectoryData::PLANNED)
+        if(it2->second.getTrajectoryRenderType() == Kinematic)
         {
           // Assume that timestamps are invalid, and render based on index
           it2->second.advanceThroughTrajectory(2);
@@ -1707,7 +1715,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   trajectory_data.setSource(source);
   trajectory_data.setDuration(plan_res.planning_time);
   trajectory_data.setVisible(true);
-  trajectory_data.setTrajectoryType(TrajectoryData::PLANNED);
+  trajectory_data.setTrajectoryRenderType(Kinematic);
   trajectory_data.play();
 
   bool success = (plan_res.error_code.val == plan_res.error_code.SUCCESS);
@@ -1805,7 +1813,7 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   data.setPlanningSceneId(requestData.getPlanningSceneId());
   data.setMotionPlanRequestId(requestData.getId());
   data.setDuration(ros::Time(ros::WallTime::now().toSec()) - startTime);
-  data.setTrajectoryType(TrajectoryData::FILTERED);
+  data.setTrajectoryRenderType(Temporal);
   requestData.addTrajectoryId(id);
 
   data.trajectory_error_code_.val = filter_res.error_code.val;
@@ -4108,7 +4116,7 @@ void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGo
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
-  logged.setTrajectoryType(TrajectoryData::EXECUTED);
+  logged.setTrajectoryRenderType(Temporal);
   logged.setMotionPlanRequestId(mpr.getId());
   logged.trajectory_error_code_.val = result->error_code;
   mpr.addTrajectoryId(logged.getId());                    

@@ -154,6 +154,19 @@ enum RenderType
     CollisionMesh, VisualMesh, PaddingMesh
   };
 
+////
+/// Enum TrajectoryRenderType
+/// @brief Specifies how a trajectory should be rendered.
+///  Kinematic: Trajectories are rendered by iterating through the trajectory points (ignoring timestamps).
+///  Temporal:  Trajectories that have valid timestamps, are rendered based on the timestamps.
+////
+enum TrajectoryRenderType
+{
+  Kinematic,
+  Temporal,
+};
+
+
 // Must be defined so that subsequent classes can reference.
 class PlanningSceneEditor;
 
@@ -869,12 +882,6 @@ public:
     PADDED
   };
 
-  enum TrajectoryType {
-    PLANNED,            // Trajectories are planned only, but do not have valid timestamps
-    FILTERED,           // Trajectories respect dynamics, have valid timestamps, and should be executable on the robot.
-    EXECUTED            // Trajectories have timestamps caused from actual execution of a trajectory
-  };
-
 protected:
   std::string name_;
   unsigned int id_;
@@ -898,7 +905,7 @@ protected:
   bool has_refreshed_colors_;
   visualization_msgs::MarkerArray collision_markers_;
   RenderType render_type_;
-  TrajectoryType trajectory_type_;
+  TrajectoryRenderType trajectory_render_type_;
 public:
 
   /// @brief This counter is exhausted when the trajectory's color has changed.
@@ -1012,6 +1019,18 @@ public:
   inline void setRenderType(RenderType renderType)
   {
     render_type_ = renderType;
+  }
+
+  /// @brief Gets what trajectory rendering method to display in RVIZ.
+  inline TrajectoryRenderType getTrajectoryRenderType() const
+  {
+    return trajectory_render_type_;
+  }
+
+  /// @brief Sets what trajectory rendering method to display in RVIZ.
+  inline void setTrajectoryRenderType(TrajectoryRenderType renderType)
+  {
+    trajectory_render_type_ = renderType;
   }
 
   /// @brief Deletes the kinematic states associated with the trajectory.
@@ -1231,19 +1250,6 @@ public:
   /// for each collision point.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
                               ros::ServiceClient* distance_state_validity_service_client_);
-
-  /// @brief Gets the trajectory type.
-  inline TrajectoryType getTrajectoryType() const
-  {
-    return trajectory_type_;
-  }
-
-  // @brief Sets the trajectory type.
-  // This is useful for determining the type of rendering we need to perform.
-  inline void setTrajectoryType(TrajectoryType trajectory_type)
-  {
-    trajectory_type_ = trajectory_type;
-  }
 
 };
 

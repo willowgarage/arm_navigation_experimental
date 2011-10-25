@@ -507,8 +507,10 @@ public slots:
   void alterLinkPaddingPressed();
   /// @brief Called when the user triggers the "Alter allowed collision ..." action.
   void alterAllowedCollisionPressed();
-  /// @brief Called when the user changes the render type of a trajectory.
-  void trajectoryRenderTypeChanged(const QString& type);
+  /// @brief Called when the user changes the model render type.
+  void modelRenderTypeChanged(const QString& type);
+  /// @brief Called when the user changes the trajectory render type.
+  void trajectoryRenderTypeChanged(const int& type);
   /// @brief Called when the user changes the render type of a motion plan request.
   void motionPlanRenderTypeChanged(const QString& type);
   /// @brief Called when the user presses the change color button of a collision object.
