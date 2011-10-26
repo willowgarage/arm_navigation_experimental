@@ -549,7 +549,14 @@ protected:
   
   bool planning_scene_initialized_;
   QLabel* selected_trajectory_label_;
+  QLabel* selected_trajectory_error_label_;
   QLabel* selected_request_label_;
+  QLabel* selected_trajectory_duration_name_label_;
+  QLabel* selected_trajectory_duration_label_;
+  QLabel* selected_trajectory_angular_distance_label_;
+  QLabel* selected_trajectory_clearance_distance_label_;
+  QLabel* selected_trajectory_cartesian_distance_label_;
+
   QMenuBar* menu_bar_;
   QMenu* file_menu_;
   QMenu* planning_scene_menu_;

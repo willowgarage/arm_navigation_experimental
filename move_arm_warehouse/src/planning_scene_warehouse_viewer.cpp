@@ -80,6 +80,7 @@ void WarehouseViewer::initQtWidgets()
   setMenuBar(menu_bar_);
   QWidget* centralWidget = new QWidget(this);
   setCentralWidget(centralWidget);
+  centralWidget->setMinimumWidth(500);
 
   QGroupBox* motionPlanBox = new QGroupBox(this);
   motionPlanBox->setTitle("Motion Plan Requests");
@@ -97,7 +98,7 @@ void WarehouseViewer::initQtWidgets()
   layout->addWidget(trajectoryBox);
   QVBoxLayout* motionBoxLayout = new QVBoxLayout(motionPlanBox);
   motion_plan_tree_ = new QTreeWidget(motionPlanBox);
-  motion_plan_tree_->setColumnCount(5);
+  motion_plan_tree_->setColumnCount(1);
   motion_plan_tree_->setToolTip("Motion plan tree. Open a motion plan request to access its controls. Click to select a request.");
 
   QVBoxLayout* trajectoryBoxLayout = new QVBoxLayout(trajectoryBox);
@@ -129,22 +130,48 @@ void WarehouseViewer::initQtWidgets()
   set_secondary_planner_action_->setChecked(false);
 
   trajectory_tree_ = new QTreeWidget(trajectoryBox);
-  trajectory_tree_->setColumnCount(8);
+  trajectory_tree_->setColumnCount(1);
 
+  QWidget* mpButtons = new QWidget(motionPlanBox);
+  QHBoxLayout* mpButtonsLayout = new QHBoxLayout(mpButtons);
 
-  QLabel* trajectory_label = new QLabel(trajectoryBox);
-  trajectory_label->setText("Trajectory Position");
+  QGroupBox* controlsBox = new QGroupBox(trajectoryBox);
+  controlsBox->setTitle("Trajectory Controls");
+  QVBoxLayout* controlsBoxLayout = new QVBoxLayout(controlsBox);
 
-  QGroupBox* buttonsBox = new QGroupBox(trajectoryBox);
-  QHBoxLayout* buttonLayout = new QHBoxLayout(buttonsBox);
+  QWidget* buttonsWidget = new QWidget(trajectoryBox);
+  QHBoxLayout* buttonLayout = new QHBoxLayout(buttonsWidget);
+
+  QWidget* playbackWidget = new QWidget(trajectoryBox);
+  QHBoxLayout* playbackLayout = new QHBoxLayout(playbackWidget);
+
+  QGroupBox* trajectoryInfoBox = new QGroupBox(trajectoryBox);
+  trajectoryInfoBox->setTitle("Trajectory Info");
+  QGridLayout* trajectoryInfoBoxLayout = new QGridLayout(trajectoryInfoBox);
 
   trajectory_slider_ = new QSlider(Qt::Horizontal,trajectoryBox);
   trajectory_slider_->setMinimum(0);
   trajectory_slider_->setMaximum(0);
 
-  QLabel* modeLabel = new QLabel(trajectoryBox);
-  modeLabel->setText("Selected Trajectory: ");
-  modeLabel->setToolTip("Selected trajectory.");
+  QLabel* selected_trajectory_label = new QLabel(trajectoryBox);
+  selected_trajectory_label->setText("Selected Trajectory: ");
+  selected_trajectory_label->setToolTip("Selected trajectory.");
+
+  QLabel* selected_trajectory_error_label = new QLabel(trajectoryBox);
+  selected_trajectory_error_label->setText("Error Code: ");
+  selected_trajectory_error_label->setToolTip("Error Code.");
+
+  QLabel* selected_trajectory_angular_distance_label = new QLabel(trajectoryBox);
+  selected_trajectory_angular_distance_label->setText("Angular Movement: ");
+  selected_trajectory_angular_distance_label->setToolTip("Sum of angular movement of all joints.");
+
+  QLabel* selected_trajectory_clearance_distance_label = new QLabel(trajectoryBox);
+  selected_trajectory_clearance_distance_label->setText("Minimum Clearance: ");
+  selected_trajectory_clearance_distance_label->setToolTip("Minimum clearance distance in trajectory.");
+
+  QLabel* selected_trajectory_cartesian_distance_label = new QLabel(trajectoryBox);
+  selected_trajectory_cartesian_distance_label->setText("Cartesian Distance: ");
+  selected_trajectory_cartesian_distance_label->setToolTip("Cartesian distance travelled by the end-effector.");
 
   play_button_ = new QPushButton(this);
   play_button_->setText("Play Trajectory");
@@ -186,6 +213,29 @@ void WarehouseViewer::initQtWidgets()
   selected_trajectory_label_->setText("None");
   selected_trajectory_label_->setToolTip("Currently selected trajectory.");
 
+  selected_trajectory_error_label_ = new QLabel(this);
+  selected_trajectory_error_label_->setText("");
+  selected_trajectory_error_label_->setToolTip("Currently selected trajectory error code.");
+
+  selected_trajectory_duration_name_label_ = new QLabel(this);
+  selected_trajectory_duration_name_label_->setText("Duration");
+
+  selected_trajectory_duration_label_ = new QLabel(this);
+  selected_trajectory_duration_label_->setText("");
+  selected_trajectory_duration_label_->setToolTip("Currently selected trajectory duration.");
+
+  selected_trajectory_angular_distance_label_ = new QLabel(this);
+  selected_trajectory_angular_distance_label_->setText("");
+  selected_trajectory_angular_distance_label_->setToolTip("Currently selected trajectory angular distance.");
+
+  selected_trajectory_clearance_distance_label_ = new QLabel(this);
+  selected_trajectory_clearance_distance_label_->setText("");
+  selected_trajectory_clearance_distance_label_->setToolTip("Currently selected trajectory minimum clearance distance.");
+
+  selected_trajectory_cartesian_distance_label_ = new QLabel(this);
+  selected_trajectory_cartesian_distance_label_->setText("");
+  selected_trajectory_cartesian_distance_label_->setToolTip("Currently selected trajectory cartesian distance.");
+
   QPushButton* deleteMPRButton = new QPushButton(motionPlanBox);
   deleteMPRButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   deleteMPRButton->setText("Delete Motion Plan Request");
@@ -196,22 +246,35 @@ void WarehouseViewer::initQtWidgets()
   deleteTrajectoryButton->setText("Delete Trajectory");
   deleteTrajectoryButton->setToolTip("Deletes the currently selected trajectory.");
 
+
   motionBoxLayout->addWidget(motion_plan_tree_);
   motionBoxLayout->addWidget(selected_request_label_);
-  motionBoxLayout->addWidget(deleteMPRButton);
+  motionBoxLayout->addWidget(mpButtons);
+  mpButtonsLayout->addWidget(replan_button_);
+  mpButtonsLayout->addWidget(deleteMPRButton);
   trajectoryBoxLayout->addWidget(trajectory_tree_);
-  trajectoryBoxLayout->addWidget(modeLabel);
-  trajectoryBoxLayout->addWidget(selected_trajectory_label_);
-  trajectoryBoxLayout->addWidget(trajectory_label);
-  trajectoryBoxLayout->addWidget(trajectory_point_edit_);
-  trajectoryBoxLayout->addWidget(trajectory_slider_);
-  trajectoryBoxLayout->addWidget(deleteTrajectoryButton);
-  trajectoryBoxLayout->addWidget(buttonsBox);
-  buttonLayout->addWidget(play_button_);
-  buttonLayout->addWidget(replan_button_);
+  trajectoryBoxLayout->addWidget(controlsBox);
+  trajectoryBoxLayout->addWidget(trajectoryInfoBox);
+  controlsBoxLayout->addWidget(playbackWidget);
+  controlsBoxLayout->addWidget(buttonsWidget);
+  playbackLayout->addWidget(play_button_);
+  playbackLayout->addWidget(trajectory_slider_);
+  playbackLayout->addWidget(trajectory_point_edit_);
   buttonLayout->addWidget(filter_button_);
   buttonLayout->addWidget(execute_button_);
-  buttonsBox->setTitle("Trajectory Controls");
+  buttonLayout->addWidget(deleteTrajectoryButton);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_label,0,0);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_label_,0,1);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_error_label,1,0);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_error_label_,1,1);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_duration_name_label_,2,0);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_duration_label_,2,1);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_angular_distance_label,3,0);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_angular_distance_label_,3,1);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_clearance_distance_label,4,0);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_clearance_distance_label_,4,1);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_cartesian_distance_label,5,0);
+  trajectoryInfoBoxLayout->addWidget(selected_trajectory_cartesian_distance_label_,5,1);
 
   connect(deleteMPRButton, SIGNAL(clicked()), this, SLOT(deleteSelectedMotionPlan()));
   connect(deleteTrajectoryButton, SIGNAL(clicked()), this, SLOT(deleteSelectedTrajectory()));
@@ -249,7 +312,10 @@ void WarehouseViewer::initQtWidgets()
   setupPlanningSceneDialog();
   connect(this, SIGNAL(changeProgress(int)), load_scene_progress_, SLOT(setValue(int)));
   menu_bar_->setMinimumWidth(500);
-  buttonsBox->setLayout(buttonLayout);
+  mpButtons->setLayout(mpButtonsLayout);
+  playbackWidget->setLayout(playbackLayout);
+  buttonsWidget->setLayout(buttonLayout);
+  trajectoryInfoBox->setLayout(trajectoryInfoBoxLayout);
   trajectoryBox->setLayout(trajectoryBoxLayout);
   motionPlanBox->setLayout(motionBoxLayout);
   centralWidget->setLayout(layout);
@@ -1469,9 +1535,55 @@ void WarehouseViewer::selectTrajectory(std::string ID)
   trajectory_point_edit_->setRange(0,sz);
   trajectory_point_edit_->setValue(point);
 
+  selected_trajectory_label_->setText(QString::fromStdString(ID));
+
   std::stringstream ss;
   ss << trajectory.trajectory_error_code_.val;
-  selected_trajectory_label_->setText(QString::fromStdString(ID + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+  selected_trajectory_error_label_->setText(QString::fromStdString(armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+
+  if( trajectory.trajectory_error_code_.val == ArmNavigationErrorCodes::SUCCESS )
+  {
+    if(trajectory.getSource() == "Planner" || trajectory.getSource() == "planner")
+    {
+      selected_trajectory_duration_name_label_->setText("Planning Time");
+    }
+    else if (trajectory.getSource() == "Trajectory Filterer" || trajectory.getSource() == "filter")
+    {
+      selected_trajectory_duration_name_label_->setText("Filter Time");
+    }
+    else if(trajectory.getSource() == "Robot Monitor" || trajectory.getSource() == "monitor")
+    {
+      selected_trajectory_duration_name_label_->setText("Execution Time");
+    }
+    else
+    {
+      selected_trajectory_duration_name_label_->setText("Duration");
+    }
+
+    std::stringstream durationStream;
+    durationStream << (float)trajectory.getDuration().toSec() << " seconds";
+    selected_trajectory_duration_label_->setText(QString::fromStdString(durationStream.str()));
+
+    std::stringstream angularStream;
+    angularStream << (float)trajectory.getAngularDistance() << " radians";
+    selected_trajectory_angular_distance_label_->setText(QString::fromStdString(angularStream.str()));
+
+    std::stringstream clearanceStream;
+    clearanceStream << (float)trajectory.getClearanceDistance() << " meters";
+    selected_trajectory_clearance_distance_label_->setText(QString::fromStdString(clearanceStream.str()));
+
+    std::stringstream cartesianStream;
+    cartesianStream << (float)trajectory.getCartesianDistance() << " meters";
+    selected_trajectory_cartesian_distance_label_->setText(QString::fromStdString(cartesianStream.str()));
+  }
+  else
+  {
+    selected_trajectory_duration_name_label_->setText("Duration");
+    selected_trajectory_duration_label_->setText("");
+    selected_trajectory_cartesian_distance_label_->setText("");
+    selected_trajectory_clearance_distance_label_->setText("");
+    selected_trajectory_angular_distance_label_->setText("");
+  }
 
   // Find the selected trajectory in the tree and make it visibly selected.
   for(int i = 0; i < trajectory_tree_->topLevelItemCount(); i++)
@@ -1522,7 +1634,6 @@ void WarehouseViewer::playButtonPressed()
                    trajectory);
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
-    selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_name_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
 
     setSelectedTrajectoryCheckboxVisible();
   }
@@ -1545,7 +1656,6 @@ void WarehouseViewer::filterButtonPressed()
     playTrajectory(data, trajectory_map_[selected_motion_plan_name_][getTrajectoryNameFromId(filterID)]);
     std::stringstream ss;
     ss << trajectory.trajectory_error_code_.val;
-    selected_trajectory_label_->setText(QString::fromStdString(selected_trajectory_name_ + " Error Code : " + armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
     createTrajectoryTable();
     selectTrajectory(getTrajectoryNameFromId(filterID));
   }
@@ -1591,6 +1701,7 @@ void WarehouseViewer::createTrajectoryTable()
     trajectory_tree_->setColumnWidth(0, 200);
     selected_trajectory_name_ = "";
     selected_trajectory_label_->setText("None");
+    selected_trajectory_error_label_->setText("");
     trajectory_slider_->setMaximum(0);
     trajectory_slider_->setMinimum(0);
     trajectory_point_edit_->setRange(0,0);
@@ -1601,6 +1712,7 @@ void WarehouseViewer::createTrajectoryTable()
                     selected_trajectory_name_)) {
     selected_trajectory_name_ = "";
     selected_trajectory_label_->setText("None");
+    selected_trajectory_error_label_->setText("");
     trajectory_slider_->setMaximum(0);
     trajectory_slider_->setMinimum(0);
     trajectory_point_edit_->setRange(0,0);
