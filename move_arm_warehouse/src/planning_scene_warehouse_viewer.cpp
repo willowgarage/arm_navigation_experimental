@@ -1564,16 +1564,20 @@ void WarehouseViewer::selectTrajectory(std::string ID)
     durationStream << (float)trajectory.getDuration().toSec() << " seconds";
     selected_trajectory_duration_label_->setText(QString::fromStdString(durationStream.str()));
 
+    TrajectoryStats trajectory_stats(trajectory);
+
     std::stringstream angularStream;
-    angularStream << (float)trajectory.getAngularDistance() << " radians";
+    angularStream << (float)trajectory_stats.getAngularDistance() << " radians";
     selected_trajectory_angular_distance_label_->setText(QString::fromStdString(angularStream.str()));
 
     std::stringstream clearanceStream;
-    clearanceStream << (float)trajectory.getClearanceDistance() << " meters";
+    clearanceStream << "?" /*(float)trajectory_stats.getClearanceDistance()*/ << " meters";
     selected_trajectory_clearance_distance_label_->setText(QString::fromStdString(clearanceStream.str()));
 
     std::stringstream cartesianStream;
-    cartesianStream << (float)trajectory.getCartesianDistance() << " meters";
+    MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
+    cartesianStream << (float)trajectory_stats.getCartesianDistance( motion_plan_req) << " meters";
+
     selected_trajectory_cartesian_distance_label_->setText(QString::fromStdString(cartesianStream.str()));
   }
   else

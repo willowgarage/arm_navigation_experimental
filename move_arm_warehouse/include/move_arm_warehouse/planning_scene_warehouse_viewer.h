@@ -44,6 +44,7 @@
 #include <ros/ros.h>
 
 #include <move_arm_warehouse/move_arm_utils.h>
+#include <move_arm_warehouse/trajectory_stats.h>
 
 #include <qt4/QtGui/qwidget.h>
 #include <qt4/QtGui/qmenubar.h>

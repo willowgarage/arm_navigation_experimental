@@ -1175,15 +1175,6 @@ public:
     duration_ = duration;
   }
 
-  /// @brief returns the sum of the angular movements (in radians) by every joint in the arm as it moves through the trajectory.
-  double getAngularDistance();
-
-  /// @brief returns the minimal clearance distance (in meters) of the arm as it moves through the trajectory.
-  double getClearanceDistance();
-
-  /// @brief Returns the cartesian distance (in meters) travelled by the end effector as it moves through the trajectory.
-  double getCartesianDistance();
-
   /// @brief Returns the color of the markers representing the current state being published in Rviz.
   inline const std_msgs::ColorRGBA& getColor() const
   {

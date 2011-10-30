@@ -271,20 +271,8 @@ void TrajectoryData::updateCollisionMarkers(CollisionModels* cm_, MotionPlanRequ
   }
 }
 
-double TrajectoryData::getAngularDistance()
-{
-  return 0;
-}
 
-double TrajectoryData::getClearanceDistance()
-{
-  return 0;
-}
 
-double TrajectoryData::getCartesianDistance()
-{
-  return 0;
-}
 
 //////////////////////////////
 // MOTION PLAN REQUEST DATA
