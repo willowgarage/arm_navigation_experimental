@@ -69,6 +69,7 @@
 #include <pr2_mechanism_msgs/LoadController.h>
 #include <pr2_mechanism_msgs/UnloadController.h>
 #include <pr2_mechanism_msgs/SwitchController.h>
+#include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 #include <gazebo_msgs/SetLinkProperties.h>
 #include <gazebo_msgs/GetLinkProperties.h>
 
@@ -130,6 +131,29 @@ inline static std::string getTrajectoryNameFromId(const unsigned int id) {
   std::stringstream ss;
   ss << "Trajectory " << id;
   return ss.str();
+}
+
+/**
+  @brief Convert a control error code into a string value
+  @param error_code The input error code
+  @return The resultant string message
+*/
+inline static std::string getResultErrorFromCode(int error_code)
+{
+  std::string result;
+  if(error_code == control_msgs::FollowJointTrajectoryResult::SUCCESSFUL)
+     result = "Success";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::INVALID_GOAL)
+     result = "Invalid Goal";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS)
+     result = "Invalid Joints";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::OLD_HEADER_TIMESTAMP)
+     result = "Old header timestamp";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::PATH_TOLERANCE_VIOLATED)
+     result = "Path tolerance violated";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::GOAL_TOLERANCE_VIOLATED)
+     result = "Goal tolerance violated";
+  return result;
 }
 
 ////
@@ -1416,6 +1440,8 @@ protected:
   ros::Publisher vis_marker_array_publisher_;
   ros::Publisher vis_marker_publisher_;
   ros::Subscriber joint_state_subscriber_;
+  ros::Subscriber r_arm_controller_state_subscriber_;
+  ros::Subscriber l_arm_controller_state_subscriber_;
   ros::ServiceClient collision_proximity_planner_client_;
   ros::ServiceClient distance_aware_service_client_;
   ros::ServiceClient distance_state_validity_service_client_;
@@ -1910,6 +1936,13 @@ public:
   /// @param joint_state the new state of the robot.
   /////
   void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state);
+
+/////
+/// @brief Called when the arm controller has a state update
+/// @param joint control state of the arm controller.
+/////
+void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTrajectoryControllerStateConstPtr& joint_state);
+
 
   /////
   /// @brief gets all the motion plan requests, trajectories, and planning scenes from the warehouse.

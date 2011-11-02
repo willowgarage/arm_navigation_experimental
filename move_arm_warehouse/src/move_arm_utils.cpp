@@ -213,6 +213,11 @@ void TrajectoryData::advanceThroughTrajectory(int step)
 
 void TrajectoryData::updateCurrentState()
 {
+  if(getTrajectory().points.size() <= 0)
+  {
+    return;
+  }
+
   map<string, double> joint_values;
   for(unsigned int i = 0; i < getTrajectory().joint_names.size(); i++)
   {
@@ -942,6 +947,14 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   {
     joint_state_subscriber_ = nh_.subscribe("joint_states", 25, &PlanningSceneEditor::jointStateCallback, this);
   }
+
+  /////
+  /// Connection with joint controller
+  if(params.use_robot_data_)
+  {
+    r_arm_controller_state_subscriber_ = nh_.subscribe("r_arm_controller/state", 25, &PlanningSceneEditor::jointTrajectoryControllerStateCallback, this);
+    l_arm_controller_state_subscriber_ = nh_.subscribe("l_arm_controller/state", 25, &PlanningSceneEditor::jointTrajectoryControllerStateCallback, this);
+  }
 }
 
 void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
@@ -996,16 +1009,24 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
   robot_state_->updateKinematicLinks();
   robot_state_->getKinematicStateValues(robot_state_joint_values_);
   unlockScene();
+}
+
+void PlanningSceneEditor::jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTrajectoryControllerStateConstPtr& joint_controller_state)
+{
+  trajectory_msgs::JointTrajectoryPoint actual = joint_controller_state->actual;
+  trajectory_msgs::JointTrajectoryPoint error = joint_controller_state->error;
+
   // Records trajectory if currently executing.
   if(monitor_status_ == Executing)
   {
     trajectory_msgs::JointTrajectoryPoint point;
     point.positions.resize(logged_trajectory_.joint_names.size());
     point.velocities.resize(logged_trajectory_.joint_names.size());
+    // note-- could do record accelerations as well, if we wanted to.
     for(unsigned int i = 0; i < logged_trajectory_.joint_names.size(); i++)
     {
-      point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
-      point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
+      point.positions[i] = actual.positions[i];
+      point.velocities[i] = actual.velocities[i];
     }
     point.time_from_start = ros::Time(ros::Time::now().toSec()) - logged_trajectory_start_time_;
     logged_trajectory_.points.push_back(point);

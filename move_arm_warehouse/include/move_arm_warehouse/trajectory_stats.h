@@ -40,6 +40,7 @@
 #define TRAJECTORY_STATS_H
 
 #include <move_arm_warehouse/move_arm_utils.h>
+#include <trajectory_msgs/JointTrajectory.h>
 
 namespace planning_scene_utils
 {
@@ -53,10 +54,10 @@ namespace planning_scene_utils
 class TrajectoryStats
 {
 protected:
-  planning_scene_utils::TrajectoryData& trajectory_;
+  trajectory_msgs::JointTrajectory& trajectory_;
 
 public:
-  TrajectoryStats(planning_scene_utils::TrajectoryData& trajectory) : trajectory_(trajectory) {}
+  TrajectoryStats(trajectory_msgs::JointTrajectory& trajectory) : trajectory_(trajectory) {}
 
   /// @brief returns the sum of the angular movements (in radians) by every joint in the arm as it moves through the trajectory.
   /// Linear interpolation is used to calculate this metric.

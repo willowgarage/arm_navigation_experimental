@@ -1537,34 +1537,55 @@ void WarehouseViewer::selectTrajectory(std::string ID)
 
   selected_trajectory_label_->setText(QString::fromStdString(ID));
 
-  std::stringstream ss;
-  ss << trajectory.trajectory_error_code_.val;
-  selected_trajectory_error_label_->setText(QString::fromStdString(armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
 
-  if( trajectory.trajectory_error_code_.val == ArmNavigationErrorCodes::SUCCESS )
+  bool show_stats = true;
+
+  if(trajectory.getSource() == "Planner" || trajectory.getSource() == "planner")
   {
-    if(trajectory.getSource() == "Planner" || trajectory.getSource() == "planner")
+    selected_trajectory_duration_name_label_->setText("Planning Time");
+    if( trajectory.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS )
     {
-      selected_trajectory_duration_name_label_->setText("Planning Time");
+      show_stats = false;
     }
-    else if (trajectory.getSource() == "Trajectory Filterer" || trajectory.getSource() == "filter")
+    std::stringstream ss;
+    ss << trajectory.trajectory_error_code_.val;
+    selected_trajectory_error_label_->setText(QString::fromStdString(armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+  }
+  else if (trajectory.getSource() == "Trajectory Filterer" || trajectory.getSource() == "filter")
+  {
+    selected_trajectory_duration_name_label_->setText("Filter Time");
+    if( trajectory.trajectory_error_code_.val != ArmNavigationErrorCodes::SUCCESS )
     {
-      selected_trajectory_duration_name_label_->setText("Filter Time");
+      show_stats = false;
     }
-    else if(trajectory.getSource() == "Robot Monitor" || trajectory.getSource() == "monitor")
+    std::stringstream ss;
+    ss << trajectory.trajectory_error_code_.val;
+    selected_trajectory_error_label_->setText(QString::fromStdString(armNavigationErrorCodeToString(trajectory.trajectory_error_code_) + " (" + ss.str().c_str()+ ")"));
+  }
+  else if(trajectory.getSource() == "Robot Monitor" || trajectory.getSource() == "monitor")
+  {
+    selected_trajectory_duration_name_label_->setText("Execution Time");
+    if( trajectory.trajectory_error_code_.val != control_msgs::FollowJointTrajectoryResult::SUCCESSFUL )
     {
-      selected_trajectory_duration_name_label_->setText("Execution Time");
+      show_stats = false;
     }
-    else
-    {
-      selected_trajectory_duration_name_label_->setText("Duration");
-    }
+    std::stringstream ss;
+    ss << trajectory.trajectory_error_code_.val;
+    selected_trajectory_error_label_->setText(QString::fromStdString(getResultErrorFromCode((int)trajectory.trajectory_error_code_.val) + " (" + ss.str().c_str()+ ")"));
+  }
+  else
+  {
+    selected_trajectory_duration_name_label_->setText("Duration");
+    show_stats = false;
+  }
 
+  if(show_stats)
+  {
     std::stringstream durationStream;
     durationStream << (float)trajectory.getDuration().toSec() << " seconds";
     selected_trajectory_duration_label_->setText(QString::fromStdString(durationStream.str()));
 
-    TrajectoryStats trajectory_stats(trajectory);
+    TrajectoryStats trajectory_stats(trajectory.getTrajectory());
 
     std::stringstream angularStream;
     angularStream << (float)trajectory_stats.getAngularDistance() << " radians";
