@@ -1019,17 +1019,36 @@ void PlanningSceneEditor::jointTrajectoryControllerStateCallback(const pr2_contr
   // Records trajectory if currently executing.
   if(monitor_status_ == Executing)
   {
+    // Filter out the joints of the other group/arm
+    if( logged_trajectory_.joint_names[0] != joint_controller_state->joint_names[0] )
+    {
+      return;
+    }
+
     trajectory_msgs::JointTrajectoryPoint point;
-    point.positions.resize(logged_trajectory_.joint_names.size());
-    point.velocities.resize(logged_trajectory_.joint_names.size());
-    // note-- could do record accelerations as well, if we wanted to.
-    for(unsigned int i = 0; i < logged_trajectory_.joint_names.size(); i++)
+    trajectory_msgs::JointTrajectoryPoint error_point;
+
+    // note-- could record accelerations as well, if we wanted to.
+    unsigned int num_joints = logged_trajectory_.joint_names.size();
+    point.positions.resize(num_joints);
+    point.velocities.resize(num_joints);
+    error_point.positions.resize(num_joints);
+    error_point.velocities.resize(num_joints);
+
+    for(unsigned int i = 0; i < num_joints; i++)
     {
       point.positions[i] = actual.positions[i];
       point.velocities[i] = actual.velocities[i];
+      error_point.positions[i] = error.positions[i];
+      error_point.velocities[i] = error.velocities[i];
     }
-    point.time_from_start = ros::Time(ros::Time::now().toSec()) - logged_trajectory_start_time_;
+
+    ros::Duration time_from_start = ros::Time(ros::Time::now().toSec()) - logged_trajectory_start_time_;
+    point.time_from_start = time_from_start;
+    error_point.time_from_start = time_from_start;
+
     logged_trajectory_.points.push_back(point);
+    logged_trajectory_controller_error_.points.push_back(error_point);
   }
 }
 
@@ -4036,6 +4055,7 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
   logged_motion_plan_request_ = getMotionPlanRequestNameFromId(trajectory.getMotionPlanRequestId());
   logged_trajectory_ = trajectory.getTrajectory();
   logged_trajectory_.points.clear();
+  logged_trajectory_controller_error_.points.clear();
   logged_trajectory_start_time_ = ros::Time::now() + ros::Duration(0.2);
   monitor_status_ = Executing;
 
@@ -4146,6 +4166,7 @@ void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGo
   mpr.addTrajectoryId(logged.getId());                    
   trajectory_map_[mpr.getName()][logged.getName()] = logged;
   logged_trajectory_.points.clear();
+  logged_trajectory_controller_error_.points.clear();
   logged_group_name_ = "";
   logged_motion_plan_request_ = "";
   selected_trajectory_name_ = getTrajectoryNameFromId(logged.getId());

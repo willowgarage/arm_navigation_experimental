@@ -44,6 +44,19 @@ using namespace std;
 using namespace planning_scene_utils;
 using namespace planning_models;
 
+ros::Duration TrajectoryStats::getExecutionDuration()
+{
+  size_t tsize = trajectory_.points.size();
+  if( tsize < 1 )
+  {
+    return ros::Duration(0,0);
+  }
+
+  trajectory_msgs::JointTrajectoryPoint& point1 = trajectory_.points[0];
+  trajectory_msgs::JointTrajectoryPoint& point2 = trajectory_.points[tsize-1];
+  return point2.time_from_start - point1.time_from_start;
+}
+
 double TrajectoryStats::getAngularDistance()
 {
   double angular_diff_sum = 0.0;
@@ -118,4 +131,29 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
 double TrajectoryStats::getClearanceDistance(planning_scene_utils::PlanningSceneData& scene)
 {
   return 0;
+}
+
+double TrajectoryStats::getMaxAngularError(trajectory_msgs::JointTrajectory& trajectory_error)
+{
+  double max_error = 0.0;
+
+  // Loop through trajectory points
+  size_t tsize = trajectory_error.points.size();
+  for(unsigned int i=0; i<tsize; i++)
+  {
+    trajectory_msgs::JointTrajectoryPoint& point = trajectory_error.points[i];
+
+    // Loop through all joints
+    size_t num_pos = point.positions.size();
+    for(unsigned int j=0; j<num_pos; j++)
+    {
+      double error = abs(point.positions[j]);
+      if(error>max_error)
+      {
+        max_error = error;
+      }
+    }
+  }
+
+  return max_error;
 }

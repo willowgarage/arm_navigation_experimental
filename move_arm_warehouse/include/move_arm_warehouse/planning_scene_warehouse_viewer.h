@@ -381,6 +381,12 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   bool createNewPlanningSceneConfirm();  
   void createRobotStateEditor();
 
+  // Boxes within main gui
+  QGroupBox *createMotionPlanBox();
+  QGroupBox *createTrajectoryBox();
+  QGroupBox *createTrajectoryControlsBox();
+  QGroupBox *createTrajectoryInfoBox();
+
   void saveCurrentPlanningScene(bool copy);
 
   virtual void planCallback(arm_navigation_msgs::ArmNavigationErrorCodes& errorCode);

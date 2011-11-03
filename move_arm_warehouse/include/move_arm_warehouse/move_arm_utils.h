@@ -1476,6 +1476,7 @@ protected:
   bool use_interpolated_planner_;
 
   trajectory_msgs::JointTrajectory logged_trajectory_;
+  trajectory_msgs::JointTrajectory logged_trajectory_controller_error_;
   ros::Time logged_trajectory_start_time_;
 
   bool send_collision_markers_;

@@ -74,140 +74,175 @@ WarehouseViewer::~WarehouseViewer()
 
 }
 
-void WarehouseViewer::initQtWidgets()
+QGroupBox *WarehouseViewer::createMotionPlanBox()
 {
-  menu_bar_ = new QMenuBar(this);
-  setMenuBar(menu_bar_);
-  QWidget* centralWidget = new QWidget(this);
-  setCentralWidget(centralWidget);
-  centralWidget->setMinimumWidth(500);
-
-  QGroupBox* motionPlanBox = new QGroupBox(this);
+  QGroupBox* motionPlanBox = new QGroupBox;
   motionPlanBox->setTitle("Motion Plan Requests");
 
-  selected_request_label_ = new QLabel(motionPlanBox);
+  selected_request_label_ = new QLabel;
   selected_request_label_->setText("Selected Request: None");
   selected_request_label_->setToolTip("Selected motion plan request. New trajectories will be planned for this request.");
 
-  QGroupBox* trajectoryBox = new QGroupBox(this);
-  trajectoryBox->setTitle("Trajectories");
-
-
-  QVBoxLayout* layout = new QVBoxLayout(this);
-  layout->addWidget(motionPlanBox);
-  layout->addWidget(trajectoryBox);
-  QVBoxLayout* motionBoxLayout = new QVBoxLayout(motionPlanBox);
-  motion_plan_tree_ = new QTreeWidget(motionPlanBox);
+  motion_plan_tree_ = new QTreeWidget;
   motion_plan_tree_->setColumnCount(1);
   motion_plan_tree_->setToolTip("Motion plan tree. Open a motion plan request to access its controls. Click to select a request.");
 
-  QVBoxLayout* trajectoryBoxLayout = new QVBoxLayout(trajectoryBox);
-  file_menu_ = menu_bar_->addMenu("File");
-  planning_scene_menu_ = menu_bar_->addMenu("Planning Scene");
+  QWidget* mpButtons = new QWidget;
 
-  new_planning_scene_action_ = file_menu_->addAction("New Planning Scene ...");
-  load_planning_scene_action_ = file_menu_->addAction("Load Planning Scene ...");
-  save_planning_scene_action_ = file_menu_->addAction("Save Planning Scene ...");
-  copy_planning_scene_action_ = file_menu_->addAction("Save Copy of Planning Scene ...");
-  new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
-  refresh_action_ = planning_scene_menu_->addAction("Refresh Planning Scene...");
-  view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
-  alter_link_padding_action_ = planning_scene_menu_->addAction("Alter Link Padding ...");
-  alter_allowed_collision_action_ = planning_scene_menu_->addAction("Alter Allowed Collision Operations ...");
-  edit_robot_state_action_ = planning_scene_menu_->addAction("Edit Robot State ...");
-  quit_action_ = file_menu_->addAction("Quit");
+  QPushButton* deleteMPRButton = new QPushButton;
+  deleteMPRButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  deleteMPRButton->setText("Delete Motion Plan Request");
+  deleteMPRButton->setToolTip("Deletes the currently selected motion plan request.");
 
-  collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
-  new_object_action_ = collision_object_menu_->addAction("New Primitive Collision Object ...");
-  new_mesh_action_ = collision_object_menu_->addAction("New Mesh Collision Object ...");
+  QPushButton* newMPRButton = new QPushButton;
+  newMPRButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  newMPRButton->setText("New Motion Plan Request");
+  newMPRButton->setToolTip("Create new motion plan request.");
 
-  planner_configuration_menu_ = menu_bar_->addMenu("Planner configuration");
-  set_primary_planner_action_ = planner_configuration_menu_->addAction("Use primary planner");
-  set_primary_planner_action_->setCheckable(true);
-  set_primary_planner_action_->setChecked(true);
-  set_secondary_planner_action_ = planner_configuration_menu_->addAction("Use secondary planner");
-  set_secondary_planner_action_->setCheckable(true);
-  set_secondary_planner_action_->setChecked(false);
 
-  trajectory_tree_ = new QTreeWidget(trajectoryBox);
+  QHBoxLayout* mpButtonsLayout = new QHBoxLayout;
+  QVBoxLayout* motionBoxLayout = new QVBoxLayout;
+  motionBoxLayout->addWidget(motion_plan_tree_);
+  motionBoxLayout->addWidget(selected_request_label_);
+  motionBoxLayout->addWidget(mpButtons);
+  mpButtonsLayout->addWidget(newMPRButton);
+  mpButtonsLayout->addWidget(deleteMPRButton);
+  mpButtons->setLayout(mpButtonsLayout);
+  motionPlanBox->setLayout(motionBoxLayout);
+
+  connect(deleteMPRButton, SIGNAL(clicked()), this, SLOT(deleteSelectedMotionPlan()));
+  connect(newMPRButton, SIGNAL(clicked()), this, SLOT(createNewMotionPlanPressed()));
+  connect(motion_plan_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(motionPlanTableSelection()));
+
+  return motionPlanBox;
+}
+
+QGroupBox *WarehouseViewer::createTrajectoryBox()
+{
+  QGroupBox* trajectoryBox = new QGroupBox;
+  trajectoryBox->setTitle("Trajectories");
+
+  trajectory_tree_ = new QTreeWidget;
   trajectory_tree_->setColumnCount(1);
 
-  QWidget* mpButtons = new QWidget(motionPlanBox);
-  QHBoxLayout* mpButtonsLayout = new QHBoxLayout(mpButtons);
 
-  QGroupBox* controlsBox = new QGroupBox(trajectoryBox);
+  QVBoxLayout* trajectoryBoxLayout = new QVBoxLayout;
+  trajectoryBoxLayout->addWidget(trajectory_tree_);
+  trajectoryBoxLayout->addWidget(createTrajectoryControlsBox());
+  trajectoryBoxLayout->addWidget(createTrajectoryInfoBox());
+  trajectoryBox->setLayout(trajectoryBoxLayout);
+
+  connect(trajectory_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(trajectoryTableSelection()));
+
+  return trajectoryBox;
+}
+
+QGroupBox *WarehouseViewer::createTrajectoryControlsBox()
+{
+  QGroupBox* controlsBox = new QGroupBox;
   controlsBox->setTitle("Trajectory Controls");
-  QVBoxLayout* controlsBoxLayout = new QVBoxLayout(controlsBox);
 
-  QWidget* buttonsWidget = new QWidget(trajectoryBox);
-  QHBoxLayout* buttonLayout = new QHBoxLayout(buttonsWidget);
+  QWidget* buttonsWidget = new QWidget;
 
-  QWidget* playbackWidget = new QWidget(trajectoryBox);
-  QHBoxLayout* playbackLayout = new QHBoxLayout(playbackWidget);
+  QWidget* playbackWidget = new QWidget;
 
-  QGroupBox* trajectoryInfoBox = new QGroupBox(trajectoryBox);
-  trajectoryInfoBox->setTitle("Trajectory Info");
-  QGridLayout* trajectoryInfoBoxLayout = new QGridLayout(trajectoryInfoBox);
-
-  trajectory_slider_ = new QSlider(Qt::Horizontal,trajectoryBox);
+  trajectory_slider_ = new QSlider(Qt::Horizontal);
   trajectory_slider_->setMinimum(0);
   trajectory_slider_->setMaximum(0);
 
-  QLabel* selected_trajectory_label = new QLabel(trajectoryBox);
-  selected_trajectory_label->setText("Selected Trajectory: ");
-  selected_trajectory_label->setToolTip("Selected trajectory.");
-
-  QLabel* selected_trajectory_error_label = new QLabel(trajectoryBox);
-  selected_trajectory_error_label->setText("Error Code: ");
-  selected_trajectory_error_label->setToolTip("Error Code.");
-
-  QLabel* selected_trajectory_angular_distance_label = new QLabel(trajectoryBox);
-  selected_trajectory_angular_distance_label->setText("Angular Movement: ");
-  selected_trajectory_angular_distance_label->setToolTip("Sum of angular movement of all joints.");
-
-  QLabel* selected_trajectory_clearance_distance_label = new QLabel(trajectoryBox);
-  selected_trajectory_clearance_distance_label->setText("Minimum Clearance: ");
-  selected_trajectory_clearance_distance_label->setToolTip("Minimum clearance distance in trajectory.");
-
-  QLabel* selected_trajectory_cartesian_distance_label = new QLabel(trajectoryBox);
-  selected_trajectory_cartesian_distance_label->setText("Cartesian Distance: ");
-  selected_trajectory_cartesian_distance_label->setToolTip("Cartesian distance travelled by the end-effector.");
-
-  play_button_ = new QPushButton(this);
+  play_button_ = new QPushButton;
   play_button_->setText("Play Trajectory");
   play_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   play_button_->setToolTip("Plays the currently selected trajectory in RVIZ. Makes the trajectory visible.");
 
-  filter_button_ = new QPushButton(this);
+  filter_button_ = new QPushButton;
   filter_button_->setText("Filter Trajectory");
   filter_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   filter_button_->setToolTip("Sends the currently selected trajectory to the trajectory filter, producing a new trajectory.");
-
   if(params_.trajectory_filter_service_name_ == "none")
   {
     filter_button_->setEnabled(false);
   }
 
-  replan_button_ = new QPushButton(this);
+  trajectory_point_edit_ = new QSpinBox;
+  trajectory_point_edit_->setRange(0, 0);
+  trajectory_point_edit_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  trajectory_point_edit_->setToolTip("Currently displayed trajectory point. Drag to change.");
+
+  replan_button_ = new QPushButton;
   replan_button_->setText("Plan New Trajectory");
   replan_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   replan_button_->setToolTip("Plans a new trajectory between the start and goal states of the current motion plan request, producing a new trajectory.");
-
   if(params_.planner_service_name_ == "none")
   {
     replan_button_->setEnabled(false);
   }
 
-  execute_button_ = new QPushButton(this);
+  execute_button_ = new QPushButton;
   execute_button_->setText("Execute On Robot");
   execute_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   execute_button_->setEnabled(params_.use_robot_data_);
   execute_button_->setToolTip("Sends the currently selected trajectory to the robot's controllers. (Only works if using robot data). Produces a new trajectory.");
 
-  trajectory_point_edit_ = new QSpinBox(this);
-  trajectory_point_edit_->setRange(0, 0);
-  trajectory_point_edit_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-  trajectory_point_edit_->setToolTip("Currently displayed trajectory point. Drag to change.");
+  QPushButton* deleteTrajectoryButton = new QPushButton;
+  deleteTrajectoryButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+  deleteTrajectoryButton->setText("Delete Trajectory");
+  deleteTrajectoryButton->setToolTip("Deletes the currently selected trajectory.");
+
+
+  QVBoxLayout* controlsBoxLayout = new QVBoxLayout;
+  QHBoxLayout* buttonLayout = new QHBoxLayout;
+  QHBoxLayout* playbackLayout = new QHBoxLayout;
+
+  playbackLayout->addWidget(play_button_);
+  playbackLayout->addWidget(trajectory_slider_);
+  playbackLayout->addWidget(trajectory_point_edit_);
+  buttonLayout->addWidget(replan_button_);
+  buttonLayout->addWidget(filter_button_);
+  buttonLayout->addWidget(execute_button_);
+  buttonLayout->addWidget(deleteTrajectoryButton);
+  controlsBoxLayout->addWidget(playbackWidget);
+  controlsBoxLayout->addWidget(buttonsWidget);
+
+  playbackWidget->setLayout(playbackLayout);
+  buttonsWidget->setLayout(buttonLayout);
+  controlsBox->setLayout(controlsBoxLayout);
+
+  connect(play_button_, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
+  connect(filter_button_, SIGNAL(clicked()), this, SLOT(filterButtonPressed()));
+  connect(trajectory_slider_, SIGNAL(valueChanged(int)), this, SLOT(trajectorySliderChanged(int)));
+  connect(replan_button_, SIGNAL(clicked()), this, SLOT(replanButtonPressed()));
+  connect(trajectory_point_edit_, SIGNAL(valueChanged(int)), this, SLOT(trajectoryEditChanged()));
+  connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
+  connect(deleteTrajectoryButton, SIGNAL(clicked()), this, SLOT(deleteSelectedTrajectory()));
+
+  return controlsBox;
+}
+
+QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
+{
+  QGroupBox* trajectoryInfoBox = new QGroupBox;
+  trajectoryInfoBox->setTitle("Trajectory Info");
+
+  QLabel* selected_trajectory_label = new QLabel;
+  selected_trajectory_label->setText("Selected Trajectory: ");
+  selected_trajectory_label->setToolTip("Selected trajectory.");
+
+  QLabel* selected_trajectory_error_label = new QLabel;
+  selected_trajectory_error_label->setText("Error Code: ");
+  selected_trajectory_error_label->setToolTip("Error Code.");
+
+  QLabel* selected_trajectory_angular_distance_label = new QLabel;
+  selected_trajectory_angular_distance_label->setText("Angular Movement: ");
+  selected_trajectory_angular_distance_label->setToolTip("Sum of angular movement of all joints.");
+
+  QLabel* selected_trajectory_clearance_distance_label = new QLabel;
+  selected_trajectory_clearance_distance_label->setText("Minimum Clearance: ");
+  selected_trajectory_clearance_distance_label->setToolTip("Minimum clearance distance in trajectory.");
+
+  QLabel* selected_trajectory_cartesian_distance_label = new QLabel;
+  selected_trajectory_cartesian_distance_label->setText("Cartesian Distance: ");
+  selected_trajectory_cartesian_distance_label->setToolTip("Cartesian distance travelled by the end-effector.");
 
   selected_trajectory_label_ = new QLabel(this);
   selected_trajectory_label_->setText("None");
@@ -236,33 +271,8 @@ void WarehouseViewer::initQtWidgets()
   selected_trajectory_cartesian_distance_label_->setText("");
   selected_trajectory_cartesian_distance_label_->setToolTip("Currently selected trajectory cartesian distance.");
 
-  QPushButton* deleteMPRButton = new QPushButton(motionPlanBox);
-  deleteMPRButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-  deleteMPRButton->setText("Delete Motion Plan Request");
-  deleteMPRButton->setToolTip("Deletes the currently selected motion plan request.");
 
-  QPushButton* deleteTrajectoryButton = new QPushButton(trajectoryBox);
-  deleteTrajectoryButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-  deleteTrajectoryButton->setText("Delete Trajectory");
-  deleteTrajectoryButton->setToolTip("Deletes the currently selected trajectory.");
-
-
-  motionBoxLayout->addWidget(motion_plan_tree_);
-  motionBoxLayout->addWidget(selected_request_label_);
-  motionBoxLayout->addWidget(mpButtons);
-  mpButtonsLayout->addWidget(replan_button_);
-  mpButtonsLayout->addWidget(deleteMPRButton);
-  trajectoryBoxLayout->addWidget(trajectory_tree_);
-  trajectoryBoxLayout->addWidget(controlsBox);
-  trajectoryBoxLayout->addWidget(trajectoryInfoBox);
-  controlsBoxLayout->addWidget(playbackWidget);
-  controlsBoxLayout->addWidget(buttonsWidget);
-  playbackLayout->addWidget(play_button_);
-  playbackLayout->addWidget(trajectory_slider_);
-  playbackLayout->addWidget(trajectory_point_edit_);
-  buttonLayout->addWidget(filter_button_);
-  buttonLayout->addWidget(execute_button_);
-  buttonLayout->addWidget(deleteTrajectoryButton);
+  QGridLayout* trajectoryInfoBoxLayout = new QGridLayout(trajectoryInfoBox);
   trajectoryInfoBoxLayout->addWidget(selected_trajectory_label,0,0);
   trajectoryInfoBoxLayout->addWidget(selected_trajectory_label_,0,1);
   trajectoryInfoBoxLayout->addWidget(selected_trajectory_error_label,1,0);
@@ -275,9 +285,51 @@ void WarehouseViewer::initQtWidgets()
   trajectoryInfoBoxLayout->addWidget(selected_trajectory_clearance_distance_label_,4,1);
   trajectoryInfoBoxLayout->addWidget(selected_trajectory_cartesian_distance_label,5,0);
   trajectoryInfoBoxLayout->addWidget(selected_trajectory_cartesian_distance_label_,5,1);
+  trajectoryInfoBox->setLayout(trajectoryInfoBoxLayout);
 
-  connect(deleteMPRButton, SIGNAL(clicked()), this, SLOT(deleteSelectedMotionPlan()));
-  connect(deleteTrajectoryButton, SIGNAL(clicked()), this, SLOT(deleteSelectedTrajectory()));
+  return trajectoryInfoBox;
+}
+
+void WarehouseViewer::initQtWidgets()
+{
+  menu_bar_ = new QMenuBar(this);
+  setMenuBar(menu_bar_);
+  QWidget* centralWidget = new QWidget(this);
+  setCentralWidget(centralWidget);
+  centralWidget->setMinimumWidth(500);
+
+  QVBoxLayout* layout = new QVBoxLayout(this);
+  layout->addWidget(createMotionPlanBox());
+  layout->addWidget(createTrajectoryBox());
+
+  file_menu_ = menu_bar_->addMenu("File");
+  planning_scene_menu_ = menu_bar_->addMenu("Planning Scene");
+
+  new_planning_scene_action_ = file_menu_->addAction("New Planning Scene ...");
+  load_planning_scene_action_ = file_menu_->addAction("Load Planning Scene ...");
+  save_planning_scene_action_ = file_menu_->addAction("Save Planning Scene ...");
+  copy_planning_scene_action_ = file_menu_->addAction("Save Copy of Planning Scene ...");
+  new_motion_plan_action_ = file_menu_->addAction("New Motion Plan Request ...");
+  refresh_action_ = planning_scene_menu_->addAction("Refresh Planning Scene...");
+  view_outcomes_action_ = planning_scene_menu_->addAction("View Outcomes ...");
+  alter_link_padding_action_ = planning_scene_menu_->addAction("Alter Link Padding ...");
+  alter_allowed_collision_action_ = planning_scene_menu_->addAction("Alter Allowed Collision Operations ...");
+  edit_robot_state_action_ = planning_scene_menu_->addAction("Edit Robot State ...");
+  quit_action_ = file_menu_->addAction("Quit");
+
+  collision_object_menu_ = menu_bar_->addMenu("Collision Objects");
+  new_object_action_ = collision_object_menu_->addAction("New Primitive Collision Object ...");
+  new_mesh_action_ = collision_object_menu_->addAction("New Mesh Collision Object ...");
+
+  planner_configuration_menu_ = menu_bar_->addMenu("Planner configuration");
+  set_primary_planner_action_ = planner_configuration_menu_->addAction("Use primary planner");
+  set_primary_planner_action_->setCheckable(true);
+  set_primary_planner_action_->setChecked(true);
+  set_secondary_planner_action_ = planner_configuration_menu_->addAction("Use secondary planner");
+  set_secondary_planner_action_->setCheckable(true);
+  set_secondary_planner_action_->setChecked(false);
+
+
   connect(new_planning_scene_action_, SIGNAL(triggered()), this, SLOT(createNewPlanningSceneSlot()));
   connect(new_motion_plan_action_, SIGNAL(triggered()), this, SLOT(createNewMotionPlanPressed()));
   connect(new_object_action_, SIGNAL(triggered()), this, SLOT(createNewObjectPressed()));
@@ -286,15 +338,7 @@ void WarehouseViewer::initQtWidgets()
   connect(copy_planning_scene_action_, SIGNAL(triggered()), this, SLOT(copyPlanningSceneSlot()));
   connect(load_planning_scene_action_, SIGNAL(triggered()), this, SLOT(popupLoadPlanningScenes()));
   connect(quit_action_, SIGNAL(triggered()), this, SLOT(quit()));
-  connect(play_button_, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
-  connect(filter_button_, SIGNAL(clicked()), this, SLOT(filterButtonPressed()));
-  connect(trajectory_slider_, SIGNAL(valueChanged(int)), this, SLOT(trajectorySliderChanged(int)));
-  connect(trajectory_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(trajectoryTableSelection()));
-  connect(replan_button_, SIGNAL(clicked()), this, SLOT(replanButtonPressed()));
-  connect(trajectory_point_edit_, SIGNAL(valueChanged(int)), this, SLOT(trajectoryEditChanged()));
-  connect(motion_plan_tree_, SIGNAL(itemSelectionChanged()), this, SLOT(motionPlanTableSelection()));
   connect(this, SIGNAL(updateTables()), this, SLOT(updateStateTriggered()));
-  connect(execute_button_, SIGNAL(clicked()), this, SLOT(executeButtonPressed()));
   connect(refresh_action_, SIGNAL(triggered()), this, SLOT(refreshSceneButtonPressed()));
   connect(view_outcomes_action_, SIGNAL(triggered()), this, SLOT(viewOutcomesPressed()));
   connect(alter_link_padding_action_, SIGNAL(triggered()), this, SLOT(alterLinkPaddingPressed()));
@@ -312,12 +356,6 @@ void WarehouseViewer::initQtWidgets()
   setupPlanningSceneDialog();
   connect(this, SIGNAL(changeProgress(int)), load_scene_progress_, SLOT(setValue(int)));
   menu_bar_->setMinimumWidth(500);
-  mpButtons->setLayout(mpButtonsLayout);
-  playbackWidget->setLayout(playbackLayout);
-  buttonsWidget->setLayout(buttonLayout);
-  trajectoryInfoBox->setLayout(trajectoryInfoBoxLayout);
-  trajectoryBox->setLayout(trajectoryBoxLayout);
-  motionPlanBox->setLayout(motionBoxLayout);
   centralWidget->setLayout(layout);
 
   createNewObjectDialog();
