@@ -561,14 +561,16 @@ protected:
   QLabel* selected_trajectory_label_;
   QLabel* selected_trajectory_error_label_;
   QLabel* selected_request_label_;
-  QLabel* selected_trajectory_duration_title_;
-  QLabel* selected_trajectory_duration_label_;
+  QLabel* selected_trajectory_stat_0_title_;
+  QLabel* selected_trajectory_stat_0_label_;
   QLabel* selected_trajectory_stat_1_title_;
   QLabel* selected_trajectory_stat_1_label_;
   QLabel* selected_trajectory_stat_2_title_;
   QLabel* selected_trajectory_stat_2_label_;
   QLabel* selected_trajectory_stat_3_title_;
   QLabel* selected_trajectory_stat_3_label_;
+  QLabel* selected_trajectory_stat_4_title_;
+  QLabel* selected_trajectory_stat_4_label_;
 
   QMenuBar* menu_bar_;
   QMenu* file_menu_;

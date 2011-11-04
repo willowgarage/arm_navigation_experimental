@@ -235,6 +235,7 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   selected_trajectory_stat_1_title_ = new QLabel;
   selected_trajectory_stat_2_title_ = new QLabel;
   selected_trajectory_stat_3_title_ = new QLabel;
+  selected_trajectory_stat_4_title_ = new QLabel;
 
   selected_trajectory_label_ = new QLabel(this);
   selected_trajectory_label_->setText("None");
@@ -244,12 +245,11 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   selected_trajectory_error_label_->setText("");
   selected_trajectory_error_label_->setToolTip("Currently selected trajectory error code.");
 
-  selected_trajectory_duration_title_ = new QLabel(this);
-  selected_trajectory_duration_title_->setText("Duration");
+  selected_trajectory_stat_0_title_ = new QLabel(this);
+  selected_trajectory_stat_0_title_->setText("");
 
-  selected_trajectory_duration_label_ = new QLabel(this);
-  selected_trajectory_duration_label_->setText("");
-  selected_trajectory_duration_label_->setToolTip("Currently selected trajectory duration.");
+  selected_trajectory_stat_0_label_ = new QLabel(this);
+  selected_trajectory_stat_0_label_->setText("");
 
   selected_trajectory_stat_1_label_ = new QLabel(this);
   selected_trajectory_stat_1_label_->setText("");
@@ -260,14 +260,18 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   selected_trajectory_stat_3_label_ = new QLabel(this);
   selected_trajectory_stat_3_label_->setText("");
 
+  selected_trajectory_stat_4_label_ = new QLabel(this);
+  selected_trajectory_stat_4_label_->setText("");
+
   // Generic Layout!
   trajectory_info_box_layout_ = new QFormLayout;
   trajectory_info_box_layout_->addRow(selected_trajectory_title,selected_trajectory_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_error_title,selected_trajectory_error_label_);
-  trajectory_info_box_layout_->addRow(selected_trajectory_duration_title_,selected_trajectory_duration_label_);
+  trajectory_info_box_layout_->addRow(selected_trajectory_stat_0_title_,selected_trajectory_stat_0_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_1_title_,selected_trajectory_stat_1_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_2_title_,selected_trajectory_stat_2_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_3_title_,selected_trajectory_stat_3_label_);
+  trajectory_info_box_layout_->addRow(selected_trajectory_stat_4_title_,selected_trajectory_stat_4_label_);
   trajectory_info_box->setLayout(trajectory_info_box_layout_);
 
   return trajectory_info_box;
@@ -289,8 +293,8 @@ std::string WarehouseViewer::floatToString(double val)
 
 void WarehouseViewer::setCommonTrajectoryInfo(const ros::Duration& duration)
 {
-  selected_trajectory_duration_title_->setText("Duration");
-  selected_trajectory_duration_label_->setText(QString::fromStdString(floatToString(duration.toSec())+" seconds"));
+  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
+  selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(duration.toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("");
   selected_trajectory_stat_1_title_->setToolTip("");
   selected_trajectory_stat_1_label_->setText("");
@@ -300,19 +304,20 @@ void WarehouseViewer::setCommonTrajectoryInfo(const ros::Duration& duration)
   selected_trajectory_stat_3_title_->setText("");
   selected_trajectory_stat_3_title_->setToolTip("");
   selected_trajectory_stat_3_label_->setText("");
+  selected_trajectory_stat_4_title_->setText("");
+  selected_trajectory_stat_4_title_->setToolTip("");
+  selected_trajectory_stat_4_label_->setText("");
 }
 void WarehouseViewer::setPlannedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory)
 {
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
-  selected_trajectory_duration_title_->setText("Planning Time");
+  selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory planning request.");
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
   selected_trajectory_stat_2_title_->setToolTip("Cartesian distance travelled by the end-effector.");
-  //selected_trajectory_stat_3_title_->setText("Minimum Clearance: ");
-  //selected_trajectory_stat_3_title_->setToolTip("Minimum clearance distance in trajectory.");
 
   selected_trajectory_error_label_->setText(QString::fromStdString(
         armNavigationErrorCodeToString(trajectory.trajectory_error_code_) +
@@ -328,13 +333,13 @@ void WarehouseViewer::setFilteredTrajectoryInfo(bool success, planning_scene_uti
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
-  selected_trajectory_duration_title_->setText("Filter Time");
+  selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory filter request.");
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
   selected_trajectory_stat_2_title_->setToolTip("Cartesian distance travelled by the end-effector.");
-  //selected_trajectory_stat_3_title_->setText("Minimum Clearance: ");
-  //selected_trajectory_stat_3_title_->setToolTip("Minimum clearance distance in trajectory.");
+  selected_trajectory_stat_3_title_->setText("Execution Time: ");
+  selected_trajectory_stat_3_title_->setToolTip("Expected time to execute the trajectory.");
 
   selected_trajectory_error_label_->setText(QString::fromStdString(
         armNavigationErrorCodeToString(trajectory.trajectory_error_code_) +
@@ -343,21 +348,23 @@ void WarehouseViewer::setFilteredTrajectoryInfo(bool success, planning_scene_uti
         floatToString(trajectory_stats.getAngularDistance()) + " radians" ));
   selected_trajectory_stat_2_label_->setText(QString::fromStdString(
         floatToString(trajectory_stats.getCartesianDistance(motion_plan_req)) +" meters"));
+  selected_trajectory_stat_3_label_->setText(QString::fromStdString(
+        floatToString(trajectory_stats.getExecutionDuration().toSec()) +" seconds"));
 }
 void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory)
 {
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
-  selected_trajectory_duration_title_->setText("Execution Time");
+  selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory execution request.");
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
   selected_trajectory_stat_2_label_->setToolTip("Currently selected trajectory cartesian distance.");
-  //selected_trajectory_stat_3_title_->setText("Minimum Clearance: ");
-  //selected_trajectory_stat_3_title_->setToolTip("Minimum clearance distance in trajectory.");
-  selected_trajectory_stat_3_title_->setText("Max Controller Error: ");
-  selected_trajectory_stat_3_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
+  selected_trajectory_stat_3_title_->setText("Execution Time: ");
+  selected_trajectory_stat_3_title_->setToolTip("Actual time to execute the trajectory.");
+  selected_trajectory_stat_4_title_->setText("Max Controller Error: ");
+  selected_trajectory_stat_4_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
 
   selected_trajectory_error_label_->setText(QString::fromStdString(
         getResultErrorFromCode(trajectory.trajectory_error_code_.val) +
@@ -367,6 +374,8 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
   selected_trajectory_stat_2_label_->setText(QString::fromStdString(
         floatToString(trajectory_stats.getCartesianDistance(motion_plan_req)) +" meters"));
   selected_trajectory_stat_3_label_->setText(QString::fromStdString(
+        floatToString(trajectory_stats.getExecutionDuration().toSec()) +" seconds"));
+  selected_trajectory_stat_4_label_->setText(QString::fromStdString(
         floatToString(trajectory_stats.getMaxAngularError(trajectory.getTrajectoryError())) +" radians"));
 }
 
