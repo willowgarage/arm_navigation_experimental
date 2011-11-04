@@ -230,20 +230,19 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
 
   QLabel* selected_trajectory_error_title = new QLabel;
   selected_trajectory_error_title->setText("Error Code: ");
-  selected_trajectory_error_title->setToolTip("Error Code.");
+  selected_trajectory_error_title->setToolTip("Error code returned by service request.");
 
   selected_trajectory_stat_1_title_ = new QLabel;
   selected_trajectory_stat_2_title_ = new QLabel;
   selected_trajectory_stat_3_title_ = new QLabel;
   selected_trajectory_stat_4_title_ = new QLabel;
+  selected_trajectory_stat_5_title_ = new QLabel;
 
   selected_trajectory_label_ = new QLabel(this);
   selected_trajectory_label_->setText("None");
-  selected_trajectory_label_->setToolTip("Currently selected trajectory.");
 
   selected_trajectory_error_label_ = new QLabel(this);
   selected_trajectory_error_label_->setText("");
-  selected_trajectory_error_label_->setToolTip("Currently selected trajectory error code.");
 
   selected_trajectory_stat_0_title_ = new QLabel(this);
   selected_trajectory_stat_0_title_->setText("");
@@ -263,6 +262,9 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   selected_trajectory_stat_4_label_ = new QLabel(this);
   selected_trajectory_stat_4_label_->setText("");
 
+  selected_trajectory_stat_5_label_ = new QLabel(this);
+  selected_trajectory_stat_5_label_->setText("");
+
   // Generic Layout!
   trajectory_info_box_layout_ = new QFormLayout;
   trajectory_info_box_layout_->addRow(selected_trajectory_title,selected_trajectory_label_);
@@ -272,6 +274,7 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_2_title_,selected_trajectory_stat_2_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_3_title_,selected_trajectory_stat_3_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_4_title_,selected_trajectory_stat_4_label_);
+  trajectory_info_box_layout_->addRow(selected_trajectory_stat_5_title_,selected_trajectory_stat_5_label_);
   trajectory_info_box->setLayout(trajectory_info_box_layout_);
 
   return trajectory_info_box;
@@ -307,6 +310,9 @@ void WarehouseViewer::setCommonTrajectoryInfo(const ros::Duration& duration)
   selected_trajectory_stat_4_title_->setText("");
   selected_trajectory_stat_4_title_->setToolTip("");
   selected_trajectory_stat_4_label_->setText("");
+  selected_trajectory_stat_5_title_->setText("");
+  selected_trajectory_stat_5_title_->setToolTip("");
+  selected_trajectory_stat_5_label_->setText("");
 }
 void WarehouseViewer::setPlannedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory)
 {
@@ -365,6 +371,8 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
   selected_trajectory_stat_3_title_->setToolTip("Actual time to execute the trajectory.");
   selected_trajectory_stat_4_title_->setText("Max Controller Error: ");
   selected_trajectory_stat_4_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
+  selected_trajectory_stat_5_title_->setText("Time To Stop: ");
+  selected_trajectory_stat_5_title_->setToolTip("Time for the robot joints to stop after the controller returned from the motion request.");
 
   selected_trajectory_error_label_->setText(QString::fromStdString(
         getResultErrorFromCode(trajectory.trajectory_error_code_.val) +
@@ -377,6 +385,8 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
         floatToString(trajectory_stats.getExecutionDuration().toSec()) +" seconds"));
   selected_trajectory_stat_4_label_->setText(QString::fromStdString(
         floatToString(trajectory_stats.getMaxAngularError(trajectory.getTrajectoryError())) +" radians"));
+  selected_trajectory_stat_5_label_->setText(QString::fromStdString(
+        floatToString(trajectory.getTimeToStop().toSec()) +" seconds"));
 }
 
 void WarehouseViewer::initQtWidgets()

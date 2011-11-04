@@ -931,6 +931,7 @@ protected:
   visualization_msgs::MarkerArray collision_markers_;
   RenderType render_type_;
   TrajectoryRenderType trajectory_render_type_;
+  ros::Duration time_to_stop_;
 public:
 
   /// @brief This counter is exhausted when the trajectory's color has changed.
@@ -1290,6 +1291,16 @@ public:
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
                               ros::ServiceClient* distance_state_validity_service_client_);
 
+  /// @brief Sets the time it took all the joints to stop after the controller returned it's results.
+  void setTimeToStop(ros::Duration time_to_stop)
+  {
+    time_to_stop_ = time_to_stop;
+  }
+  /// @brief See setTimeToStop
+  ros::Duration getTimeToStop()
+  {
+    return time_to_stop_;
+  }
 };
 
 ////
@@ -1357,7 +1368,7 @@ protected:
   /////
   enum MonitorStatus
     {
-      idle, Executing, Done
+      idle, Executing, WaitingForStop, Done
     };
 
   /////
@@ -1493,6 +1504,7 @@ protected:
   trajectory_msgs::JointTrajectory logged_trajectory_;
   trajectory_msgs::JointTrajectory logged_trajectory_controller_error_;
   ros::Time logged_trajectory_start_time_;
+  int logged_trajectory_controller_error_code_;
 
   bool send_collision_markers_;
   std::string collision_marker_state_;
@@ -1532,6 +1544,8 @@ protected:
   std_msgs::ColorRGBA last_mesh_object_color_;
 
   MonitorStatus monitor_status_;
+  ros::Time time_of_controller_done_callback_;
+  ros::Time time_of_last_moving_notification_;
 
   ros::Time last_marker_start_time_;
   ros::Duration marker_dt_;
@@ -1946,6 +1960,11 @@ public:
   /////
   void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                               const control_msgs::FollowJointTrajectoryResultConstPtr& result);
+
+  /////
+  /// @brief Called when the robot actually stops moving, following execution of the trajectory.
+  /////
+  void armHasStoppedMoving();
 
   /////
   /// @brief Called when the robot monitor detects a change in the robot state.

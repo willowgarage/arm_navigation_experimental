@@ -61,6 +61,8 @@ using namespace interactive_markers;
 
 #define MARKER_REFRESH_TIME 0.05
 #define SAFE_DELETE(x) if(x != NULL) { delete x; x = NULL; }
+#define NOT_MOVING_VELOCITY_THRESHOLD 0.05
+#define NOT_MOVING_TIME_THRESHOLD 0.5
 
 std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
 {
@@ -1036,9 +1038,10 @@ void PlanningSceneEditor::jointTrajectoryControllerStateCallback(const pr2_contr
 {
   trajectory_msgs::JointTrajectoryPoint actual = joint_controller_state->actual;
   trajectory_msgs::JointTrajectoryPoint error = joint_controller_state->error;
+  bool robot_stopped = true;
 
   // Records trajectory if currently executing.
-  if(monitor_status_ == Executing)
+  if(monitor_status_ == Executing || monitor_status_ == WaitingForStop)
   {
     // Filter out the joints of the other group/arm
     if( logged_trajectory_.joint_names[0] != joint_controller_state->joint_names[0] )
@@ -1070,6 +1073,30 @@ void PlanningSceneEditor::jointTrajectoryControllerStateCallback(const pr2_contr
 
     logged_trajectory_.points.push_back(point);
     logged_trajectory_controller_error_.points.push_back(error_point);
+
+    // Stop recording if the robot has stopped for a period of time.
+    if(monitor_status_ == WaitingForStop )
+    {
+      for(unsigned int i = 0; i < num_joints; i++)
+      {
+        if( point.velocities[i] > NOT_MOVING_VELOCITY_THRESHOLD )
+        {
+          robot_stopped = false;
+        }
+      }
+
+      if( robot_stopped )
+      {
+        if( (ros::Time::now()-time_of_last_moving_notification_).toSec() >= NOT_MOVING_TIME_THRESHOLD )
+        {
+          armHasStoppedMoving();
+        }
+      }
+      else
+      {
+        time_of_last_moving_notification_ = ros::Time::now();
+      }
+    }
   }
 }
 
@@ -4179,16 +4206,25 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                                                  const control_msgs::FollowJointTrajectoryResultConstPtr& result)
 {
+  monitor_status_ = WaitingForStop;
+  logged_trajectory_controller_error_code_ = result->error_code;
+  time_of_controller_done_callback_ = ros::Time::now();
+  time_of_last_moving_notification_ = ros::Time::now();
+}
+
+void PlanningSceneEditor::armHasStoppedMoving()
+{
   monitor_status_ = idle;
   MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
-	logged.setTrajectoryError(logged_trajectory_);
+  logged.setTrajectoryError(logged_trajectory_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
+  logged.setTimeToStop(ros::Time::now() - time_of_controller_done_callback_);
   logged.setTrajectoryRenderType(Temporal);
   logged.setMotionPlanRequestId(mpr.getId());
-  logged.trajectory_error_code_.val = result->error_code;
-  mpr.addTrajectoryId(logged.getId());                    
+  logged.trajectory_error_code_.val = logged_trajectory_controller_error_code_;
+  mpr.addTrajectoryId(logged.getId());
   trajectory_map_[mpr.getName()][logged.getName()] = logged;
   logged_trajectory_.points.clear();
   logged_trajectory_controller_error_.points.clear();

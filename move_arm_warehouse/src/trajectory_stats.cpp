@@ -128,10 +128,12 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
   return cartesian_distance_sum;
 }
 
+/*
 double TrajectoryStats::getClearanceDistance(planning_scene_utils::PlanningSceneData& scene)
 {
   return 0;
 }
+*/
 
 double TrajectoryStats::getMaxAngularError(trajectory_msgs::JointTrajectory& trajectory_error)
 {

@@ -71,13 +71,14 @@ public:
   /// Linear interpolation is used to calculate this metric.
   double getCartesianDistance(planning_scene_utils::MotionPlanRequestData& motion_plan_req);
 
-  /// @brief returns the minimal clearance distance (in meters) of the arm as it moves through the trajectory.
-  /// Linear interpolation is used to calculate this metric.
-  double getClearanceDistance(planning_scene_utils::PlanningSceneData& scene);
+  // / @brief returns the minimal clearance distance (in meters) of the arm as it moves through the trajectory.
+  // / Linear interpolation is used to calculate this metric.
+  //double getClearanceDistance(planning_scene_utils::PlanningSceneData& scene);
 
   /// @brief returns the maximum angular error over all joints for all points on the trajectory
   /// This is useful for determining how well the controller executed the trajectory.
   double getMaxAngularError(trajectory_msgs::JointTrajectory& trajectory_error);
+
 };
 
 };

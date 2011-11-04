@@ -571,6 +571,8 @@ protected:
   QLabel* selected_trajectory_stat_3_label_;
   QLabel* selected_trajectory_stat_4_title_;
   QLabel* selected_trajectory_stat_4_label_;
+  QLabel* selected_trajectory_stat_5_title_;
+  QLabel* selected_trajectory_stat_5_label_;
 
   QMenuBar* menu_bar_;
   QMenu* file_menu_;
