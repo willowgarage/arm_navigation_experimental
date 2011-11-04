@@ -914,6 +914,7 @@ protected:
   unsigned int planning_scene_id_;
   unsigned int motion_plan_request_Id_;
   trajectory_msgs::JointTrajectory trajectory_;
+  trajectory_msgs::JointTrajectory trajectory_error_;
   bool is_visible_;
   MarkerType marker_type_;
   bool is_playing_;
@@ -941,6 +942,8 @@ public:
   TrajectoryData();
   TrajectoryData(const unsigned int& id, const std::string& source, const std::string& group_name,
                  const trajectory_msgs::JointTrajectory& trajectory);
+  TrajectoryData(const unsigned int& id, const std::string& source, const std::string& group_name,
+                 const trajectory_msgs::JointTrajectory& trajectory, const trajectory_msgs::JointTrajectory& trajectory_error);
 
   /// @brief Sets the current state of the trajectory to the current trajectory point + amount.
   /// Allows for negative values. Does not overshoot the trajectory's end or start.
@@ -1233,6 +1236,18 @@ public:
   inline void setTrajectory(const trajectory_msgs::JointTrajectory& trajectory)
   {
     trajectory_ = trajectory;
+  }
+
+  /// @brief Returns the underlying trajectory.
+  inline trajectory_msgs::JointTrajectory& getTrajectoryError()
+  {
+    return trajectory_error_;
+  }
+
+  /// @brief see getTrajectoryError
+  inline void setTrajectoryError(const trajectory_msgs::JointTrajectory& trajectory_error)
+  {
+    trajectory_error_ = trajectory_error;
   }
 
   /// @brief Returns the unique Id of the trajectory

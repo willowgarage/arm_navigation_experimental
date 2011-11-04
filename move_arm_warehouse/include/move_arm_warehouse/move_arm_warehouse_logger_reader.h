@@ -80,6 +80,7 @@ public:
                                       const std::string& trajectory_source,
                                       const ros::Duration& production_time, 
                                       const trajectory_msgs::JointTrajectory& trajectory,
+                                      const trajectory_msgs::JointTrajectory& trajectory_control_error,
                                       const unsigned int ID,
                                       const unsigned int motion_plan_ID,
                                       const arm_navigation_msgs::ArmNavigationErrorCodes& error_code);
@@ -135,12 +136,14 @@ public:
                                     const unsigned int motion_plan_id,
                                     const unsigned int trajectory_id,
                                     ros::Duration& processing_time, 
-                                    trajectory_msgs::JointTrajectory& joint_trajectory);
+                                    trajectory_msgs::JointTrajectory& joint_trajectory,
+                                    trajectory_msgs::JointTrajectory& trajectory_control_error);
 
   bool getAssociatedJointTrajectories(const std::string& hostname,
                                       const unsigned int planning_scene_id,
                                       const unsigned int motion_plan_id,
                                       std::vector<trajectory_msgs::JointTrajectory>& trajectories,
+                                      std::vector<trajectory_msgs::JointTrajectory>& trajectory_control_errors,
                                       std::vector<std::string>& sources,
                                       std::vector<unsigned int>& IDs,
                                       std::vector<ros::Duration>& durations,
@@ -174,6 +177,10 @@ protected:
 
   mongo_ros::Query makeQueryForPlanningSceneTime(const ros::Time& time);
   mongo_ros::Query makeQueryForPlanningSceneId(const unsigned int id);
+
+  // convenience functions for converting control error data
+  std::string jointTrajectoryToString(const trajectory_msgs::JointTrajectory& trajectory);
+  void stringToJointTrajectory(const std::string& trajectory, trajectory_msgs::JointTrajectory& joint_trajectory);
 
   mongo_ros::MessageCollection<arm_navigation_msgs::PlanningScene>* planning_scene_collection_;
   mongo_ros::MessageCollection<arm_navigation_msgs::MotionPlanRequest>* motion_plan_request_collection_;

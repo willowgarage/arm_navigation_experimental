@@ -927,10 +927,12 @@ private:
 	    ROS_DEBUG("Done planning. Transitioning to control");
 	  }
           if(log_to_warehouse_) {
+            trajectory_msgs::JointTrajectory trajectory_error;
             warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_id_,
                                                               "planner",
                                                               ros::Duration(move_arm_stats_.planning_time),
                                                               res.trajectory.joint_trajectory,
+                                                              trajectory_error,
                                                               max_trajectory_ID_++,
                                                               last_mpr_ID_,
                                                               error_code);
@@ -1009,10 +1011,12 @@ private:
             ROS_DEBUG("Trajectory validity check was successful");
           }
           if(log_to_warehouse_) {
+            trajectory_msgs::JointTrajectory trajectory_error;
             warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_id_,
                                                               "filter",
                                                               ros::Duration(move_arm_stats_.smoothing_time),
                                                               filtered_trajectory,
+                                                              trajectory_error,
                                                               max_trajectory_ID_++,
                                                               last_mpr_ID_,
                                                               error_code);
@@ -1268,10 +1272,12 @@ private:
     head_monitor_error_code_ = result->error_code;
     ROS_DEBUG_STREAM("Actual trajectory with " << result->actual_trajectory.points.size());
     if(log_to_warehouse_) {
+      trajectory_msgs::JointTrajectory trajectory_error;
       warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_id_,
                                                         "monitor",
                                                         result->actual_trajectory.points.back().time_from_start,
                                                         result->actual_trajectory,
+                                                        trajectory_error,
                                                         max_trajectory_ID_++, last_mpr_ID_,result->error_code);
     }
   }

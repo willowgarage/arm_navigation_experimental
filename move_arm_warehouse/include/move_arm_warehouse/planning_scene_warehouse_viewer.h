@@ -381,10 +381,13 @@ class WarehouseViewer: public QMainWindow, public planning_scene_utils::Planning
   bool createNewPlanningSceneConfirm();  
   void createRobotStateEditor();
 
-  // Boxes within main gui
+  /// @brief Creates the "Motion Plan Request" box
   QGroupBox *createMotionPlanBox();
+  /// @brief Creates the "Trajectory" box
   QGroupBox *createTrajectoryBox();
+  /// @brief Creates the "Controls" box
   QGroupBox *createTrajectoryControlsBox();
+  /// @brief Creates the "Trajectory Info" box
   QGroupBox *createTrajectoryInfoBox();
 
   void saveCurrentPlanningScene(bool copy);
@@ -558,11 +561,14 @@ protected:
   QLabel* selected_trajectory_label_;
   QLabel* selected_trajectory_error_label_;
   QLabel* selected_request_label_;
-  QLabel* selected_trajectory_duration_name_label_;
+  QLabel* selected_trajectory_duration_title_;
   QLabel* selected_trajectory_duration_label_;
-  QLabel* selected_trajectory_angular_distance_label_;
-  QLabel* selected_trajectory_clearance_distance_label_;
-  QLabel* selected_trajectory_cartesian_distance_label_;
+  QLabel* selected_trajectory_stat_1_title_;
+  QLabel* selected_trajectory_stat_1_label_;
+  QLabel* selected_trajectory_stat_2_title_;
+  QLabel* selected_trajectory_stat_2_label_;
+  QLabel* selected_trajectory_stat_3_title_;
+  QLabel* selected_trajectory_stat_3_label_;
 
   QMenuBar* menu_bar_;
   QMenu* file_menu_;
@@ -672,8 +678,24 @@ protected:
   QFileDialog* file_selector_;
   QLineEdit* mesh_filename_field_;
 
+  QFormLayout* trajectory_info_box_layout_;
+
   /// @brief Find the currently-selected trajectory in the
   /// trajectory_tree_ and set its visibility checkbox to checked.
   void setSelectedTrajectoryCheckboxVisible();
+
+  /// @brief Set the trajectory info box to show no trajectory stats
+  void setCommonTrajectoryInfo(const ros::Duration& duration);
+  /// @brief Set the trajectory info box to show planned trajectory stats
+  void setPlannedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
+  /// @brief Set the trajectory info box to show filtered trajectory stats
+  void setFilteredTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
+  /// @brief Set the trajectory info box to show executed trajectory stats
+  void setExecutedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
+
+  // convenience functions
+  std::string intToString(int val);
+  std::string floatToString(double val);
+
 };
 #endif

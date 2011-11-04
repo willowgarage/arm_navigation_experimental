@@ -122,13 +122,34 @@ TrajectoryData::TrajectoryData()
   trajectory_render_type_ = Kinematic;
 }
 
-TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName, const JointTrajectory& trajectory)
+TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName,
+                  const JointTrajectory& trajectory)
 {
   setCurrentState(NULL);
   setId(id);
   setSource(source);
   setGroupName(groupName);
   setTrajectory(trajectory);
+  setColor(makeRandomColor(0.3f, 0.6f));
+  reset();
+  showCollisions();
+  should_refresh_colors_ = false;
+  has_refreshed_colors_ = true;
+  refresh_timer_ = ros::Duration(0.0);
+  trajectory_error_code_.val = 0;
+  setRenderType(CollisionMesh);
+  trajectory_render_type_ = Kinematic;
+}
+
+TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName,
+                  const JointTrajectory& trajectory, const trajectory_msgs::JointTrajectory& trajectory_error)
+{
+  setCurrentState(NULL);
+  setId(id);
+  setSource(source);
+  setGroupName(groupName);
+  setTrajectory(trajectory);
+  setTrajectoryError(trajectory_error);
   setColor(makeRandomColor(0.3f, 0.6f));
   reset();
   showCollisions();
@@ -1210,6 +1231,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       motion_data.setPlanningSceneId(planning_scene_id);
 
       std::vector<JointTrajectory> trajs;
+      std::vector<JointTrajectory> traj_cnt_errs;
       std::vector<string> sources;
       std::vector<unsigned int> traj_ids;
       std::vector<ros::Duration> durations;
@@ -1220,13 +1242,14 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       /////
       if(loadTrajectories)
       {
-        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", scene.getId(), motion_id, trajs, sources,
+        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", scene.getId(), motion_id, trajs, traj_cnt_errs, sources,
                                                                           traj_ids, durations, errors);
 
         for(size_t k = 0; k < trajs.size(); k++)
         {
           TrajectoryData trajectory_data;
           trajectory_data.setTrajectory(trajs[k]);
+          trajectory_data.setTrajectoryError(traj_cnt_errs[k]);
           trajectory_data.setSource(sources[k]);
           trajectory_data.setId(traj_ids[k]);
           trajectory_data.setMotionPlanRequestId(motion_data.getId());
@@ -2096,7 +2119,8 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
                                                                         traj.getSource(),
                                                                         traj.getDuration(), 
                                                                         traj.getTrajectory(),
-                                                                        traj.getId(), 
+                                                                        traj.getTrajectoryError(),
+                                                                        traj.getId(),
                                                                         traj.getMotionPlanRequestId(), 
                                                                         traj.trajectory_error_code_);
       move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(id_to_push,
@@ -4158,6 +4182,7 @@ void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGo
   monitor_status_ = idle;
   MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
+	logged.setTrajectoryError(logged_trajectory_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
   logged.setTrajectoryRenderType(Temporal);
