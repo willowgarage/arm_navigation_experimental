@@ -62,7 +62,7 @@ using namespace interactive_markers;
 #define MARKER_REFRESH_TIME 0.05
 #define SAFE_DELETE(x) if(x != NULL) { delete x; x = NULL; }
 #define NOT_MOVING_VELOCITY_THRESHOLD 0.05
-#define NOT_MOVING_TIME_THRESHOLD 0.5
+#define NOT_MOVING_TIME_THRESHOLD 0.5	//seconds
 
 std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
 {
@@ -4219,8 +4219,9 @@ void PlanningSceneEditor::armHasStoppedMoving()
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
   logged.setTrajectoryError(logged_trajectory_);
   logged.setBadPoint(-1);
-  logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
-  logged.setTimeToStop(ros::Time::now() - time_of_controller_done_callback_);
+  ros::Time stop_time = ros::Time::now() - ros::Duration(NOT_MOVING_TIME_THRESHOLD);
+  logged.setDuration(stop_time - logged_trajectory_start_time_);
+  logged.setTimeToStop(stop_time - time_of_controller_done_callback_);
   logged.setTrajectoryRenderType(Temporal);
   logged.setMotionPlanRequestId(mpr.getId());
   logged.trajectory_error_code_.val = logged_trajectory_controller_error_code_;
