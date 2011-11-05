@@ -4206,34 +4206,52 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                                                  const control_msgs::FollowJointTrajectoryResultConstPtr& result)
 {
-  monitor_status_ = WaitingForStop;
-  logged_trajectory_controller_error_code_ = result->error_code;
-  time_of_controller_done_callback_ = ros::Time::now();
-  time_of_last_moving_notification_ = ros::Time::now();
-}
-
-void PlanningSceneEditor::armHasStoppedMoving()
-{
-  monitor_status_ = idle;
   MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
   logged.setTrajectoryError(logged_trajectory_);
   logged.setBadPoint(-1);
-  ros::Time stop_time = ros::Time::now() - ros::Duration(NOT_MOVING_TIME_THRESHOLD);
-  logged.setDuration(stop_time - logged_trajectory_start_time_);
-  logged.setTimeToStop(stop_time - time_of_controller_done_callback_);
+  logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
   logged.setTrajectoryRenderType(Temporal);
   logged.setMotionPlanRequestId(mpr.getId());
-  logged.trajectory_error_code_.val = logged_trajectory_controller_error_code_;
+  logged.trajectory_error_code_.val = result->error_code;
+  mpr.addTrajectoryId(logged.getId());
+  trajectory_map_[mpr.getName()][logged.getName()] = logged;
+  logged_trajectory_.points.clear();
+  logged_trajectory_controller_error_.points.clear();
+  //logged_group_name_ = "";
+  //logged_motion_plan_request_ = "";
+  selected_trajectory_name_ = getTrajectoryNameFromId(logged.getId());
+  updateState();
+  ROS_INFO("CREATING TRAJECTORY %s", logged.getName().c_str());
+
+  // Keep recording a second trajectory to analize the overshoot
+  monitor_status_ = WaitingForStop;
+  time_of_controller_done_callback_ = ros::Time::now();
+  time_of_last_moving_notification_ = ros::Time::now();
+  logged_trajectory_start_time_ = ros::Time::now();
+}
+
+void PlanningSceneEditor::armHasStoppedMoving()
+{
+  MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
+  TrajectoryData logged(mpr.getNextTrajectoryId(), "Overshoot Monitor", logged_group_name_, logged_trajectory_);
+  logged.setTrajectoryError(logged_trajectory_);
+  logged.setBadPoint(-1);
+  logged.setDuration(ros::Duration(0));
+  logged.setTrajectoryRenderType(Temporal);
+  logged.setMotionPlanRequestId(mpr.getId());
+  logged.trajectory_error_code_.val = 0;
   mpr.addTrajectoryId(logged.getId());
   trajectory_map_[mpr.getName()][logged.getName()] = logged;
   logged_trajectory_.points.clear();
   logged_trajectory_controller_error_.points.clear();
   logged_group_name_ = "";
   logged_motion_plan_request_ = "";
-  selected_trajectory_name_ = getTrajectoryNameFromId(logged.getId());
+  //selected_trajectory_name_ = getTrajectoryNameFromId(logged.getId());
   updateState();
   ROS_INFO("CREATING TRAJECTORY %s", logged.getName().c_str());
+
+  monitor_status_ = idle;
 }
 
 void PlanningSceneEditor::getAllRobotStampedTransforms(const planning_models::KinematicState& state,

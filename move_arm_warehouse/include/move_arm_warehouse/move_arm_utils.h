@@ -1290,17 +1290,6 @@ public:
   /// for each collision point.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
                               ros::ServiceClient* distance_state_validity_service_client_);
-
-  /// @brief Sets the time it took all the joints to stop after the controller returned it's results.
-  void setTimeToStop(ros::Duration time_to_stop)
-  {
-    time_to_stop_ = time_to_stop;
-  }
-  /// @brief See setTimeToStop
-  ros::Duration getTimeToStop()
-  {
-    return time_to_stop_;
-  }
 };
 
 ////

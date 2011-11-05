@@ -689,13 +689,15 @@ protected:
   void setSelectedTrajectoryCheckboxVisible();
 
   /// @brief Set the trajectory info box to show no trajectory stats
-  void setCommonTrajectoryInfo(const ros::Duration& duration);
+  void setCommonTrajectoryInfo();
   /// @brief Set the trajectory info box to show planned trajectory stats
   void setPlannedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
   /// @brief Set the trajectory info box to show filtered trajectory stats
   void setFilteredTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
   /// @brief Set the trajectory info box to show executed trajectory stats
   void setExecutedTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
+  /// @brief Set the trajectory info box to show stats of executed trajectory overshoot
+  void setOvershootTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory);
 
   // convenience functions
   std::string intToString(int val);

@@ -294,10 +294,11 @@ std::string WarehouseViewer::floatToString(double val)
   return ss.str();
 }
 
-void WarehouseViewer::setCommonTrajectoryInfo(const ros::Duration& duration)
+void WarehouseViewer::setCommonTrajectoryInfo()
 {
-  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
-  selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(duration.toSec())+" seconds"));
+  selected_trajectory_stat_0_title_->setText("");
+  selected_trajectory_stat_0_title_->setMinimumWidth(100);
+  selected_trajectory_stat_0_label_->setText("");
   selected_trajectory_stat_1_title_->setText("");
   selected_trajectory_stat_1_title_->setToolTip("");
   selected_trajectory_stat_1_label_->setText("");
@@ -319,7 +320,9 @@ void WarehouseViewer::setPlannedTrajectoryInfo(bool success, planning_scene_util
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
+  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
   selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory planning request.");
+  selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(trajectory.getDuration().toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
@@ -339,7 +342,9 @@ void WarehouseViewer::setFilteredTrajectoryInfo(bool success, planning_scene_uti
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
+  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
   selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory filter request.");
+  selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(trajectory.getDuration().toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
@@ -362,7 +367,9 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
+  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
   selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory execution request.");
+  selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(trajectory.getDuration().toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
@@ -371,8 +378,6 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
   selected_trajectory_stat_3_title_->setToolTip("Actual time to execute the trajectory.");
   selected_trajectory_stat_4_title_->setText("Max Controller Error: ");
   selected_trajectory_stat_4_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
-  selected_trajectory_stat_5_title_->setText("Time To Stop: ");
-  selected_trajectory_stat_5_title_->setToolTip("Time for the robot joints to stop after the controller returned from the motion request.");
 
   selected_trajectory_error_label_->setText(QString::fromStdString(
         getResultErrorFromCode(trajectory.trajectory_error_code_.val) +
@@ -385,8 +390,35 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
         floatToString(trajectory_stats.getExecutionDuration().toSec()) +" seconds"));
   selected_trajectory_stat_4_label_->setText(QString::fromStdString(
         floatToString(trajectory_stats.getMaxAngularError(trajectory.getTrajectoryError())) +" radians"));
-  selected_trajectory_stat_5_label_->setText(QString::fromStdString(
-        floatToString(trajectory.getTimeToStop().toSec()) +" seconds"));
+}
+
+void WarehouseViewer::setOvershootTrajectoryInfo(bool success, planning_scene_utils::TrajectoryData& trajectory)
+{
+  TrajectoryStats trajectory_stats(trajectory.getTrajectory());
+  MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
+
+  //selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory execution request.");
+  selected_trajectory_stat_1_title_->setText("Angular Movement: ");
+  selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
+  selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
+  selected_trajectory_stat_2_label_->setToolTip("Currently selected trajectory cartesian distance.");
+  selected_trajectory_stat_3_title_->setText("Execution Time: ");
+  selected_trajectory_stat_3_title_->setToolTip(".");
+  selected_trajectory_stat_4_title_->setText("Max Controller Error: ");
+  selected_trajectory_stat_4_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
+
+  selected_trajectory_error_label_->setText(QString::fromStdString(
+        getResultErrorFromCode(trajectory.trajectory_error_code_.val) +
+        " (" + intToString(trajectory.trajectory_error_code_.val) + ")" ) );
+  selected_trajectory_stat_1_label_->setText(QString::fromStdString(
+        floatToString(trajectory_stats.getAngularDistance()) + " radians" ));
+  selected_trajectory_stat_2_label_->setText(QString::fromStdString(
+        floatToString(trajectory_stats.getCartesianDistance(motion_plan_req)) +" meters"));
+  selected_trajectory_stat_3_label_->setText("");
+  selected_trajectory_stat_3_label_->setText(QString::fromStdString(
+        floatToString(trajectory_stats.getExecutionDuration().toSec()) +" seconds"));
+  selected_trajectory_stat_4_label_->setText(QString::fromStdString(
+        floatToString(trajectory_stats.getMaxAngularError(trajectory.getTrajectoryError())) +" radians"));
 }
 
 void WarehouseViewer::initQtWidgets()
@@ -1673,7 +1705,7 @@ void WarehouseViewer::selectTrajectory(std::string ID)
   trajectory_point_edit_->setValue(point);
 
   selected_trajectory_label_->setText(QString::fromStdString(ID));
-  setCommonTrajectoryInfo(trajectory.getDuration());
+  setCommonTrajectoryInfo();
 
   if(trajectory.getSource() == "Planner" || trajectory.getSource() == "planner")
   {
@@ -1695,6 +1727,10 @@ void WarehouseViewer::selectTrajectory(std::string ID)
     {
       setExecutedTrajectoryInfo(true, trajectory);
     }
+  }
+  else if(trajectory.getSource() == "Overshoot Monitor")
+  {
+    setOvershootTrajectoryInfo(true, trajectory);
   }
 
   // Find the selected trajectory in the tree and make it visibly selected.
@@ -1879,7 +1915,7 @@ void WarehouseViewer::createTrajectoryTable()
     }
     else
     {
-      durationList.append("Duration");
+      durationList.append("");
     }
     durationList.append(QString::fromStdString(durationStream.str()));
     QTreeWidgetItem* durationItem = new QTreeWidgetItem(durationList);
