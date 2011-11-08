@@ -61,7 +61,7 @@ using namespace interactive_markers;
 
 #define MARKER_REFRESH_TIME 0.05
 #define SAFE_DELETE(x) if(x != NULL) { delete x; x = NULL; }
-#define NOT_MOVING_VELOCITY_THRESHOLD 0.05
+#define NOT_MOVING_VELOCITY_THRESHOLD 0.005
 #define NOT_MOVING_TIME_THRESHOLD 0.5	//seconds
 
 std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
@@ -4208,7 +4208,7 @@ void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGo
 {
   MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
-  logged.setTrajectoryError(logged_trajectory_);
+  logged.setTrajectoryError(logged_trajectory_controller_error_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
   logged.setTrajectoryRenderType(Temporal);
@@ -4235,7 +4235,7 @@ void PlanningSceneEditor::armHasStoppedMoving()
 {
   MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Overshoot Monitor", logged_group_name_, logged_trajectory_);
-  logged.setTrajectoryError(logged_trajectory_);
+  logged.setTrajectoryError(logged_trajectory_controller_error_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Duration(0));
   logged.setTrajectoryRenderType(Temporal);

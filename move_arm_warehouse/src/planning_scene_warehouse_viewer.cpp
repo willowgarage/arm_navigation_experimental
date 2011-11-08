@@ -225,12 +225,15 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   trajectory_info_box->setTitle("Trajectory Info");
 
   QLabel* selected_trajectory_title = new QLabel;
-  selected_trajectory_title->setText("Selected Trajectory: ");
+  selected_trajectory_title->setText("Selected Trajectory:           "); // Extra space used for buffer
   selected_trajectory_title->setToolTip("Selected trajectory.");
 
-  QLabel* selected_trajectory_error_title = new QLabel;
-  selected_trajectory_error_title->setText("Error Code: ");
-  selected_trajectory_error_title->setToolTip("Error code returned by service request.");
+  QLabel* selected_trajectory_source_title = new QLabel;
+  selected_trajectory_source_title->setText("Source: ");
+  selected_trajectory_source_title->setToolTip("Source of the trajectory.");
+
+  selected_trajectory_error_title_ = new QLabel;
+  selected_trajectory_error_title_->setText("");
 
   selected_trajectory_stat_1_title_ = new QLabel;
   selected_trajectory_stat_2_title_ = new QLabel;
@@ -240,6 +243,9 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
 
   selected_trajectory_label_ = new QLabel(this);
   selected_trajectory_label_->setText("None");
+
+  selected_trajectory_source_label_ = new QLabel(this);
+  selected_trajectory_source_label_->setText("");
 
   selected_trajectory_error_label_ = new QLabel(this);
   selected_trajectory_error_label_->setText("");
@@ -268,11 +274,12 @@ QGroupBox *WarehouseViewer::createTrajectoryInfoBox()
   // Generic Layout!
   trajectory_info_box_layout_ = new QFormLayout;
   trajectory_info_box_layout_->addRow(selected_trajectory_title,selected_trajectory_label_);
-  trajectory_info_box_layout_->addRow(selected_trajectory_error_title,selected_trajectory_error_label_);
+  trajectory_info_box_layout_->addRow(selected_trajectory_source_title,selected_trajectory_source_label_);
+  trajectory_info_box_layout_->addRow(selected_trajectory_error_title_,selected_trajectory_error_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_0_title_,selected_trajectory_stat_0_label_);
+  trajectory_info_box_layout_->addRow(selected_trajectory_stat_3_title_,selected_trajectory_stat_3_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_1_title_,selected_trajectory_stat_1_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_2_title_,selected_trajectory_stat_2_label_);
-  trajectory_info_box_layout_->addRow(selected_trajectory_stat_3_title_,selected_trajectory_stat_3_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_4_title_,selected_trajectory_stat_4_label_);
   trajectory_info_box_layout_->addRow(selected_trajectory_stat_5_title_,selected_trajectory_stat_5_label_);
   trajectory_info_box->setLayout(trajectory_info_box_layout_);
@@ -296,6 +303,9 @@ std::string WarehouseViewer::floatToString(double val)
 
 void WarehouseViewer::setCommonTrajectoryInfo()
 {
+  selected_trajectory_error_title_->setText("");
+  selected_trajectory_error_title_->setToolTip("");
+  selected_trajectory_error_label_->setText("");
   selected_trajectory_stat_0_title_->setText("");
   selected_trajectory_stat_0_title_->setMinimumWidth(100);
   selected_trajectory_stat_0_label_->setText("");
@@ -320,7 +330,9 @@ void WarehouseViewer::setPlannedTrajectoryInfo(bool success, planning_scene_util
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
-  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
+  selected_trajectory_error_title_->setText("Error Code: ");
+  selected_trajectory_error_title_->setToolTip("Error code returned by service request.");
+  selected_trajectory_stat_0_title_->setText("Plannning Time:");
   selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory planning request.");
   selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(trajectory.getDuration().toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
@@ -342,14 +354,16 @@ void WarehouseViewer::setFilteredTrajectoryInfo(bool success, planning_scene_uti
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
-  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
+  selected_trajectory_error_title_->setText("Error Code: ");
+  selected_trajectory_error_title_->setToolTip("Error code returned by service request.");
+  selected_trajectory_stat_0_title_->setText("Filtering Time:");
   selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory filter request.");
   selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(trajectory.getDuration().toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
   selected_trajectory_stat_2_title_->setToolTip("Cartesian distance travelled by the end-effector.");
-  selected_trajectory_stat_3_title_->setText("Execution Time: ");
+  selected_trajectory_stat_3_title_->setText("Trajectory Length: ");
   selected_trajectory_stat_3_title_->setToolTip("Expected time to execute the trajectory.");
 
   selected_trajectory_error_label_->setText(QString::fromStdString(
@@ -367,14 +381,16 @@ void WarehouseViewer::setExecutedTrajectoryInfo(bool success, planning_scene_uti
   TrajectoryStats trajectory_stats(trajectory.getTrajectory());
   MotionPlanRequestData& motion_plan_req = motion_plan_map_[ selected_motion_plan_name_ ];
 
-  selected_trajectory_stat_0_title_->setText("Service Time:                  "); // Extra space used for buffer
+  selected_trajectory_error_title_->setText("Error Code: ");
+  selected_trajectory_error_title_->setToolTip("Error code returned by service request.");
+  selected_trajectory_stat_0_title_->setText("Execution Time:");
   selected_trajectory_stat_0_title_->setToolTip("Time to service the trajectory execution request.");
   selected_trajectory_stat_0_label_->setText(QString::fromStdString(floatToString(trajectory.getDuration().toSec())+" seconds"));
   selected_trajectory_stat_1_title_->setText("Angular Movement: ");
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
   selected_trajectory_stat_2_label_->setToolTip("Currently selected trajectory cartesian distance.");
-  selected_trajectory_stat_3_title_->setText("Execution Time: ");
+  selected_trajectory_stat_3_title_->setText("Trajectory Length: ");
   selected_trajectory_stat_3_title_->setToolTip("Actual time to execute the trajectory.");
   selected_trajectory_stat_4_title_->setText("Max Controller Error: ");
   selected_trajectory_stat_4_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
@@ -402,14 +418,14 @@ void WarehouseViewer::setOvershootTrajectoryInfo(bool success, planning_scene_ut
   selected_trajectory_stat_1_title_->setToolTip("Sum of angular movement of all joints.");
   selected_trajectory_stat_2_title_->setText("Cartesian Distance: ");
   selected_trajectory_stat_2_label_->setToolTip("Currently selected trajectory cartesian distance.");
-  selected_trajectory_stat_3_title_->setText("Execution Time: ");
+  selected_trajectory_stat_3_title_->setText("Trajectory Length: ");
   selected_trajectory_stat_3_title_->setToolTip(".");
   selected_trajectory_stat_4_title_->setText("Max Controller Error: ");
   selected_trajectory_stat_4_title_->setToolTip("Max of the angular errors of the controller during execution of the trajectory.");
 
-  selected_trajectory_error_label_->setText(QString::fromStdString(
-        getResultErrorFromCode(trajectory.trajectory_error_code_.val) +
-        " (" + intToString(trajectory.trajectory_error_code_.val) + ")" ) );
+  //selected_trajectory_error_label_->setText(QString::fromStdString(
+  //      getResultErrorFromCode(trajectory.trajectory_error_code_.val) +
+  //      " (" + intToString(trajectory.trajectory_error_code_.val) + ")" ) );
   selected_trajectory_stat_1_label_->setText(QString::fromStdString(
         floatToString(trajectory_stats.getAngularDistance()) + " radians" ));
   selected_trajectory_stat_2_label_->setText(QString::fromStdString(
@@ -1312,7 +1328,7 @@ void WarehouseViewer::createMotionPlanTable()
       motion_plan_tree_->setItemWidget(pathItem, 3, setPathConstraintsButton);
       
       QStringList renderTypeList;
-      renderTypeList.append("Render Mode");
+      renderTypeList.append("Model Rendering Mode");
       QTreeWidgetItem* renderTypeItem = new QTreeWidgetItem(renderTypeList);
       renderTypeItem->setToolTip(0, nameItem->text(0));
 
@@ -1705,6 +1721,8 @@ void WarehouseViewer::selectTrajectory(std::string ID)
   trajectory_point_edit_->setValue(point);
 
   selected_trajectory_label_->setText(QString::fromStdString(ID));
+  selected_trajectory_source_label_->setText(QString::fromStdString(trajectory.getSource()));
+
   setCommonTrajectoryInfo();
 
   if(trajectory.getSource() == "Planner" || trajectory.getSource() == "planner")
@@ -1889,40 +1907,6 @@ void WarehouseViewer::createTrajectoryTable()
     nameItem->setToolTip(0, nameItem->text(0));
     trajectory_tree_->insertTopLevelItem(count, nameItem);
 
-    QStringList sourceList;
-    sourceList.append("Source");
-    sourceList.append(QStringList(QString::fromStdString(trajectory.getSource())));
-    QTreeWidgetItem* sourceItem = new QTreeWidgetItem(sourceList);
-    sourceItem->setToolTip(0, nameItem->text(0));
-    sourceItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    nameItem->insertChild(0, sourceItem);
-
-    std::stringstream durationStream;
-    durationStream << (float)trajectory.getDuration().toSec() << " seconds";
-
-    QStringList durationList;
-    if(trajectory.getSource() == "Planner" || trajectory.getSource() == "planner")
-    {
-      durationList.append("Planning Time");
-    }
-    else if (trajectory.getSource() == "Trajectory Filterer" || trajectory.getSource() == "filter")
-    {
-      durationList.append("Filter Time");
-    }
-    else if(trajectory.getSource() == "Robot Monitor" || trajectory.getSource() == "monitor")
-    {
-      durationList.append("Execution Time");
-    }
-    else
-    {
-      durationList.append("");
-    }
-    durationList.append(QString::fromStdString(durationStream.str()));
-    QTreeWidgetItem* durationItem = new QTreeWidgetItem(durationList);
-    durationItem->setToolTip(0, nameItem->text(0));
-    durationItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    nameItem->insertChild(1, durationItem);
-
     QStringList collisionList;
     collisionList.append("");
     QTreeWidgetItem* collisionItem = new QTreeWidgetItem(collisionList);
@@ -1931,7 +1915,7 @@ void WarehouseViewer::createTrajectoryTable()
     collisionsVisibleBox->setText("Show Collisions");
     collisionsVisibleBox->setChecked(trajectory.areCollisionsVisible());
     collisionsVisibleBox->setToolTip(nameItem->text(0));
-    nameItem->insertChild(2, collisionItem);
+    nameItem->insertChild(0, collisionItem);
     trajectory_tree_->setItemWidget(collisionItem, 0, collisionsVisibleBox);
     connect(collisionsVisibleBox, SIGNAL(clicked(bool)), this, SLOT(trajectoryCollisionsVisibleButtonClicked(bool)));
 
@@ -1942,7 +1926,7 @@ void WarehouseViewer::createTrajectoryTable()
     QCheckBox* visibleBox = new QCheckBox(trajectory_tree_);
     visibleBox->setText("Visible");
     visibleBox->setChecked(trajectory.isVisible());
-    nameItem->insertChild(3, visibleItem);
+    nameItem->insertChild(1, visibleItem);
     trajectory_tree_->setItemWidget(visibleItem, 0, visibleBox);
     visibleBox->setToolTip(nameItem->text(0));
     connect(visibleBox, SIGNAL(clicked(bool)), this, SLOT(trajectoryVisibleButtonClicked(bool)));
@@ -1964,7 +1948,7 @@ void WarehouseViewer::createTrajectoryTable()
     colorButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     connect(colorButton, SIGNAL(clicked()), this, SLOT(trajectoryColorButtonClicked()));
 
-    nameItem->insertChild(4, colorItem);
+    nameItem->insertChild(2, colorItem);
     trajectory_tree_->setItemWidget(colorItem, 1, colorButton);
 
     QStringList trajectoryTypeList;
@@ -1978,7 +1962,7 @@ void WarehouseViewer::createTrajectoryTable()
     trajectoryRenderTypeBox->addItems(traj_items);
     trajectoryRenderTypeBox->setToolTip(nameItem->text(0));
     connect(trajectoryRenderTypeBox, SIGNAL(currentIndexChanged(int)), this, SLOT(trajectoryRenderTypeChanged(const int&)));
-    nameItem->insertChild(5,trajectoryRenderTypeItem);
+    nameItem->insertChild(3,trajectoryRenderTypeItem);
     trajectory_tree_->setItemWidget(trajectoryRenderTypeItem, 1, trajectoryRenderTypeBox);
 
     switch(trajectory.getTrajectoryRenderType())
@@ -2005,7 +1989,7 @@ void WarehouseViewer::createTrajectoryTable()
     renderTypeBox->setToolTip(nameItem->text(0));
     connect(renderTypeBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(modelRenderTypeChanged(const QString&)));
 
-    nameItem->insertChild(6, renderTypeItem);
+    nameItem->insertChild(4, renderTypeItem);
     trajectory_tree_->setItemWidget(renderTypeItem, 1, renderTypeBox);
 
     switch(trajectory.getRenderType())

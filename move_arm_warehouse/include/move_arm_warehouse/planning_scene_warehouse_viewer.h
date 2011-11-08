@@ -559,6 +559,8 @@ protected:
   
   bool planning_scene_initialized_;
   QLabel* selected_trajectory_label_;
+  QLabel* selected_trajectory_source_label_;
+  QLabel* selected_trajectory_error_title_;
   QLabel* selected_trajectory_error_label_;
   QLabel* selected_request_label_;
   QLabel* selected_trajectory_stat_0_title_;
