@@ -156,6 +156,7 @@ void MoveArmWarehouseLoggerReader::pushJointTrajectoryToWarehouse(const unsigned
                                                                   const std::string& trajectory_source,
                                                                   const ros::Duration& production_time,
                                                                   const trajectory_msgs::JointTrajectory& trajectory,
+                                                                  const trajectory_msgs::JointTrajectory& trajectory_control_error,
                                                                   const unsigned int trajectory_id,
                                                                   const unsigned int motion_request_id,
                                                                   const arm_navigation_msgs::ArmNavigationErrorCodes& error_code)
@@ -168,6 +169,7 @@ void MoveArmWarehouseLoggerReader::pushJointTrajectoryToWarehouse(const unsigned
   metadata.append(TRAJECTORY_ID_NAME, trajectory_id);
   metadata.append(TRAJECTORY_MOTION_REQUEST_ID_NAME, motion_request_id);
   metadata.append("trajectory_error_code", error_code.val);
+  metadata.append("controller_error", jointTrajectoryToString(trajectory_control_error));
   trajectory_collection_->insert(trajectory, metadata);
 }
 
@@ -379,7 +381,8 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectory(const std::strin
                                                                 const unsigned int motion_request_id,
                                                                 const unsigned int trajectory_id,
                                                                 ros::Duration& duration, 
-                                                                trajectory_msgs::JointTrajectory& joint_trajectory)
+                                                                trajectory_msgs::JointTrajectory& joint_trajectory,
+                                                                trajectory_msgs::JointTrajectory& trajectory_control_error)
 {
   mongo_ros::Query q = makeQueryForPlanningSceneId(planning_scene_id);  
   q.append(TRAJECTORY_MOTION_REQUEST_ID_NAME, motion_request_id);
@@ -398,6 +401,7 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectory(const std::strin
   
   duration = ros::Duration(joint_trajectories[0]->lookupDouble("production_time"));
   joint_trajectory = *joint_trajectories[0];
+  stringToJointTrajectory(joint_trajectories[0]->lookupString("controller_error"),trajectory_control_error);
   return true;
 }
 
@@ -405,12 +409,14 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectories(const std::str
                                                                   const unsigned int planning_scene_id,
                                                                   const unsigned int motion_request_id,
                                                                   std::vector<trajectory_msgs::JointTrajectory>& trajectories,
+                                                                  std::vector<trajectory_msgs::JointTrajectory>& trajectory_control_errors,
                                                                   std::vector<std::string>& sources,
                                                                   std::vector<unsigned int>& ids,
                                                                   std::vector<ros::Duration>& durations,
                                                                   std::vector<int32_t>& error_codes)
 {
   trajectories.clear();
+  trajectory_control_errors.clear();
   sources.clear();
   ids.clear();
   durations.clear();
@@ -418,10 +424,13 @@ bool MoveArmWarehouseLoggerReader::getAssociatedJointTrajectories(const std::str
   mongo_ros::Query q = makeQueryForPlanningSceneId(planning_scene_id);
   q.append(TRAJECTORY_MOTION_REQUEST_ID_NAME, motion_request_id);
   std::vector<JointTrajectoryWithMetadata> joint_trajectories = trajectory_collection_->pullAllResults(q, false);
+ trajectory_msgs::JointTrajectory trajectory_control_error;
 
   for(size_t i = 0; i < joint_trajectories.size(); i++)
   {
     trajectories.push_back(*joint_trajectories[i]);
+    stringToJointTrajectory(joint_trajectories[i]->lookupString("controller_error"),trajectory_control_error);
+    trajectory_control_errors.push_back(trajectory_control_error);
     sources.push_back(joint_trajectories[i]->lookupString("trajectory_source"));
     ids.push_back(joint_trajectories[i]->lookupInt(TRAJECTORY_ID_NAME));
     ROS_DEBUG_STREAM("Loading mpr id " << motion_request_id << " trajectory " << ids[i] << " from warehouse...");
@@ -504,6 +513,55 @@ bool MoveArmWarehouseLoggerReader::removePlanningSceneAndAssociatedDataFromWareh
   ROS_DEBUG_STREAM("Removed " << rem << " paused states");
 
   return has_planning_scene;
+}
+
+std::string MoveArmWarehouseLoggerReader::jointTrajectoryToString(const trajectory_msgs::JointTrajectory& trajectory)
+{
+  std::stringstream returnval;
+  returnval << trajectory.points.size() << ",";
+  for( unsigned int i=0; i<trajectory.points.size(); i++)
+  {
+    const trajectory_msgs::JointTrajectoryPoint& point = trajectory.points[i];
+    returnval << point.positions.size() << ",";
+    for( unsigned int j=0; j<point.positions.size(); j++ )
+    {
+      returnval << point.positions[j] << ",";
+      returnval << point.velocities[j] << ",";
+    }
+  }
+
+  return returnval.str();
+}
+
+void MoveArmWarehouseLoggerReader::stringToJointTrajectory(const std::string& trajectory, trajectory_msgs::JointTrajectory& joint_trajectory_error)
+{
+  std::stringstream stream(trajectory);
+  double position;
+  double velocity;
+  char c;
+  int tsize;
+  int psize;
+  joint_trajectory_error.points.clear();
+
+
+  stream >> tsize;
+  stream >> c;
+  for( int i=0; i<tsize; i++)
+  {
+    trajectory_msgs::JointTrajectoryPoint point;
+    stream >> psize;
+    stream >> c;
+    for( int j=0; j<psize; j++)
+    {
+      stream >> position;
+      stream >> c;
+      stream >> velocity;
+      stream >> c;
+      point.positions.push_back(position);
+      point.velocities.push_back(position);
+    }
+    joint_trajectory_error.points.push_back(point);
+  }
 }
 
 // void MoveArmWarehouseLoggerReader::deleteMotionPlanRequestFromWarehouse(const arm_navigation_msgs::PlanningScene& planning_scene,

@@ -69,6 +69,7 @@
 #include <pr2_mechanism_msgs/LoadController.h>
 #include <pr2_mechanism_msgs/UnloadController.h>
 #include <pr2_mechanism_msgs/SwitchController.h>
+#include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 #include <gazebo_msgs/SetLinkProperties.h>
 #include <gazebo_msgs/GetLinkProperties.h>
 
@@ -130,6 +131,29 @@ inline static std::string getTrajectoryNameFromId(const unsigned int id) {
   std::stringstream ss;
   ss << "Trajectory " << id;
   return ss.str();
+}
+
+/**
+  @brief Convert a control error code into a string value
+  @param error_code The input error code
+  @return The resultant string message
+*/
+inline static std::string getResultErrorFromCode(int error_code)
+{
+  std::string result;
+  if(error_code == control_msgs::FollowJointTrajectoryResult::SUCCESSFUL)
+     result = "Success";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::INVALID_GOAL)
+     result = "Invalid Goal";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS)
+     result = "Invalid Joints";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::OLD_HEADER_TIMESTAMP)
+     result = "Old header timestamp";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::PATH_TOLERANCE_VIOLATED)
+     result = "Path tolerance violated";
+  else if(error_code == control_msgs::FollowJointTrajectoryResult::GOAL_TOLERANCE_VIOLATED)
+     result = "Goal tolerance violated";
+  return result;
 }
 
 ////
@@ -890,6 +914,7 @@ protected:
   unsigned int planning_scene_id_;
   unsigned int motion_plan_request_Id_;
   trajectory_msgs::JointTrajectory trajectory_;
+  trajectory_msgs::JointTrajectory trajectory_error_;
   bool is_visible_;
   MarkerType marker_type_;
   bool is_playing_;
@@ -906,6 +931,7 @@ protected:
   visualization_msgs::MarkerArray collision_markers_;
   RenderType render_type_;
   TrajectoryRenderType trajectory_render_type_;
+  ros::Duration time_to_stop_;
 public:
 
   /// @brief This counter is exhausted when the trajectory's color has changed.
@@ -917,6 +943,8 @@ public:
   TrajectoryData();
   TrajectoryData(const unsigned int& id, const std::string& source, const std::string& group_name,
                  const trajectory_msgs::JointTrajectory& trajectory);
+  TrajectoryData(const unsigned int& id, const std::string& source, const std::string& group_name,
+                 const trajectory_msgs::JointTrajectory& trajectory, const trajectory_msgs::JointTrajectory& trajectory_error);
 
   /// @brief Sets the current state of the trajectory to the current trajectory point + amount.
   /// Allows for negative values. Does not overshoot the trajectory's end or start.
@@ -1211,6 +1239,18 @@ public:
     trajectory_ = trajectory;
   }
 
+  /// @brief Returns the underlying trajectory.
+  inline trajectory_msgs::JointTrajectory& getTrajectoryError()
+  {
+    return trajectory_error_;
+  }
+
+  /// @brief see getTrajectoryError
+  inline void setTrajectoryError(const trajectory_msgs::JointTrajectory& trajectory_error)
+  {
+    trajectory_error_ = trajectory_error;
+  }
+
   /// @brief Returns the unique Id of the trajectory
   inline unsigned int getId() const
   {
@@ -1250,7 +1290,6 @@ public:
   /// for each collision point.
   void updateCollisionMarkers(planning_environment::CollisionModels* cm_, MotionPlanRequestData& motionPlanRequest,
                               ros::ServiceClient* distance_state_validity_service_client_);
-
 };
 
 ////
@@ -1318,7 +1357,7 @@ protected:
   /////
   enum MonitorStatus
     {
-      idle, Executing, Done
+      idle, Executing, WaitingForStop, Done
     };
 
   /////
@@ -1416,6 +1455,8 @@ protected:
   ros::Publisher vis_marker_array_publisher_;
   ros::Publisher vis_marker_publisher_;
   ros::Subscriber joint_state_subscriber_;
+  ros::Subscriber r_arm_controller_state_subscriber_;
+  ros::Subscriber l_arm_controller_state_subscriber_;
   ros::ServiceClient collision_proximity_planner_client_;
   ros::ServiceClient distance_aware_service_client_;
   ros::ServiceClient distance_state_validity_service_client_;
@@ -1450,7 +1491,9 @@ protected:
   bool use_interpolated_planner_;
 
   trajectory_msgs::JointTrajectory logged_trajectory_;
+  trajectory_msgs::JointTrajectory logged_trajectory_controller_error_;
   ros::Time logged_trajectory_start_time_;
+  int logged_trajectory_controller_error_code_;
 
   bool send_collision_markers_;
   std::string collision_marker_state_;
@@ -1490,6 +1533,8 @@ protected:
   std_msgs::ColorRGBA last_mesh_object_color_;
 
   MonitorStatus monitor_status_;
+  ros::Time time_of_controller_done_callback_;
+  ros::Time time_of_last_moving_notification_;
 
   ros::Time last_marker_start_time_;
   ros::Duration marker_dt_;
@@ -1906,10 +1951,22 @@ public:
                               const control_msgs::FollowJointTrajectoryResultConstPtr& result);
 
   /////
+  /// @brief Called when the robot actually stops moving, following execution of the trajectory.
+  /////
+  void armHasStoppedMoving();
+
+  /////
   /// @brief Called when the robot monitor detects a change in the robot state.
   /// @param joint_state the new state of the robot.
   /////
   void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state);
+
+/////
+/// @brief Called when the arm controller has a state update
+/// @param joint control state of the arm controller.
+/////
+void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTrajectoryControllerStateConstPtr& joint_state);
+
 
   /////
   /// @brief gets all the motion plan requests, trajectories, and planning scenes from the warehouse.

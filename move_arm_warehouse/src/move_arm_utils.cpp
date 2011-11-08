@@ -61,6 +61,8 @@ using namespace interactive_markers;
 
 #define MARKER_REFRESH_TIME 0.05
 #define SAFE_DELETE(x) if(x != NULL) { delete x; x = NULL; }
+#define NOT_MOVING_VELOCITY_THRESHOLD 0.005
+#define NOT_MOVING_TIME_THRESHOLD 0.5	//seconds
 
 std_msgs::ColorRGBA makeRandomColor(float brightness, float alpha)
 {
@@ -122,13 +124,34 @@ TrajectoryData::TrajectoryData()
   trajectory_render_type_ = Kinematic;
 }
 
-TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName, const JointTrajectory& trajectory)
+TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName,
+                  const JointTrajectory& trajectory)
 {
   setCurrentState(NULL);
   setId(id);
   setSource(source);
   setGroupName(groupName);
   setTrajectory(trajectory);
+  setColor(makeRandomColor(0.3f, 0.6f));
+  reset();
+  showCollisions();
+  should_refresh_colors_ = false;
+  has_refreshed_colors_ = true;
+  refresh_timer_ = ros::Duration(0.0);
+  trajectory_error_code_.val = 0;
+  setRenderType(CollisionMesh);
+  trajectory_render_type_ = Kinematic;
+}
+
+TrajectoryData::TrajectoryData(const unsigned int& id, const string& source, const string& groupName,
+                  const JointTrajectory& trajectory, const trajectory_msgs::JointTrajectory& trajectory_error)
+{
+  setCurrentState(NULL);
+  setId(id);
+  setSource(source);
+  setGroupName(groupName);
+  setTrajectory(trajectory);
+  setTrajectoryError(trajectory_error);
   setColor(makeRandomColor(0.3f, 0.6f));
   reset();
   showCollisions();
@@ -213,6 +236,11 @@ void TrajectoryData::advanceThroughTrajectory(int step)
 
 void TrajectoryData::updateCurrentState()
 {
+  if(getTrajectory().points.size() <= 0)
+  {
+    return;
+  }
+
   map<string, double> joint_values;
   for(unsigned int i = 0; i < getTrajectory().joint_names.size(); i++)
   {
@@ -942,6 +970,14 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   {
     joint_state_subscriber_ = nh_.subscribe("joint_states", 25, &PlanningSceneEditor::jointStateCallback, this);
   }
+
+  /////
+  /// Connection with joint controller
+  if(params.use_robot_data_)
+  {
+    r_arm_controller_state_subscriber_ = nh_.subscribe("r_arm_controller/state", 25, &PlanningSceneEditor::jointTrajectoryControllerStateCallback, this);
+    l_arm_controller_state_subscriber_ = nh_.subscribe("l_arm_controller/state", 25, &PlanningSceneEditor::jointTrajectoryControllerStateCallback, this);
+  }
 }
 
 void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
@@ -996,19 +1032,71 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
   robot_state_->updateKinematicLinks();
   robot_state_->getKinematicStateValues(robot_state_joint_values_);
   unlockScene();
+}
+
+void PlanningSceneEditor::jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTrajectoryControllerStateConstPtr& joint_controller_state)
+{
+  trajectory_msgs::JointTrajectoryPoint actual = joint_controller_state->actual;
+  trajectory_msgs::JointTrajectoryPoint error = joint_controller_state->error;
+  bool robot_stopped = true;
+
   // Records trajectory if currently executing.
-  if(monitor_status_ == Executing)
+  if(monitor_status_ == Executing || monitor_status_ == WaitingForStop)
   {
-    trajectory_msgs::JointTrajectoryPoint point;
-    point.positions.resize(logged_trajectory_.joint_names.size());
-    point.velocities.resize(logged_trajectory_.joint_names.size());
-    for(unsigned int i = 0; i < logged_trajectory_.joint_names.size(); i++)
+    // Filter out the joints of the other group/arm
+    if( logged_trajectory_.joint_names[0] != joint_controller_state->joint_names[0] )
     {
-      point.positions[i] = joint_state_map[logged_trajectory_.joint_names[i]];
-      point.velocities[i] = joint_velocity_map[logged_trajectory_.joint_names[i]];
+      return;
     }
-    point.time_from_start = ros::Time(ros::Time::now().toSec()) - logged_trajectory_start_time_;
+
+    trajectory_msgs::JointTrajectoryPoint point;
+    trajectory_msgs::JointTrajectoryPoint error_point;
+
+    // note-- could record accelerations as well, if we wanted to.
+    unsigned int num_joints = logged_trajectory_.joint_names.size();
+    point.positions.resize(num_joints);
+    point.velocities.resize(num_joints);
+    error_point.positions.resize(num_joints);
+    error_point.velocities.resize(num_joints);
+
+    for(unsigned int i = 0; i < num_joints; i++)
+    {
+      point.positions[i] = actual.positions[i];
+      point.velocities[i] = actual.velocities[i];
+      error_point.positions[i] = error.positions[i];
+      error_point.velocities[i] = error.velocities[i];
+    }
+
+    ros::Duration time_from_start = ros::Time(ros::Time::now().toSec()) - logged_trajectory_start_time_;
+    point.time_from_start = time_from_start;
+    error_point.time_from_start = time_from_start;
+
     logged_trajectory_.points.push_back(point);
+    logged_trajectory_controller_error_.points.push_back(error_point);
+
+    // Stop recording if the robot has stopped for a period of time.
+    if(monitor_status_ == WaitingForStop )
+    {
+      for(unsigned int i = 0; i < num_joints; i++)
+      {
+        if( point.velocities[i] > NOT_MOVING_VELOCITY_THRESHOLD )
+        {
+          robot_stopped = false;
+        }
+      }
+
+      if( robot_stopped )
+      {
+        if( (ros::Time::now()-time_of_last_moving_notification_).toSec() >= NOT_MOVING_TIME_THRESHOLD )
+        {
+          armHasStoppedMoving();
+        }
+      }
+      else
+      {
+        time_of_last_moving_notification_ = ros::Time::now();
+      }
+    }
   }
 }
 
@@ -1170,6 +1258,7 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       motion_data.setPlanningSceneId(planning_scene_id);
 
       std::vector<JointTrajectory> trajs;
+      std::vector<JointTrajectory> traj_cnt_errs;
       std::vector<string> sources;
       std::vector<unsigned int> traj_ids;
       std::vector<ros::Duration> durations;
@@ -1180,13 +1269,14 @@ void PlanningSceneEditor::setCurrentPlanningScene(std::string planning_scene_nam
       /////
       if(loadTrajectories)
       {
-        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", scene.getId(), motion_id, trajs, sources,
+        move_arm_warehouse_logger_reader_->getAssociatedJointTrajectories("", scene.getId(), motion_id, trajs, traj_cnt_errs, sources,
                                                                           traj_ids, durations, errors);
 
         for(size_t k = 0; k < trajs.size(); k++)
         {
           TrajectoryData trajectory_data;
           trajectory_data.setTrajectory(trajs[k]);
+          trajectory_data.setTrajectoryError(traj_cnt_errs[k]);
           trajectory_data.setSource(sources[k]);
           trajectory_data.setId(traj_ids[k]);
           trajectory_data.setMotionPlanRequestId(motion_data.getId());
@@ -2056,7 +2146,8 @@ void PlanningSceneEditor::savePlanningScene(PlanningSceneData& data, bool copy)
                                                                         traj.getSource(),
                                                                         traj.getDuration(), 
                                                                         traj.getTrajectory(),
-                                                                        traj.getId(), 
+                                                                        traj.getTrajectoryError(),
+                                                                        traj.getId(),
                                                                         traj.getMotionPlanRequestId(), 
                                                                         traj.trajectory_error_code_);
       move_arm_warehouse_logger_reader_->pushOutcomeToWarehouse(id_to_push,
@@ -4015,6 +4106,7 @@ void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
   logged_motion_plan_request_ = getMotionPlanRequestNameFromId(trajectory.getMotionPlanRequestId());
   logged_trajectory_ = trajectory.getTrajectory();
   logged_trajectory_.points.clear();
+  logged_trajectory_controller_error_.points.clear();
   logged_trajectory_start_time_ = ros::Time::now() + ros::Duration(0.2);
   monitor_status_ = Executing;
 
@@ -4114,22 +4206,52 @@ void PlanningSceneEditor::randomlyPerturb(MotionPlanRequestData& mpr, PositionTy
 void PlanningSceneEditor::controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                                                  const control_msgs::FollowJointTrajectoryResultConstPtr& result)
 {
-  monitor_status_ = idle;
   MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
   TrajectoryData logged(mpr.getNextTrajectoryId(), "Robot Monitor", logged_group_name_, logged_trajectory_);
+  logged.setTrajectoryError(logged_trajectory_controller_error_);
   logged.setBadPoint(-1);
   logged.setDuration(ros::Time::now() - logged_trajectory_start_time_);
   logged.setTrajectoryRenderType(Temporal);
   logged.setMotionPlanRequestId(mpr.getId());
   logged.trajectory_error_code_.val = result->error_code;
-  mpr.addTrajectoryId(logged.getId());                    
+  mpr.addTrajectoryId(logged.getId());
   trajectory_map_[mpr.getName()][logged.getName()] = logged;
   logged_trajectory_.points.clear();
-  logged_group_name_ = "";
-  logged_motion_plan_request_ = "";
+  logged_trajectory_controller_error_.points.clear();
+  //logged_group_name_ = "";
+  //logged_motion_plan_request_ = "";
   selected_trajectory_name_ = getTrajectoryNameFromId(logged.getId());
   updateState();
   ROS_INFO("CREATING TRAJECTORY %s", logged.getName().c_str());
+
+  // Keep recording a second trajectory to analize the overshoot
+  monitor_status_ = WaitingForStop;
+  time_of_controller_done_callback_ = ros::Time::now();
+  time_of_last_moving_notification_ = ros::Time::now();
+  logged_trajectory_start_time_ = ros::Time::now();
+}
+
+void PlanningSceneEditor::armHasStoppedMoving()
+{
+  MotionPlanRequestData& mpr = motion_plan_map_[logged_motion_plan_request_];
+  TrajectoryData logged(mpr.getNextTrajectoryId(), "Overshoot Monitor", logged_group_name_, logged_trajectory_);
+  logged.setTrajectoryError(logged_trajectory_controller_error_);
+  logged.setBadPoint(-1);
+  logged.setDuration(ros::Duration(0));
+  logged.setTrajectoryRenderType(Temporal);
+  logged.setMotionPlanRequestId(mpr.getId());
+  logged.trajectory_error_code_.val = 0;
+  mpr.addTrajectoryId(logged.getId());
+  trajectory_map_[mpr.getName()][logged.getName()] = logged;
+  logged_trajectory_.points.clear();
+  logged_trajectory_controller_error_.points.clear();
+  logged_group_name_ = "";
+  logged_motion_plan_request_ = "";
+  //selected_trajectory_name_ = getTrajectoryNameFromId(logged.getId());
+  updateState();
+  ROS_INFO("CREATING TRAJECTORY %s", logged.getName().c_str());
+
+  monitor_status_ = idle;
 }
 
 void PlanningSceneEditor::getAllRobotStampedTransforms(const planning_models::KinematicState& state,

@@ -40,6 +40,7 @@
 #define TRAJECTORY_STATS_H
 
 #include <move_arm_warehouse/move_arm_utils.h>
+#include <trajectory_msgs/JointTrajectory.h>
 
 namespace planning_scene_utils
 {
@@ -53,10 +54,14 @@ namespace planning_scene_utils
 class TrajectoryStats
 {
 protected:
-  planning_scene_utils::TrajectoryData& trajectory_;
+  trajectory_msgs::JointTrajectory& trajectory_;
 
 public:
-  TrajectoryStats(planning_scene_utils::TrajectoryData& trajectory) : trajectory_(trajectory) {}
+  TrajectoryStats(trajectory_msgs::JointTrajectory& trajectory) : trajectory_(trajectory) {}
+
+  /// @brief returns the (estimated/actual) duration of the trajectory (time between start and goal points).
+  /// Note, if the trajectory does not have valid timestamps, the return value will probably be zero duration.
+  ros::Duration getExecutionDuration();
 
   /// @brief returns the sum of the angular movements (in radians) by every joint in the arm as it moves through the trajectory.
   /// Linear interpolation is used to calculate this metric.
@@ -66,9 +71,14 @@ public:
   /// Linear interpolation is used to calculate this metric.
   double getCartesianDistance(planning_scene_utils::MotionPlanRequestData& motion_plan_req);
 
-  /// @brief returns the minimal clearance distance (in meters) of the arm as it moves through the trajectory.
-  /// Linear interpolation is used to calculate this metric.
-  double getClearanceDistance(planning_scene_utils::PlanningSceneData& scene);
+  // / @brief returns the minimal clearance distance (in meters) of the arm as it moves through the trajectory.
+  // / Linear interpolation is used to calculate this metric.
+  //double getClearanceDistance(planning_scene_utils::PlanningSceneData& scene);
+
+  /// @brief returns the maximum angular error over all joints for all points on the trajectory
+  /// This is useful for determining how well the controller executed the trajectory.
+  double getMaxAngularError(trajectory_msgs::JointTrajectory& trajectory_error);
+
 };
 
 };

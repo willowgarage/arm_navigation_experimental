@@ -44,16 +44,29 @@ using namespace std;
 using namespace planning_scene_utils;
 using namespace planning_models;
 
+ros::Duration TrajectoryStats::getExecutionDuration()
+{
+  size_t tsize = trajectory_.points.size();
+  if( tsize < 1 )
+  {
+    return ros::Duration(0,0);
+  }
+
+  trajectory_msgs::JointTrajectoryPoint& point1 = trajectory_.points[0];
+  trajectory_msgs::JointTrajectoryPoint& point2 = trajectory_.points[tsize-1];
+  return point2.time_from_start - point1.time_from_start;
+}
+
 double TrajectoryStats::getAngularDistance()
 {
   double angular_diff_sum = 0.0;
-  size_t tsize = trajectory_.getTrajectorySize();
+  size_t tsize = trajectory_.points.size();
 
   // Loop through trajectory points
   for(unsigned int i=1; i<tsize; i++)
   {
-    trajectory_msgs::JointTrajectoryPoint point1 = trajectory_.getTrajectory().points[i-1];
-    trajectory_msgs::JointTrajectoryPoint point2 = trajectory_.getTrajectory().points[i];
+    trajectory_msgs::JointTrajectoryPoint point1 = trajectory_.points[i-1];
+    trajectory_msgs::JointTrajectoryPoint point2 = trajectory_.points[i];
 
     if(point1.positions.size() != point2.positions.size())
     {
@@ -80,11 +93,11 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
   KinematicState::JointStateGroup* joint_state_group = kin_state->getJointStateGroup(motion_plan_req.getGroupName());
 
   // Loop through trajectory points
-  size_t tsize = trajectory_.getTrajectorySize();
+  size_t tsize = trajectory_.points.size();
   for(unsigned int i=1; i<tsize; i++)
   {
     // Get position of end-effector at the first point of the trajectory.
-    trajectory_msgs::JointTrajectoryPoint point1 = trajectory_.getTrajectory().points[i-1];
+    trajectory_msgs::JointTrajectoryPoint point1 = trajectory_.points[i-1];
     if( !joint_state_group->setKinematicState(point1.positions) )
     {
       ROS_ERROR("Mismatch in number of joints.");
@@ -96,7 +109,7 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
     const btVector3 end_effector_location1 = end_effector_transform1.getOrigin();
 
     // Get position of end-effector at the next point of the trajectory.
-    trajectory_msgs::JointTrajectoryPoint point2 = trajectory_.getTrajectory().points[i];
+    trajectory_msgs::JointTrajectoryPoint point2 = trajectory_.points[i];
     if( !joint_state_group->setKinematicState(point2.positions) )
     {
       ROS_ERROR("Mismatch in number of joints.");
@@ -115,7 +128,34 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
   return cartesian_distance_sum;
 }
 
+/*
 double TrajectoryStats::getClearanceDistance(planning_scene_utils::PlanningSceneData& scene)
 {
   return 0;
+}
+*/
+
+double TrajectoryStats::getMaxAngularError(trajectory_msgs::JointTrajectory& trajectory_error)
+{
+  double max_error = 0.0;
+
+  // Loop through trajectory points
+  size_t tsize = trajectory_error.points.size();
+  for(unsigned int i=0; i<tsize; i++)
+  {
+    trajectory_msgs::JointTrajectoryPoint& point = trajectory_error.points[i];
+
+    // Loop through all joints
+    size_t num_pos = point.positions.size();
+    for(unsigned int j=0; j<num_pos; j++)
+    {
+      double error = abs(point.positions[j]);
+      if(error>max_error)
+      {
+        max_error = error;
+      }
+    }
+  }
+
+  return max_error;
 }
