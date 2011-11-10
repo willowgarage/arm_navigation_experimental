@@ -33,6 +33,7 @@ The move_arm package provides an implementation of a action (see the <a href="ht
   <depend package="interpolated_ik_motion_planner"/>
   <depend package="ompl_ros_interface"/>
   <depend package="interpolated_ik_motion_planner"/>
+  <depend package="constraint_aware_spline_smoother"/>
 
 
   <export>

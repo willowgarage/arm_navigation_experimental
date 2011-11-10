@@ -261,20 +261,9 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
     {
       res.trajectory.joint_trajectory.points[i].positions[j] = trajectory.getTrajectoryPoint(i)(j);
     }
-    if (i==0)
-      res.trajectory.joint_trajectory.points[i].time_from_start = ros::Duration(0.0);
-    else
-    {
-      double duration = trajectory.getDiscretization();
-      // check with all the joints if this duration is ok, else push it up
-      for (int j=0; j < trajectory.getNumJoints(); j++)
-      {
-        double d = fabs(res.trajectory.joint_trajectory.points[i].positions[j] - res.trajectory.joint_trajectory.points[i-1].positions[j]) / velocity_limits[j];
-        if (d > duration)
-          duration = d;
-      }
-      res.trajectory.joint_trajectory.points[i].time_from_start = res.trajectory.joint_trajectory.points[i-1].time_from_start + ros::Duration(duration);
-    }
+    // Setting invalid timestamps.
+    // Further filtering is required to set valid timestamps accounting for velocity and acceleration constraints.
+    res.trajectory.joint_trajectory.points[i].time_from_start = ros::Duration(0.0);
   }
 
   ROS_INFO("Bottom took %f sec to create", (ros::WallTime::now() - create_time).toSec());
