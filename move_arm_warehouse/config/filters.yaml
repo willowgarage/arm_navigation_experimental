@@ -8,10 +8,21 @@
 #    type: CubicSplineShortCutterFilterJointTrajectoryWithConstraints
 #    params: {discretization: 0.01}
 #
+
+#service_type: FilterJointTrajectoryWithConstraints
+#filter_chain:
+#  -
+#    name: parabolic_blend_shortcutter
+#    type: ParabolicBlendShortCutterFilterJointTrajectoryWithConstraints
+#    params: {discretization: 0.01, num_iterations: 10}
+#
+
 service_type: FilterJointTrajectoryWithConstraints
 filter_chain:
   -
-    name: parabolic_blend_shortcutter
-    type: ParabolicBlendShortCutterFilterJointTrajectoryWithConstraints
-    params: {discretization: 0.01, num_iterations: 10}
-
+    name: unnormalize_trajectory
+    type: UnNormalizeFilterJointTrajectoryWithConstraints
+  -
+    name: parabolic_blend_fast
+    type: ParabolicBlendFastFilterJointTrajectoryWithConstraints
+          
