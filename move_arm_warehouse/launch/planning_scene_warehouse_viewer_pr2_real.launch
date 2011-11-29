@@ -10,7 +10,7 @@
   <!-- send parameters for multidof -->
   <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
 
-  <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+  <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits_right_left.yaml"/>
 
   <include file="$(find pr2_arm_navigation_perception)/launch/laser+stereo-perception.launch"/>
 
@@ -38,16 +38,19 @@
 
     <param name="group" type="string" value="left_arm" />
   </node>
+
   <node pkg="ompl_ros_interface" type="ompl_ros" name="ompl_planning" output="screen">
+    <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/right_left_arm_groups.yaml" />
     <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/ompl_planning.yaml" />
   </node>
+
   <node name="interpolated_ik_node_right" pkg="interpolated_ik_motion_planner" 
 	type="interpolated_ik_motion_planner.py" args="r" respawn="false"/>
   <node name="interpolated_ik_node_left" pkg="interpolated_ik_motion_planner" 
 	type="interpolated_ik_motion_planner.py" args="l" respawn="false"/>
 
   <node pkg="trajectory_filter_server" name="trajectory_filter_server" type="trajectory_filter_server" output="screen">
-    <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+    <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits_right_left.yaml"/>
     <rosparam command="load" file="$(find move_arm_warehouse)/config/filters.yaml"/>
     <!--rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/-->
     <!--rosparam command="load" file="$(find chomp_motion_planner)/config/filters.yaml"/-->

@@ -34,11 +34,12 @@
 
     <param name="use_stochastic_descent" value="false"/>
   
+    <rosparam command="load" file="$(find chomp_motion_planner)/config/filters.yaml"/>
 
-  		<remap from="filter_trajectory" to="trajectory_filter/filter_trajectory_with_constraints" />		
+  	<remap from="filter_trajectory" to="trajectory_filter/filter_trajectory_with_constraints" />		
 
 		<rosparam command="load" file="$(find pr2_arm_navigation_config)/config/robot_padding.yaml" />
-		<rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+		<rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits_right_left.yaml"/>
 	</node>
 </launch>
 
