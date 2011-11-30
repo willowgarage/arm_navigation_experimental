@@ -111,6 +111,9 @@ protected:
   trajectory_msgs::JointTrajectory recorded_trajectory_;
   trajectory_msgs::JointTrajectory goal_trajectory_;
 
+  boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
+  trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
+
   //TODO - consider pause and resume execution
 
 };

@@ -37,9 +37,6 @@
 #include <ros/ros.h>
 #include <boost/function.hpp>
 
-#include <actionlib/client/simple_action_client.h>
-#include <actionlib/client/simple_client_goal_state.h>
-
 #include <trajectory_msgs/JointTrajectory.h>
 
 #include <trajectory_execution_monitor/trajectory_recorder.h>

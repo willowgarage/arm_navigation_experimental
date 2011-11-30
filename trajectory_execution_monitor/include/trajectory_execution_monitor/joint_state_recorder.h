@@ -34,6 +34,9 @@
 
 /** \author E. Gil Jones */
 
+#ifndef _JOINT_STATE_RECORDER_H_
+#define _JOINT_STATE_RECORDER_H_
+
 #include <ros/ros.h>
 
 #include <trajectory_execution_monitor/trajectory_recorder.h>
@@ -69,3 +72,4 @@ protected:
 
 };
 
+#endif

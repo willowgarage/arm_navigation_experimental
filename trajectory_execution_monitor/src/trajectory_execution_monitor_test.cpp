@@ -1,6 +1,7 @@
 #include <trajectory_execution_monitor/trajectory_execution_monitor.h>
 #include <trajectory_execution_monitor/joint_state_recorder.h>
 #include <trajectory_execution_monitor/follow_joint_trajectory_controller_handler.h>
+#include <trajectory_execution_monitor/pr2_gripper_trajectory_controller_handler.h>
 
 using namespace trajectory_execution_monitor;
 
@@ -24,9 +25,13 @@ int main(int argc, char** argv) {
   boost::shared_ptr<TrajectoryControllerHandler> fjt(new FollowJointTrajectoryControllerHandler("right_arm",
                                                                                                 "/r_arm_controller/follow_joint_trajectory"));
 
+  boost::shared_ptr<TrajectoryControllerHandler> gripper(new Pr2GripperTrajectoryControllerHandler("r_end_effector",
+                                                                                                 "/r_gripper_controller/gripper_action"));
+
   TrajectoryExecutionMonitor tem;
   tem.addTrajectoryRecorder(tr);
   tem.addTrajectoryControllerHandler(fjt);
+  tem.addTrajectoryControllerHandler(gripper);
 
   std::vector<TrajectoryExecutionRequest> traj_reqs;
 
@@ -73,6 +78,22 @@ int main(int argc, char** argv) {
   ter.trajectory_ = jt;
   traj_reqs.push_back(ter);
 
+  trajectory_msgs::JointTrajectory gt;
+  gt.joint_names.push_back("r_gripper_l_finger_joint");
+  gt.joint_names.push_back("r_gripper_r_finger_joint");
+  gt.joint_names.push_back("r_gripper_r_finger_tip_joint");
+  gt.joint_names.push_back("r_gripper_l_finger_tip_joint");
+
+  gt.points.resize(1);
+  gt.points[0].positions.resize(4, .1);
+
+  TrajectoryExecutionRequest gter;
+  gter.group_name_="r_end_effector";
+  gter.controller_name_ = "/r_gripper_controller/gripper_action";
+  gter.recorder_name_ = "/joint_states";
+  gter.trajectory_ = gt;
+  traj_reqs.push_back(gter);
+  
   jt.points.clear();
   jt.points.resize(100);
   for(unsigned int i=0; i < 100; i++)
@@ -88,6 +109,11 @@ int main(int argc, char** argv) {
 
   ter.trajectory_ = jt;
   traj_reqs.push_back(ter);
+
+  gt.points[0].positions.clear();
+  gt.points[0].positions.resize(4, 0.0);
+  gter.trajectory_ = gt;
+  traj_reqs.push_back(gter);
 
   boost::function<bool(TrajectoryExecutionDataVector)> f;
   f = trajectoryFinishedCallbackFunction;

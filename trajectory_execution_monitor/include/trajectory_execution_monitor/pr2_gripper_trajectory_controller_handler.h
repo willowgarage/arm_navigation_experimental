@@ -34,26 +34,31 @@
 
 /** \author E. Gil Jones */
 
-#ifndef _FOLLOW_JOINT_TRAJECTORY_CONTROLLER_HANDLER_H_
-#define _FOLLOW_JOINT_TRAJECTORY_CONTROLLER_HANDLER_H_
+#ifndef _PR2_GRIPPER_TRAJECTORY_CONTROLLER_HANDLER_H_
+#define _PR2_GRIPPER_TRAJECTORY_CONTROLLER_HANDLER_H_
 
 #include <trajectory_execution_monitor/trajectory_controller_handler.h>
-#include <control_msgs/FollowJointTrajectoryAction.h>
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
 
-class FollowJointTrajectoryControllerHandler : public trajectory_execution_monitor::TrajectoryControllerHandler {
+#include <pr2_controllers_msgs/Pr2GripperCommandAction.h>
+
+class Pr2GripperTrajectoryControllerHandler : public trajectory_execution_monitor::TrajectoryControllerHandler {
 
 public:
   
-  FollowJointTrajectoryControllerHandler(const std::string& group_name, 
-                                         const std::string& controller_name) : 
+  static const double GRIPPER_OPEN = 0.086;
+  static const double GRIPPER_CLOSED = 0.0;
+  static const double DEFAULT_GRIPPER_OBJECT_PRESENCE_THRESHOLD = 0.0021;
+
+  Pr2GripperTrajectoryControllerHandler(const std::string& group_name, 
+                                        const std::string& controller_name) : 
     TrajectoryControllerHandler(group_name, controller_name),
-    follow_joint_trajectory_action_client_(controller_name, true)
+    pr2_gripper_action_client_(controller_name, true)
   {
-    while(ros::ok() && !follow_joint_trajectory_action_client_.waitForServer(ros::Duration(5.0))){
-      ROS_INFO_STREAM("Waiting for the follow joint trajectory action for group " << group_name << " on the topic " << controller_name << " to come up");
+    while(ros::ok() && !pr2_gripper_action_client_.waitForServer(ros::Duration(5.0))){
+      ROS_INFO_STREAM("Waiting for the pr2_gripper action for group " << group_name << " on the topic " << controller_name << " to come up");
     }
   }
 
@@ -65,16 +70,26 @@ public:
     trajectory_finished_callback_ = traj_callback;
 
     initializeRecordedTrajectory(trajectory);
+    
+    pr2_controllers_msgs::Pr2GripperCommandGoal gripper_command;
+      gripper_command.command.max_effort = 10000;
 
-    control_msgs::FollowJointTrajectoryGoal goal;
-    goal.trajectory = trajectory;
+    double jval = trajectory.points[0].positions[0];
+    if(jval != 0.0) {
+      ROS_INFO_STREAM("Commanding gripper open");
+      gripper_command.command.position = GRIPPER_OPEN;
+    } else {
+      ROS_INFO_STREAM("Commanding gripper closed");
+      gripper_command.command.position = GRIPPER_CLOSED;
+    }
+    
+    pr2_gripper_action_client_.sendGoal(gripper_command,
+                                        boost::bind(&Pr2GripperTrajectoryControllerHandler::controllerDoneCallback, this, _1, _2),
+                                        boost::bind(&Pr2GripperTrajectoryControllerHandler::controllerActiveCallback, this),
+                                        boost::bind(&Pr2GripperTrajectoryControllerHandler::controllerFeedbackCallback, this, _1));
 
-    follow_joint_trajectory_action_client_.sendGoal(goal,
-                                                    boost::bind(&FollowJointTrajectoryControllerHandler::controllerDoneCallback, this, _1, _2),
-                                                    boost::bind(&FollowJointTrajectoryControllerHandler::controllerActiveCallback, this),
-                                                    boost::bind(&FollowJointTrajectoryControllerHandler::controllerFeedbackCallback, this, _1));
     recorder_->registerCallback(group_controller_combo_name_, 
-                                boost::bind(&FollowJointTrajectoryControllerHandler::addNewStateToRecordedTrajectory, this, _1, _2, _3));
+                                boost::bind(&Pr2GripperTrajectoryControllerHandler::addNewStateToRecordedTrajectory, this, _1, _2, _3));
     return true;
   }
 
@@ -82,10 +97,10 @@ public:
   }
 
   void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
-                              const control_msgs::FollowJointTrajectoryResultConstPtr& result)
+                              const pr2_controllers_msgs::Pr2GripperCommandResultConstPtr& result)
   {
     recorder_->deregisterCallback(group_controller_combo_name_);
-    ROS_INFO_STREAM("Controller is done with state " << (state == actionlib::SimpleClientGoalState::SUCCEEDED));
+    ROS_INFO_STREAM("Gripper controller is done with state " << (state == actionlib::SimpleClientGoalState::SUCCEEDED));
     trajectory_finished_callback_(state == actionlib::SimpleClientGoalState::SUCCEEDED);
   }
 
@@ -94,19 +109,15 @@ public:
     ROS_DEBUG_STREAM("Controller went active");
   }
 
-  void controllerFeedbackCallback(const control_msgs::FollowJointTrajectoryFeedbackConstPtr& feedback)
+  void controllerFeedbackCallback(const pr2_controllers_msgs::Pr2GripperCommandFeedbackConstPtr& feedback)
   {
-    ROS_INFO_STREAM("Got feedback");
+    ROS_DEBUG_STREAM("Got feedback");
   }
     
 
 protected:
 
-  trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
-  actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> follow_joint_trajectory_action_client_;
-
-  boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
-
+  actionlib::SimpleActionClient<pr2_controllers_msgs::Pr2GripperCommandAction> pr2_gripper_action_client_;
 }; 
 
 #endif
