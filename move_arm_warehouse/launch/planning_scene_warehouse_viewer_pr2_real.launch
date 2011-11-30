@@ -10,9 +10,12 @@
   <!-- send parameters for multidof -->
   <rosparam command="load" ns="robot_description_planning" file="$(find pr2_arm_navigation_config)/config/pr2_planning_description.yaml" />
 
-  <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
+  <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits_right_left.yaml"/>
 
   <include file="$(find pr2_arm_navigation_perception)/launch/laser+stereo-perception.launch"/>
+
+  <!--include file="$(find pr2_arm_navigation_planning)/launch/chomp_planning.launch"/-->
+  <include file="$(find move_arm_warehouse)/launch/chomp_planning.launch"/>
 
   <node pkg="planning_environment" type="environment_server" output="screen" name="environment_server">      
     <param name="use_monitor" type="bool" value="true"/>
@@ -35,16 +38,22 @@
 
     <param name="group" type="string" value="left_arm" />
   </node>
+
   <node pkg="ompl_ros_interface" type="ompl_ros" name="ompl_planning" output="screen">
+    <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/right_left_arm_groups.yaml" />
     <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/ompl_planning.yaml" />
   </node>
+
   <node name="interpolated_ik_node_right" pkg="interpolated_ik_motion_planner" 
 	type="interpolated_ik_motion_planner.py" args="r" respawn="false"/>
   <node name="interpolated_ik_node_left" pkg="interpolated_ik_motion_planner" 
 	type="interpolated_ik_motion_planner.py" args="l" respawn="false"/>
+
   <node pkg="trajectory_filter_server" name="trajectory_filter_server" type="trajectory_filter_server" output="screen">
-    <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits.yaml"/>
-    <rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/>
+    <rosparam command="load" file="$(find pr2_arm_navigation_config)/config/joint_limits_right_left.yaml"/>
+    <rosparam command="load" file="$(find move_arm_warehouse)/config/filters.yaml"/>
+    <!--rosparam command="load" file="$(find pr2_arm_navigation_filtering)/config/filters.yaml"/-->
+    <!--rosparam command="load" file="$(find chomp_motion_planner)/config/filters.yaml"/-->
   </node>
 
   <!-- Called when left arm executes trajectory using controllers -->
@@ -84,7 +93,8 @@
   <param name="right_ik_link" value="r_wrist_roll_link" />
 
   <!-- Called to plan trajectories given motion plan requests -->
-  <param name="planner_service_name" value="/ompl_planning/plan_kinematic_path" />
+  <!--<param name="planner_service_name" value="/ompl_planning/plan_kinematic_path" />-->
+  <param name="planner_service_name" value="/chomp_planner_longrange/" />
 
   <!-- Interpolates between end effector positions for the left arm -->
   <param name="left_interpolate_service_name" value="/l_interpolated_ik_motion_plan" />
