@@ -23,6 +23,6 @@ filter_chain:
     name: unnormalize_trajectory
     type: UnNormalizeFilterJointTrajectoryWithConstraints
   -
-    name: parabolic_blend_fast
-    type: ParabolicBlendFastFilterJointTrajectoryWithConstraints
+    name: iterative_parabolic_smoother
+    type: IterativeParabolicSmootherFilterJointTrajectoryWithConstraints
           
