@@ -28,7 +28,8 @@ static const std::string LEFT_ARM_REDUNDANCY = "l_upper_arm_roll_joint";
 static const std::string LEFT_IK_LINK = "l_wrist_roll_link";
 static const std::string RIGHT_IK_LINK = "r_wrist_roll_link";
 
-static const std::string PLANNER_SERVICE_NAME = "/ompl_planning/plan_kinematic_path";
+static const std::string PLANNER_1_SERVICE_NAME = "/ompl_planning/plan_kinematic_path";
+static const std::string PLANNER_2_SERVICE_NAME = "/chomp_planner_longrange/plan_path";
 static const std::string LEFT_INTERPOLATE_SERVICE_NAME = "/l_interpolated_ik_motion_plan";
 static const std::string RIGHT_INTERPOLATE_SERVICE_NAME = "/r_interpolated_ik_motion_plan";
 static const std::string TRAJECTORY_FILTER_SERVICE_NAME = "/trajectory_filter/filter_trajectory_with_constraints";
@@ -318,13 +319,14 @@ int main(int argc, char **argv)
   param<string>("left_interpolate_service_name", params.left_interpolate_service_name_, LEFT_INTERPOLATE_SERVICE_NAME);
   param<string>("non_coll_left_ik_name", params.non_coll_left_ik_name_, NON_COLL_LEFT_IK_NAME);
   param<string>("non_coll_right_ik_name", params.non_coll_right_ik_name_, NON_COLL_RIGHT_IK_NAME);
-  param<string>("planner_service_name", params.planner_service_name_, PLANNER_SERVICE_NAME);
+  param<string>("planner_1_service_name", params.planner_1_service_name_, PLANNER_1_SERVICE_NAME);
+  param<string>("planner_2_service_name", params.planner_2_service_name_, PLANNER_2_SERVICE_NAME);
   param<string>("proximity_space_planner_name", params.proximity_space_planner_name_, PROXIMITY_SPACE_PLANNER_NAME);
   param<string>("proximity_space_service_name",  params.proximity_space_service_name_, PROXIMITY_SPACE_SERVICE_NAME);
   param<string>("proximity_space_validity_name",  params.proximity_space_validity_name_,  PROXIMITY_SPACE_VALIDITY_NAME);
   param<string>("right_ik_name", params.right_ik_name_, RIGHT_IK_NAME);
   param<string>("right_interpolate_service_name", params.right_interpolate_service_name_, RIGHT_INTERPOLATE_SERVICE_NAME);
-  param<string>("trajectory_filter_service_name", params.trajectory_filter_service_name_, TRAJECTORY_FILTER_SERVICE_NAME);
+  param<string>("trajectory_filter_1_service_name", params.trajectory_filter_1_service_name_, TRAJECTORY_FILTER_SERVICE_NAME);
   param<string>("vis_topic_name", params.vis_topic_name_ , VIS_TOPIC_NAME);
   param<string>("right_ik_link", params.right_ik_link_ , RIGHT_IK_LINK);
   param<string>("left_ik_link", params.left_ik_link_ , LEFT_IK_LINK);

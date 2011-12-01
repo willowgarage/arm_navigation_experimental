@@ -1305,11 +1305,13 @@ struct PlanningSceneParameters
   std::string non_coll_right_ik_name_;
   std::string left_interpolate_service_name_;
   std::string right_interpolate_service_name_;
-  std::string planner_service_name_;
+  std::string planner_1_service_name_;
+  std::string planner_2_service_name_;
   std::string proximity_space_service_name_;
   std::string proximity_space_validity_name_;
   std::string set_planning_scene_diff_name_;
-  std::string trajectory_filter_service_name_;
+  std::string trajectory_filter_1_service_name_;
+  std::string trajectory_filter_2_service_name_;
   std::string proximity_space_planner_name_;
   std::string vis_topic_name_;
   std::string right_ik_link_;
@@ -1465,10 +1467,12 @@ protected:
   ros::ServiceClient left_interpolate_service_client_;
   ros::ServiceClient non_coll_left_ik_service_client_;
   ros::ServiceClient non_coll_right_ik_service_client_;
-  ros::ServiceClient planning_service_client_;
+  ros::ServiceClient planning_1_service_client_;
+  ros::ServiceClient planning_2_service_client_;
   ros::ServiceClient right_ik_service_client_;
   ros::ServiceClient right_interpolate_service_client_;
-  ros::ServiceClient trajectory_filter_service_client_;
+  ros::ServiceClient trajectory_filter_1_service_client_;
+  ros::ServiceClient trajectory_filter_2_service_client_;
   ros::ServiceClient gazebo_joint_state_client_;
   ros::ServiceClient list_controllers_client_;
   ros::ServiceClient load_controllers_client_;
@@ -1488,7 +1492,8 @@ protected:
   unsigned int max_collision_object_id_;
 
   bool warehouse_data_loaded_once_;
-  bool use_interpolated_planner_;
+  int  active_planner_index_;
+  bool use_primary_filter_;
 
   trajectory_msgs::JointTrajectory logged_trajectory_;
   trajectory_msgs::JointTrajectory logged_trajectory_controller_error_;

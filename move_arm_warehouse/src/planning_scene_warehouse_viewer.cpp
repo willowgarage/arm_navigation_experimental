@@ -159,7 +159,7 @@ QGroupBox *WarehouseViewer::createTrajectoryControlsBox()
   filter_button_->setText("Filter Trajectory");
   filter_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   filter_button_->setToolTip("Sends the currently selected trajectory to the trajectory filter, producing a new trajectory.");
-  if(params_.trajectory_filter_service_name_ == "none")
+  if(params_.trajectory_filter_1_service_name_ == "none")
   {
     filter_button_->setEnabled(false);
   }
@@ -173,7 +173,8 @@ QGroupBox *WarehouseViewer::createTrajectoryControlsBox()
   replan_button_->setText("Plan New Trajectory");
   replan_button_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
   replan_button_->setToolTip("Plans a new trajectory between the start and goal states of the current motion plan request, producing a new trajectory.");
-  if(params_.planner_service_name_ == "none")
+  if(  (active_planner_index_==1 && params_.planner_1_service_name_ == "none")
+    || (active_planner_index_==2 && params_.planner_2_service_name_ == "none") )
   {
     replan_button_->setEnabled(false);
   }
@@ -475,6 +476,12 @@ void WarehouseViewer::initQtWidgets()
   set_secondary_planner_action_ = planner_configuration_menu_->addAction("Use secondary planner");
   set_secondary_planner_action_->setCheckable(true);
   set_secondary_planner_action_->setChecked(false);
+  set_primary_filter_action_ = planner_configuration_menu_->addAction("Use primary filter");
+  set_primary_filter_action_->setCheckable(true);
+  set_primary_filter_action_->setChecked(true);
+  set_secondary_filter_action_ = planner_configuration_menu_->addAction("Use secondary filter");
+  set_secondary_filter_action_->setCheckable(true);
+  set_secondary_filter_action_->setChecked(false);
 
 
   connect(new_planning_scene_action_, SIGNAL(triggered()), this, SLOT(createNewPlanningSceneSlot()));
@@ -497,6 +504,8 @@ void WarehouseViewer::initQtWidgets()
   connect(this, SIGNAL(allScenesLoaded()), this, SLOT(refreshPlanningSceneDialog()));
   connect(set_primary_planner_action_, SIGNAL(triggered()), this, SLOT(primaryPlannerTriggered()));
   connect(set_secondary_planner_action_, SIGNAL(triggered()), this, SLOT(secondaryPlannerTriggered()));
+  connect(set_primary_filter_action_, SIGNAL(triggered()), this, SLOT(primaryFilterTriggered()));
+  connect(set_secondary_filter_action_, SIGNAL(triggered()), this, SLOT(secondaryFilterTriggered()));
   connect(this, SIGNAL(selectedTrajectoryPointChanged(unsigned int)), this, SLOT(onSelectedTrajectoryPointChanged(unsigned int)));
   load_planning_scene_dialog_ = new QDialog(this);
 
@@ -1563,7 +1572,7 @@ void WarehouseViewer::primaryPlannerTriggered()
 {
   if(set_primary_planner_action_->isChecked()) {
     set_secondary_planner_action_->setChecked(false);
-    use_interpolated_planner_ = false;
+    active_planner_index_ = 1;
   } else if(!set_secondary_planner_action_->isChecked()){
     set_primary_planner_action_->setChecked(true);
   }
@@ -1573,10 +1582,30 @@ void WarehouseViewer::secondaryPlannerTriggered()
 {
   if(set_secondary_planner_action_->isChecked()) {
     set_primary_planner_action_->setChecked(false);
-    use_interpolated_planner_ = true;
+    active_planner_index_ = 2;
   } else if(!set_primary_planner_action_->isChecked()){
     set_secondary_planner_action_->setChecked(true);
   } 
+}
+
+void WarehouseViewer::primaryFilterTriggered()
+{
+  if(set_primary_filter_action_->isChecked()) {
+    set_secondary_filter_action_->setChecked(false);
+    use_primary_filter_ = true;
+  } else if(!set_secondary_filter_action_->isChecked()){
+    set_primary_filter_action_->setChecked(true);
+  }
+}
+
+void WarehouseViewer::secondaryFilterTriggered()
+{
+  if(set_secondary_filter_action_->isChecked()) {
+    set_primary_filter_action_->setChecked(false);
+    use_primary_filter_ = false;
+  } else if(!set_primary_filter_action_->isChecked()){
+    set_secondary_filter_action_->setChecked(true);
+  }
 }
 
 void WarehouseViewer::popupLoadPlanningScenes()
@@ -3149,13 +3178,15 @@ int main(int argc, char** argv)
   param<string>("left_interpolate_service_name", params.left_interpolate_service_name_, LEFT_INTERPOLATE_SERVICE_NAME);
   param<string>("non_coll_left_ik_name", params.non_coll_left_ik_name_, NON_COLL_LEFT_IK_NAME);
   param<string>("non_coll_right_ik_name", params.non_coll_right_ik_name_, NON_COLL_RIGHT_IK_NAME);
-  param<string>("planner_service_name", params.planner_service_name_, PLANNER_SERVICE_NAME);
+  param<string>("planner_1_service_name", params.planner_1_service_name_, PLANNER_1_SERVICE_NAME);
+  param<string>("planner_2_service_name", params.planner_2_service_name_, PLANNER_2_SERVICE_NAME);
   param<string>("proximity_space_planner_name", params.proximity_space_planner_name_, PROXIMITY_SPACE_PLANNER_NAME);
   param<string>("proximity_space_service_name",  params.proximity_space_service_name_, PROXIMITY_SPACE_SERVICE_NAME);
   param<string>("proximity_space_validity_name",  params.proximity_space_validity_name_,  PROXIMITY_SPACE_VALIDITY_NAME);
   param<string>("right_ik_name", params.right_ik_name_, RIGHT_IK_NAME);
   param<string>("right_interpolate_service_name", params.right_interpolate_service_name_, RIGHT_INTERPOLATE_SERVICE_NAME);
-  param<string>("trajectory_filter_service_name", params.trajectory_filter_service_name_, TRAJECTORY_FILTER_SERVICE_NAME);
+  param<string>("trajectory_filter_1_service_name", params.trajectory_filter_1_service_name_, TRAJECTORY_FILTER_1_SERVICE_NAME);
+  param<string>("trajectory_filter_2_service_name", params.trajectory_filter_2_service_name_, TRAJECTORY_FILTER_2_SERVICE_NAME);
   param<string>("vis_topic_name", params.vis_topic_name_ , VIS_TOPIC_NAME);
   param<string>("right_ik_link", params.right_ik_link_ , RIGHT_IK_LINK);
   param<string>("left_ik_link", params.left_ik_link_ , LEFT_IK_LINK);

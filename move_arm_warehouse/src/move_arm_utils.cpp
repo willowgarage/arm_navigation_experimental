@@ -711,7 +711,8 @@ PlanningSceneEditor::PlanningSceneEditor()
   selectable_objects_ = NULL;
   ik_controllers_ = NULL;
   max_collision_object_id_ = 0;
-  use_interpolated_planner_ = false;
+  active_planner_index_ = 1;
+  use_primary_filter_ = true;
   string robot_description_name = nh_.resolveName("robot_description", true);
   cm_ = new CollisionModels(robot_description_name);
 }
@@ -724,7 +725,8 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   params_ = params;
   monitor_status_ = idle;
   max_collision_object_id_ = 0;
-  use_interpolated_planner_ = false;
+  active_planner_index_ = 1;
+  use_primary_filter_ = true;
   last_collision_object_color_.r = 0.7;
   last_collision_object_color_.g = 0.7;
   last_collision_object_color_.b = 0.7;
@@ -794,9 +796,9 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
     ros::service::waitForService(params.right_ik_name_);
   }
 
-  if(params.planner_service_name_ != "none")
+  if(params.planner_1_service_name_ != "none")
   {
-    ros::service::waitForService(params.planner_service_name_);
+    ros::service::waitForService(params.planner_1_service_name_);
   }
 
   if(params.proximity_space_service_name_ != "none")
@@ -833,15 +835,26 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
     non_coll_right_ik_service_client_ = nh_.serviceClient<GetPositionIK> (params.non_coll_right_ik_name_, true);
   }
 
-  if(params.planner_service_name_ != "none")
+  if(params.planner_1_service_name_ != "none")
   {
-    planning_service_client_ = nh_.serviceClient<GetMotionPlan> (params.planner_service_name_, true);
+    planning_1_service_client_ = nh_.serviceClient<GetMotionPlan> (params.planner_1_service_name_, true);
   }
 
-  if(params.trajectory_filter_service_name_ != "none")
+  if(params.planner_2_service_name_ != "none")
   {
-    trajectory_filter_service_client_
-        = nh_.serviceClient<FilterJointTrajectoryWithConstraints> (params.trajectory_filter_service_name_);
+    planning_2_service_client_ = nh_.serviceClient<GetMotionPlan> (params.planner_2_service_name_, true);
+  }
+
+  if(params.trajectory_filter_1_service_name_ != "none")
+  {
+    trajectory_filter_1_service_client_
+        = nh_.serviceClient<FilterJointTrajectoryWithConstraints> (params.trajectory_filter_1_service_name_);
+  }
+
+  if(params.trajectory_filter_2_service_name_ != "none")
+  {
+    trajectory_filter_2_service_client_
+        = nh_.serviceClient<FilterJointTrajectoryWithConstraints> (params.trajectory_filter_2_service_name_);
   }
 
   if(params.proximity_space_service_name_ != "none")
@@ -1747,7 +1760,7 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
   GetMotionPlan::Request plan_req;
   ros::ServiceClient* planner;
   std::string source;
-  if(use_interpolated_planner_) {
+  if(active_planner_index_ == 3) {
     source = "Interpolator";
     arm_navigation_msgs::MotionPlanRequest req;
     req.group_name = data.getGroupName();
@@ -1774,7 +1787,15 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
     planner = (*interpolated_ik_services_)[data.getEndEffectorLink()];
   } else {
     source = "Planner";
-    planner = &planning_service_client_;
+    if( active_planner_index_ == 2 )
+    {
+      planner = &planning_2_service_client_;
+    }
+    else
+    {
+      planner = &planning_1_service_client_;
+    }
+
     if(data.hasPathConstraints()) {
       data.setGoalAndPathPositionOrientationConstraints(plan_req.motion_plan_request, GoalPosition);
       plan_req.motion_plan_request.group_name += "_cartesian";
@@ -1889,9 +1910,20 @@ bool PlanningSceneEditor::filterTrajectory(MotionPlanRequestData& requestData, T
   filter_req.path_constraints = requestData.getMotionPlanRequest().path_constraints;
   filter_req.allowed_time = ros::Duration(2.0);
 
+  // Select the filter
+  ros::ServiceClient* trajectory_filter_service_client;
+  if( use_primary_filter_ )
+  {
+    trajectory_filter_service_client = &trajectory_filter_1_service_client_;
+  }
+  else
+  {
+    trajectory_filter_service_client = &trajectory_filter_2_service_client_;
+  }
+
   // Time the filtering
   ros::Time startTime = ros::Time(ros::WallTime::now().toSec());
-  if(!trajectory_filter_service_client_.call(filter_req, filter_res))
+  if(!trajectory_filter_service_client->call(filter_req, filter_res))
   {
     ROS_INFO("Problem with trajectory filter");
     filterCallback(filter_res.error_code);

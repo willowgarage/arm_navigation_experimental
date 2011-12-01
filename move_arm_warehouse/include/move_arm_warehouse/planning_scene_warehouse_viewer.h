@@ -88,10 +88,12 @@ static const std::string RIGHT_ARM_REDUNDANCY = "r_upper_arm_roll_joint";
 static const std::string LEFT_ARM_REDUNDANCY = "l_upper_arm_roll_joint";
 static const std::string LEFT_IK_LINK = "l_wrist_roll_link";
 static const std::string RIGHT_IK_LINK = "r_wrist_roll_link";
-static const std::string PLANNER_SERVICE_NAME = "/ompl_planning/plan_kinematic_path";
+static const std::string PLANNER_1_SERVICE_NAME = "/ompl_planning/plan_kinematic_path";
+static const std::string PLANNER_2_SERVICE_NAME = "/chomp_planner_longrange";
 static const std::string LEFT_INTERPOLATE_SERVICE_NAME = "/l_interpolated_ik_motion_plan";
 static const std::string RIGHT_INTERPOLATE_SERVICE_NAME = "/r_interpolated_ik_motion_plan";
-static const std::string TRAJECTORY_FILTER_SERVICE_NAME = "/trajectory_filter/filter_trajectory_with_constraints";
+static const std::string TRAJECTORY_FILTER_1_SERVICE_NAME = "/trajectory_shortcutting_filter_server/filter_trajectory_with_constraints";
+static const std::string TRAJECTORY_FILTER_2_SERVICE_NAME = "/trajectory_smoothing_filter_server/filter_trajectory_with_constraints";
 static const std::string PROXIMITY_SPACE_SERVICE_NAME = "/collision_proximity_server_test/get_distance_aware_plan";
 static const std::string PROXIMITY_SPACE_VALIDITY_NAME = "/collision_proximity_server_test/get_state_validity";
 static const std::string PROXIMITY_SPACE_PLANNER_NAME = "/collision_proximity_planner/plan";
@@ -169,9 +171,13 @@ public:
     layout->addRow("Right IK Link", right_ik_link_);
     right_ik_link_->setText(QString::fromStdString(params_.right_ik_link_));
 
-    planner_service_name_ = new QLineEdit(groupBox);
-    layout->addRow("Planner Service", planner_service_name_);
-    planner_service_name_->setText(QString::fromStdString(params_.planner_service_name_));
+    planner_1_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Planner 1 Service", planner_1_service_name_);
+    planner_1_service_name_->setText(QString::fromStdString(params_.planner_1_service_name_));
+
+    planner_2_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Planner 2 Service", planner_2_service_name_);
+    planner_2_service_name_->setText(QString::fromStdString(params_.planner_2_service_name_));
 
     left_interpolate_service_name_ = new QLineEdit(groupBox);
     layout->addRow("Left Interpolation Service", left_interpolate_service_name_);
@@ -181,9 +187,13 @@ public:
     layout->addRow("Right Interpolation Service", right_interpolate_service_name_);
     right_interpolate_service_name_->setText(QString::fromStdString(params_.right_interpolate_service_name_));
 
-    trajectory_filter_service_name_ = new QLineEdit(groupBox);
-    layout->addRow("Trajectory Filter Service", trajectory_filter_service_name_);
-    trajectory_filter_service_name_ ->setText(QString::fromStdString(params_.trajectory_filter_service_name_));
+    trajectory_filter_1_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Trajectory Filter Service 1", trajectory_filter_1_service_name_);
+    trajectory_filter_1_service_name_->setText(QString::fromStdString(params_.trajectory_filter_1_service_name_));
+
+    trajectory_filter_2_service_name_ = new QLineEdit(groupBox);
+    layout->addRow("Trajectory Filter Service 2", trajectory_filter_2_service_name_);
+    trajectory_filter_2_service_name_->setText(QString::fromStdString(params_.trajectory_filter_2_service_name_));
 
     proximity_space_service_name_ = new QLineEdit(groupBox);
     layout->addRow("Proximity Space Service", proximity_space_service_name_);
@@ -245,10 +255,12 @@ public:
     params_.left_redundancy_ = left_arm_redundancy_->text().toStdString();
     params_.left_ik_link_ = left_ik_link_->text().toStdString();
     params_.right_ik_link_ = right_ik_link_->text().toStdString();
-    params_.planner_service_name_ = planner_service_name_->text().toStdString();
+    params_.planner_1_service_name_ = planner_1_service_name_->text().toStdString();
+    params_.planner_2_service_name_ = planner_2_service_name_->text().toStdString();
     params_.left_interpolate_service_name_ = left_interpolate_service_name_->text().toStdString();
     params_.right_interpolate_service_name_ = right_interpolate_service_name_->text().toStdString();
-    params_.trajectory_filter_service_name_ = trajectory_filter_service_name_->text().toStdString();
+    params_.trajectory_filter_1_service_name_ = trajectory_filter_1_service_name_->text().toStdString();
+    params_.trajectory_filter_2_service_name_ = trajectory_filter_2_service_name_->text().toStdString();
     params_.proximity_space_service_name_ = proximity_space_service_name_->text().toStdString();
     params_.proximity_space_validity_name_ = proximity_space_validity_name_->text().toStdString();
     params_.proximity_space_planner_name_ = proximity_space_planner_name_->text().toStdString();
@@ -270,10 +282,12 @@ private:
   QLineEdit* left_arm_redundancy_;
   QLineEdit* left_ik_link_;
   QLineEdit* right_ik_link_;
-  QLineEdit* planner_service_name_;
+  QLineEdit* planner_1_service_name_;
+  QLineEdit* planner_2_service_name_;
   QLineEdit* left_interpolate_service_name_;
   QLineEdit* right_interpolate_service_name_;
-  QLineEdit* trajectory_filter_service_name_;
+  QLineEdit* trajectory_filter_1_service_name_;
+  QLineEdit* trajectory_filter_2_service_name_;
   QLineEdit* proximity_space_service_name_;
   QLineEdit* proximity_space_validity_name_;
   QLineEdit* proximity_space_planner_name_;
@@ -552,6 +566,8 @@ public slots:
 
   void primaryPlannerTriggered();
   void secondaryPlannerTriggered();
+  void primaryFilterTriggered();
+  void secondaryFilterTriggered();
 
   void onSelectedTrajectoryPointChanged( unsigned int new_point );
 
@@ -588,7 +604,9 @@ protected:
   QMenu* planner_configuration_menu_;
   QAction* set_primary_planner_action_;
   QAction* set_secondary_planner_action_;
-  
+  QAction* set_primary_filter_action_;
+  QAction* set_secondary_filter_action_;
+
   QAction* alter_link_padding_action_;
   QDialog* alter_link_padding_dialog_;
   QTableWidget* alter_link_padding_table_;
