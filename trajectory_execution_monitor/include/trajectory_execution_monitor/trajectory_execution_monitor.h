@@ -51,12 +51,13 @@ struct TrajectoryExecutionRequest {
   std::string controller_name_;
   std::string recorder_name_;
 
+  bool failure_ok_;
+
   double max_settling_velocity_epsilon_;
   double max_settling_time_;
   double max_joint_distance_;
   double failure_time_factor_;
   
-
   trajectory_msgs::JointTrajectory trajectory_;
 };
 
@@ -67,7 +68,8 @@ enum TrajectoryExecutionResult {
   NO_RECORDER,
   NO_HANDLER,
   HANDLER_FAILED_ENTIRELY,
-  HANDLER_REPORTS_FAILURE
+  HANDLER_REPORTS_FAILURE,
+  HANDLER_REPORTS_FAILURE_BUT_OK
 };
 
 struct TrajectoryExecutionData {

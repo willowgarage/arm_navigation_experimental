@@ -67,10 +67,17 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
   
   execution_result_vector_.resize(execution_result_vector_.size()+1);
   
-  if(trajectory_recorder_map_.find(ter.recorder_name_) == trajectory_recorder_map_.end()) {
+  std::string recorder_name = ter.recorder_name_;
+  if(trajectory_recorder_map_.size() == 1) {
+    recorder_name = trajectory_recorder_map_.begin()->second->getName();
+  }
+     
+  if(trajectory_recorder_map_.find(ter.recorder_name_) == trajectory_recorder_map_.end() && 
+     trajectory_recorder_map_.size() > 1) {
     execution_result_vector_.back().result_ = NO_RECORDER;
     return false;
-  }
+  } 
+  
   std::string combo_name = TrajectoryControllerHandler::combineGroupAndControllerNames(ter.group_name_,
                                                                                        ter.controller_name_);
   
@@ -79,7 +86,7 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
     return false;
   }
   
-  boost::shared_ptr<TrajectoryRecorder>& requested_recorder = trajectory_recorder_map_.find(ter.recorder_name_)->second;
+  boost::shared_ptr<TrajectoryRecorder>& requested_recorder = trajectory_recorder_map_.find(recorder_name)->second;
   last_requested_handler_ = trajectory_controller_handler_map_.find(combo_name)->second;
   
   trajectory_msgs::JointTrajectory traj = ter.trajectory_;
@@ -93,10 +100,15 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
 }
   
 void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
-  if(ok) {
+  //adding this in any case
+  execution_result_vector_.back().recorded_trajectory_ = last_requested_handler_->getLastRecordedTrajectory();
+  if(ok || (*execution_data_)[current_trajectory_index_].failure_ok_) {
     ROS_INFO_STREAM("Trajectory finished with ok");
-    execution_result_vector_.back().result_ = SUCCEEDED;
-    execution_result_vector_.back().recorded_trajectory_ = last_requested_handler_->getLastRecordedTrajectory();
+    if(!ok) {
+      execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_OK;
+    } else {
+      execution_result_vector_.back().result_ = SUCCEEDED;
+    }
     current_trajectory_index_++;
     if(current_trajectory_index_ >= execution_data_->size()) {
       result_callback_(execution_result_vector_);
