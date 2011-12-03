@@ -37,6 +37,7 @@
   </node>
 
   <node pkg="ompl_ros_interface" type="ompl_ros" name="ompl_planning" output="screen">
+    <param name="default_planner_config" type="string" value="SBLkConfig1"/>
     <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/right_left_arm_groups.yaml" />
     <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/ompl_planning.yaml" />
   </node>
