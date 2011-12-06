@@ -52,6 +52,7 @@ struct TrajectoryExecutionRequest {
   std::string recorder_name_;
 
   bool failure_ok_;
+  bool test_for_close_enough_;
 
   double max_settling_velocity_epsilon_;
   double max_settling_time_;
@@ -69,7 +70,8 @@ enum TrajectoryExecutionResult {
   NO_HANDLER,
   HANDLER_FAILED_ENTIRELY,
   HANDLER_REPORTS_FAILURE,
-  HANDLER_REPORTS_FAILURE_BUT_OK
+  HANDLER_REPORTS_FAILURE_BUT_OK,
+  HANDLER_REPORTS_FAILURE_BUT_CLOSE_ENOUGH
 };
 
 struct TrajectoryExecutionData {
@@ -114,6 +116,10 @@ protected:
   bool sendTrajectory(const TrajectoryExecutionRequest& ter);
   
   void trajectoryFinishedCallbackFunction(bool ok);
+
+  bool closeEnough(const TrajectoryExecutionRequest& ter,
+                   const TrajectoryExecutionData& ted);
+  
 
   boost::function<bool(TrajectoryExecutionDataVector)> result_callback_;
   TrajectoryExecutionDataVector execution_result_vector_;

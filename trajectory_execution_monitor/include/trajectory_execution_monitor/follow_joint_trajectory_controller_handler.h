@@ -86,6 +86,10 @@ public:
   {
     recorder_->deregisterCallback(group_controller_combo_name_);
     ROS_INFO_STREAM("Controller is done with state " << (state == actionlib::SimpleClientGoalState::SUCCEEDED));
+    if(state != actionlib::SimpleClientGoalState::SUCCEEDED) {
+      ROS_WARN_STREAM("Failed state is " << actionlib::SimpleClientGoalState::SUCCEEDED << " code " 
+                      << result->error_code);
+    }
     trajectory_finished_callback_(state == actionlib::SimpleClientGoalState::SUCCEEDED);
   }
 

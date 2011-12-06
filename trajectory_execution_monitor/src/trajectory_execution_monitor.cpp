@@ -102,10 +102,18 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
 void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
   //adding this in any case
   execution_result_vector_.back().recorded_trajectory_ = last_requested_handler_->getLastRecordedTrajectory();
-  if(ok || (*execution_data_)[current_trajectory_index_].failure_ok_) {
+  if(ok || (*execution_data_)[current_trajectory_index_].failure_ok_ ||
+     ((*execution_data_)[current_trajectory_index_].test_for_close_enough_ &&
+      closeEnough((*execution_data_)[current_trajectory_index_],
+                  execution_result_vector_.back())))
+  {
     ROS_INFO_STREAM("Trajectory finished with ok");
     if(!ok) {
-      execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_OK;
+      if((*execution_data_)[current_trajectory_index_].failure_ok_) {
+        execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_OK;
+      } else {
+        execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_CLOSE_ENOUGH;
+      }
     } else {
       execution_result_vector_.back().result_ = SUCCEEDED;
     }
@@ -123,3 +131,22 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
     result_callback_(execution_result_vector_);
   }
 };
+
+bool TrajectoryExecutionMonitor::closeEnough(const TrajectoryExecutionRequest& ter,
+                                             const TrajectoryExecutionData& ted) {
+  if(ted.recorded_trajectory_.points.size() == 0) {
+    ROS_WARN_STREAM("No points in recorded trajectory");
+    return false;
+  }
+  double total_distance = 0.0;
+  for(unsigned int i = 0; i < ter.trajectory_.points.back().positions.size(); i++) {
+    ROS_DEBUG_STREAM("Distance for " << ter.trajectory_.joint_names[i] << " is " << fabs(ter.trajectory_.points.back().positions[i]-ted.recorded_trajectory_.points.back().positions[i]));
+    total_distance += fabs(ter.trajectory_.points.back().positions[i]-ted.recorded_trajectory_.points.back().positions[i]);
+  }
+  if(total_distance < ter.max_joint_distance_) {
+    ROS_INFO_STREAM("Allowing because max distance low " << total_distance);
+    return true;
+  }
+  ROS_INFO_STREAM("Not allowing because max distance high " << total_distance);
+  return false;
+}
