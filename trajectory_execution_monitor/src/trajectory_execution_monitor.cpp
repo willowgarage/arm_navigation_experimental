@@ -117,6 +117,9 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
     } else {
       execution_result_vector_.back().result_ = SUCCEEDED;
     }
+    if((*execution_data_)[current_trajectory_index_].callback_function_) {
+      (*execution_data_)[current_trajectory_index_].callback_function_((*execution_data_)[current_trajectory_index_].group_name_);
+    }
     current_trajectory_index_++;
     if(current_trajectory_index_ >= execution_data_->size()) {
       result_callback_(execution_result_vector_);

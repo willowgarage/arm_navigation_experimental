@@ -60,6 +60,7 @@ struct TrajectoryExecutionRequest {
   double failure_time_factor_;
   
   trajectory_msgs::JointTrajectory trajectory_;
+  boost::function<void(const std::string& group_name)> callback_function_;
 };
 
 enum TrajectoryExecutionResult {
@@ -68,6 +69,7 @@ enum TrajectoryExecutionResult {
   SUCCEEDED,
   NO_RECORDER,
   NO_HANDLER,
+  ALREADY_AT_GOAL,
   HANDLER_FAILED_ENTIRELY,
   HANDLER_REPORTS_FAILURE,
   HANDLER_REPORTS_FAILURE_BUT_OK,
