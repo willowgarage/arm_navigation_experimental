@@ -150,6 +150,10 @@ bool TrajectoryExecutionMonitor::closeEnough(const TrajectoryExecutionRequest& t
     ROS_INFO_STREAM("Allowing because max distance low " << total_distance);
     return true;
   }
+  for(unsigned int i = 0; i < ter.trajectory_.points.back().positions.size(); i++) {
+    ROS_INFO_STREAM("Distance for " << ter.trajectory_.joint_names[i] << " is " << fabs(ter.trajectory_.points.back().positions[i]-ted.recorded_trajectory_.points.back().positions[i]));
+  }
+
   ROS_INFO_STREAM("Not allowing because max distance high " << total_distance);
   return false;
 }
