@@ -125,7 +125,8 @@ protected:
                    const TrajectoryExecutionData& ted);
   
 
-  void compareLastRecordedToStart(const TrajectoryExecutionRequest& ter,
+  void compareLastRecordedToStart(const TrajectoryExecutionRequest& last_ter,
+				  const TrajectoryExecutionRequest& next_ter,
                                   const TrajectoryExecutionData& ted);
 
 

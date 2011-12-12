@@ -125,8 +125,14 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
       result_callback_(execution_result_vector_);
       return;
     }
-    compareLastRecordedToStart((*execution_data_)[current_trajectory_index_],
-                               execution_result_vector_.back());
+    for(int i = (int)current_trajectory_index_-1; i >= 0; i--) {
+      if((*execution_data_)[i].group_name_ == (*execution_data_)[current_trajectory_index_].group_name_) {
+	compareLastRecordedToStart((*execution_data_)[i],
+				   (*execution_data_)[current_trajectory_index_],
+				   execution_result_vector_[i]);
+	break;
+      }
+    }
     if(!sendTrajectory((*execution_data_)[current_trajectory_index_])) {
       result_callback_(execution_result_vector_);
     }
@@ -160,7 +166,8 @@ bool TrajectoryExecutionMonitor::closeEnough(const TrajectoryExecutionRequest& t
   return false;
 }
 
-void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExecutionRequest& ter,
+void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExecutionRequest& last_ter,
+							    const TrajectoryExecutionRequest& next_ter,
                                                             const TrajectoryExecutionData& ted) {
   if(ted.recorded_trajectory_.points.size() == 0) {
     ROS_WARN_STREAM("No points in recorded trajectory for comparison");
@@ -168,29 +175,53 @@ void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExec
   }
 
   planning_models::KinematicState last_recorded_state(cm_.getKinematicModel());
-  planning_models::KinematicState requested_start_state(cm_.getKinematicModel());
+  planning_models::KinematicState last_requested_state(cm_.getKinematicModel());
+  planning_models::KinematicState next_requested_state(cm_.getKinematicModel());
   
   last_recorded_state.setKinematicStateToDefault();
-  requested_start_state.setKinematicStateToDefault();
+  last_requested_state.setKinematicStateToDefault();
+  next_requested_state.setKinematicStateToDefault();
 
   std::map<std::string, double> last_recorded_values;
   for(unsigned int i = 0; i < ted.recorded_trajectory_.points.back().positions.size(); i++) {
+    ROS_INFO_STREAM("Last recorded " << ted.recorded_trajectory_.joint_names[i] << " value " << ted.recorded_trajectory_.points.back().positions[i]);
     last_recorded_values[ted.recorded_trajectory_.joint_names[i]] = ted.recorded_trajectory_.points.back().positions[i];
   }
   
-  std::map<std::string, double> requested_start_values;
-  for(unsigned int i = 0; i < ter.trajectory_.points.front().positions.size(); i++) {
-    last_recorded_values[ter.trajectory_.joint_names[i]] = ter.trajectory_.points.front().positions[i];
+  std::map<std::string, double> last_requested_values;
+  for(unsigned int i = 0; i < last_ter.trajectory_.points.front().positions.size(); i++) {
+    ROS_INFO_STREAM("Last requested " << last_ter.trajectory_.joint_names[i] << " value " << last_ter.trajectory_.points.back().positions[i]);
+    last_requested_values[last_ter.trajectory_.joint_names[i]] = last_ter.trajectory_.points.back().positions[i];
+  }
+
+  std::map<std::string, double> next_requested_values;
+  for(unsigned int i = 0; i < next_ter.trajectory_.points.front().positions.size(); i++) {
+    ROS_INFO_STREAM("Next requested " << next_ter.trajectory_.joint_names[i] << " value " << next_ter.trajectory_.points.back().positions[i]);
+    next_requested_values[next_ter.trajectory_.joint_names[i]] = next_ter.trajectory_.points.front().positions[i];
   }
 
   last_recorded_state.setKinematicState(last_recorded_values);
-  requested_start_state.setKinematicState(requested_start_values);
+  last_requested_state.setKinematicState(last_requested_values);
+  next_requested_state.setKinematicState(next_requested_values);
 
-  btTransform recorded_pose = last_recorded_state.getLinkState(ted.recorded_trajectory_.joint_names.back())->getGlobalLinkTransform();
-  btTransform start_pose = requested_start_state.getLinkState(ted.recorded_trajectory_.joint_names.back())->getGlobalLinkTransform();
+  btTransform recorded_pose = last_recorded_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
+  btTransform last_requested_pose = last_requested_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
+  btTransform next_requested_pose = next_requested_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
 
-  ROS_INFO_STREAM("Diff is " << fabs(recorded_pose.getOrigin().x()-start_pose.getOrigin().x()) << " " 
-                  << fabs(recorded_pose.getOrigin().x()-start_pose.getOrigin().y()) << " " 
-                  << fabs(recorded_pose.getOrigin().x()-start_pose.getOrigin().z())); 
+  ROS_INFO_STREAM("Diff in last requested versus recorded is "  
+		  << fabs(recorded_pose.getOrigin().x()-last_requested_pose.getOrigin().x()) << " "
+		  << fabs(recorded_pose.getOrigin().y()-last_requested_pose.getOrigin().y()) << " "
+		  << fabs(recorded_pose.getOrigin().z()-last_requested_pose.getOrigin().z()));
+
+  ROS_INFO_STREAM("Diff is last requested versus next requested " 
+		  << fabs(last_requested_pose.getOrigin().x()-next_requested_pose.getOrigin().x()) << " " 
+                  << fabs(last_requested_pose.getOrigin().y()-next_requested_pose.getOrigin().y()) << " " 
+                  << fabs(last_requested_pose.getOrigin().z()-next_requested_pose.getOrigin().z())); 
+
+  ROS_INFO_STREAM("Diff is last recorded versus next requested " 
+		  << fabs(recorded_pose.getOrigin().x()-next_requested_pose.getOrigin().x()) << " " 
+                  << fabs(recorded_pose.getOrigin().y()-next_requested_pose.getOrigin().y()) << " " 
+                  << fabs(recorded_pose.getOrigin().z()-next_requested_pose.getOrigin().z())); 
+
 
 }
