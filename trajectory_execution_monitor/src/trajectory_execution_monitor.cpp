@@ -125,6 +125,8 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
       result_callback_(execution_result_vector_);
       return;
     }
+    compareLastRecordedToStart((*execution_data_)[current_trajectory_index_],
+                               execution_result_vector_.back());
     if(!sendTrajectory((*execution_data_)[current_trajectory_index_])) {
       result_callback_(execution_result_vector_);
     }
@@ -156,4 +158,39 @@ bool TrajectoryExecutionMonitor::closeEnough(const TrajectoryExecutionRequest& t
 
   ROS_INFO_STREAM("Not allowing because max distance high " << total_distance);
   return false;
+}
+
+void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExecutionRequest& ter,
+                                                            const TrajectoryExecutionData& ted) {
+  if(ted.recorded_trajectory_.points.size() == 0) {
+    ROS_WARN_STREAM("No points in recorded trajectory for comparison");
+    return;
+  }
+
+  planning_models::KinematicState last_recorded_state(cm_.getKinematicModel());
+  planning_models::KinematicState requested_start_state(cm_.getKinematicModel());
+  
+  last_recorded_state.setKinematicStateToDefault();
+  requested_start_state.setKinematicStateToDefault();
+
+  std::map<std::string, double> last_recorded_values;
+  for(unsigned int i = 0; i < ted.recorded_trajectory_.points.back().positions.size(); i++) {
+    last_recorded_values[ted.recorded_trajectory_.joint_names[i]] = ted.recorded_trajectory_.points.back().positions[i];
+  }
+  
+  std::map<std::string, double> requested_start_values;
+  for(unsigned int i = 0; i < ter.trajectory_.points.front().positions.size(); i++) {
+    last_recorded_values[ter.trajectory_.joint_names[i]] = ter.trajectory_.points.front().positions[i];
+  }
+
+  last_recorded_state.setKinematicState(last_recorded_values);
+  requested_start_state.setKinematicState(requested_start_values);
+
+  btTransform recorded_pose = last_recorded_state.getLinkState(ted.recorded_trajectory_.joint_names.back())->getGlobalLinkTransform();
+  btTransform start_pose = requested_start_state.getLinkState(ted.recorded_trajectory_.joint_names.back())->getGlobalLinkTransform();
+
+  ROS_INFO_STREAM("Diff is " << fabs(recorded_pose.getOrigin().x()-start_pose.getOrigin().x()) << " " 
+                  << fabs(recorded_pose.getOrigin().x()-start_pose.getOrigin().y()) << " " 
+                  << fabs(recorded_pose.getOrigin().x()-start_pose.getOrigin().z())); 
+
 }

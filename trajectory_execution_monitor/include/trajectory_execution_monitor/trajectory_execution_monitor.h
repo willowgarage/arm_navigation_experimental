@@ -42,6 +42,8 @@
 #include <trajectory_execution_monitor/trajectory_recorder.h>
 #include <trajectory_execution_monitor/trajectory_controller_handler.h>
 
+#include <planning_environment/models/collision_models.h>
+
 namespace trajectory_execution_monitor
 {
 
@@ -104,7 +106,7 @@ class TrajectoryExecutionMonitor
 
 public:
   
-  TrajectoryExecutionMonitor() {};
+  TrajectoryExecutionMonitor() : cm_("robot_description"){};
 
   void addTrajectoryRecorder(boost::shared_ptr<TrajectoryRecorder>& trajectory_recorder);
 
@@ -123,6 +125,10 @@ protected:
                    const TrajectoryExecutionData& ted);
   
 
+  void compareLastRecordedToStart(const TrajectoryExecutionRequest& ter,
+                                  const TrajectoryExecutionData& ted);
+
+
   boost::function<bool(TrajectoryExecutionDataVector)> result_callback_;
   TrajectoryExecutionDataVector execution_result_vector_;
   const std::vector<TrajectoryExecutionRequest>* execution_data_;
@@ -131,6 +137,8 @@ protected:
   boost::shared_ptr<TrajectoryControllerHandler> last_requested_handler_;
   std::map<std::string, boost::shared_ptr<TrajectoryRecorder> > trajectory_recorder_map_;
   std::map<std::string, boost::shared_ptr<TrajectoryControllerHandler> > trajectory_controller_handler_map_;
+
+  planning_environment::CollisionModels cm_;
   
 };
 

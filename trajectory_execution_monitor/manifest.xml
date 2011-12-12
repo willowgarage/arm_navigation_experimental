@@ -12,6 +12,7 @@
   <depend package="control_msgs"/>
   <depend package="actionlib"/>
   <depend package="pr2_controllers_msgs"/>
+  <depend package="planning_environment"/>
 
   <export>
     <cpp cflags="-I${prefix}/include `rosboost-cfg --cflags`" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -ltrajectory_execution_monitor" />
