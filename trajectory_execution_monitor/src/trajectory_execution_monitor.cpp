@@ -127,6 +127,7 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
     }
     for(int i = (int)current_trajectory_index_-1; i >= 0; i--) {
       if((*execution_data_)[i].group_name_ == (*execution_data_)[current_trajectory_index_].group_name_) {
+        ROS_INFO_STREAM("Last index is " << i << " current is " << current_trajectory_index_);
 	compareLastRecordedToStart((*execution_data_)[i],
 				   (*execution_data_)[current_trajectory_index_],
 				   execution_result_vector_[i]);
@@ -196,7 +197,7 @@ void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExec
 
   std::map<std::string, double> next_requested_values;
   for(unsigned int i = 0; i < next_ter.trajectory_.points.front().positions.size(); i++) {
-    ROS_INFO_STREAM("Next requested " << next_ter.trajectory_.joint_names[i] << " value " << next_ter.trajectory_.points.back().positions[i]);
+    ROS_INFO_STREAM("Next requested " << next_ter.trajectory_.joint_names[i] << " value " << next_ter.trajectory_.points.front().positions[i]);
     next_requested_values[next_ter.trajectory_.joint_names[i]] = next_ter.trajectory_.points.front().positions[i];
   }
 
