@@ -108,10 +108,8 @@ bool ChompPlannerNode::init()
 
   // load chomp parameters:
   chomp_parameters_.initFromNodeHandle();
-
-  double max_radius_clearance;
-  node_handle_.param("collision_clearance",max_radius_clearance, 0.10);
-
+  
+  collision_proximity_space_->setCollisionTolerance(.05);
 
   // initialize the visualization publisher:
   vis_marker_array_publisher_ = root_handle_.advertise<visualization_msgs::MarkerArray>( "visualization_marker_array", 0 );
@@ -177,11 +175,13 @@ bool ChompPlannerNode::planKinematicPath(arm_navigation_msgs::GetMotionPlan::Req
 
   vector<string> linkNames;
   vector<string> attachedBodies;
+  ros::WallTime start = ros::WallTime::now();
   collision_proximity_space_->setupForGroupQueries(group_name,
                                                    req.motion_plan_request.start_state,
                                                    linkNames,
                                                    attachedBodies);
-  collision_proximity_space_->visualizeObjectSpheres(collision_proximity_space_->getCurrentLinkNames());
+  ROS_INFO_STREAM("Setting up for queries time is " << (ros::WallTime::now() - start));
+  //collision_proximity_space_->visualizeObjectSpheres(collision_proximity_space_->getCurrentLinkNames());
   ChompTrajectory trajectory(robot_model_, trajectory_duration_, trajectory_discretization_, group_name);
 
   ROS_INFO("Initial trajectory has %d points", trajectory.getNumPoints());
@@ -419,7 +419,7 @@ bool ChompPlannerNode::filterJointTrajectory(arm_navigation_msgs::FilterJointTra
 
   // fill in the entire trajectory
 
-  for (size_t i = 0; i < trajectory.getNumPoints(); i++)
+  for (size_t i = 0; i < (unsigned int)trajectory.getNumPoints(); i++)
   {
     res.trajectory.points[i].positions.resize(trajectory.getNumJoints());
     res.trajectory.points[i].velocities.resize(trajectory.getNumJoints());

@@ -291,6 +291,8 @@ void CollisionProximitySpace::setupForGroupQueries(const std::string& group_name
   ros::WallTime n1 = ros::WallTime::now();
   //setting up current info
   current_group_name_ = group_name;
+  //for trajectory safety check
+  collision_models_interface_->disableCollisionsForNonUpdatedLinks(group_name);
   planning_environment::setRobotStateAndComputeTransforms(rob_state,
                                                           *collision_models_interface_->getPlanningSceneState());
   getGroupLinkAndAttachedBodyNames(current_group_name_, 
@@ -1205,6 +1207,9 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
                                                const arm_navigation_msgs::Constraints& path_constraints,
                                                const std::string& groupName)
 {
+  ROS_DEBUG_NAMED("safety", "Calling isTrajectorySafe");
+
+  collision_models_interface_->resetToStartState(*collision_models_interface_->getPlanningSceneState());
 
   if(!collision_models_interface_->getPlanningSceneState()->hasJointStateGroup(groupName))
   {
@@ -1218,16 +1223,31 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
   std::map<std::string, double> stateMap;
   collision_models_interface_->getPlanningSceneState()->getKinematicStateValues(stateMap);
 
+  std::vector<arm_navigation_msgs::ContactInformation> contacts;
+  collision_models_interface_->getAllCollisionsForState(*collision_models_interface_->getPlanningSceneState(),
+                                                        contacts);
+                                                        
+  // if(contacts.size() == 0) {
+  //   ROS_INFO_STREAM("No contacts for start state");
+  // } else {
+  //   for(unsigned int i = 0; i < contacts.size(); i++) {
+  //     ROS_INFO_STREAM("Contact " << i << " between " << contacts[i].contact_body_1 << " and " << contacts[i].contact_body_2);
+  //   }
+  // }
+  
   // If the trajectory is already valid and has no mesh to mesh collisions, we know it's safe.
   if(collision_models_interface_->isJointTrajectoryValid(*(collision_models_interface_->getPlanningSceneState()),
-                                                      trajectory, goal_constraints, path_constraints, error_code, error_codes, false))
+                                                         trajectory, goal_constraints, path_constraints, error_code, error_codes, false))
   {
+    ROS_INFO_STREAM("Mesh to mesh valid");
     return true;
   }
   // Otherwise we have to do something more clever. We know it may have mesh to mesh collisions, but we might
   // want to plan into collision or out of collision. We will still avoid planning through obstacles.
   else
   {
+    ROS_INFO_STREAM("Mesh to mesh invalid with " << error_code.val);
+
     std::vector<double> lastDistances;
     TrajectoryPointType type = None;
     // For each trajectory point, get gradients and assert that the collision cost of start points
@@ -1257,6 +1277,9 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
         {
           distances.push_back(gradient.distances[k]);
           in_collision = in_collision || gradient.distances[k] < tolerance_;
+          //if(gradient.distances[k] < tolerance_) {
+          //  ROS_INFO_STREAM("Point i " << i << " sphere " << k << " distance " << gradient.distances[k] << " less than tolerance " << tolerance_);
+          //}
         }
       }
 
@@ -1264,38 +1287,38 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
       if(type == None && in_collision && i == 0)
       {
         type = StartCollision;
-        ROS_DEBUG("In starting collision phase at index 0");
+        ROS_DEBUG_NAMED("safety","In starting collision phase at index 0");
       }
       // If the first point is not in collision, then the first collision we encounter is the end phase.
       else if(type == None && in_collision && i != 0)
       {
         type = EndCollision;
-        ROS_DEBUG("In ending collision phase at index %lu", (long unsigned int)i);
+        ROS_DEBUG_NAMED("safety","In ending collision phase at index %lu", (long unsigned int)i);
       }
       // If the first point is not in collision, and the next point is not in collision, then we've entered the
       // middle phase.
       else if(type == None && !in_collision && i != 0)
       {
         type = Middle;
-        ROS_DEBUG("In middle collision phase at index %lu",  (long unsigned int)i);
+        ROS_DEBUG_NAMED("safety","In middle collision phase at index %lu",  (long unsigned int)i);
       }
       // If we've exited collision from the start, then we're in the middle phase.
       else if (type == StartCollision && !in_collision)
       {
         type = Middle;
-        ROS_DEBUG("In middle collision phase at index %lu",  (long unsigned int)i);
+        ROS_DEBUG_NAMED("safety","In middle collision phase at index %lu",  (long unsigned int)i);
       }
       // If we're in the middle phase, and we encounter a collision, we're in the end phase.
       else if(type == Middle && in_collision)
       {
         type = EndCollision;
-        ROS_DEBUG("In end collision phase at index %lu",  (long unsigned int)i);
+        ROS_DEBUG_NAMED("safety","In end collision phase at index %lu",  (long unsigned int)i);
       }
       // If the end phase has collisions, then there should be no point in which it is out of collision.
       // We want to avoid passing through obstacles, but not going into contact with obstacles.
       else if(type == EndCollision && !in_collision)
       {
-        ROS_DEBUG("Got point in the end collision phase that was not in collision : %lu", (long unsigned int) i);
+        ROS_DEBUG_NAMED("safety","Got point in the end collision phase that was not in collision : %lu", (long unsigned int) i);
         return false;
       }
 
@@ -1313,9 +1336,10 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
         {
           lastDistances.push_back(dist);
         }
+        //ROS_DEBUG_STREAM_NAMED("safety", "Point " << i << " dist " << j << " is " << dist);
 
         // Only consider spheres in collision.
-        if(dist > 0.02)
+        if(dist > tolerance_)
         {
           continue;
         }
@@ -1328,15 +1352,16 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
             // Assert monotonically increasing.
             if(dist < lastDist)
             {
-              ROS_DEBUG("Start phase was not monotonically increasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
+              ROS_DEBUG_NAMED("safety","Start phase was not monotonically increasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
               return false;
             }
             break;
           case EndCollision:
             // Assert monotonically decreasing.
+            //ROS_INFO_STREAM("Point " << i << " sphere " << j << " lastDist " << lastDist << " dist " << dist);
             if(dist > lastDist)
             {
-              ROS_DEBUG("End phase was not monotonically decreasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
+              ROS_DEBUG_NAMED("safety","End phase was not monotonically decreasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
               return false;
             }
             break;
@@ -1344,7 +1369,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
             // Assert no collisions.
             if(in_collision)
             {
-              ROS_DEBUG("Middle phase had a collision. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
+              ROS_DEBUG_NAMED("safety","Middle phase had a collision. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
               return false;
             }
             break;
@@ -1357,7 +1382,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
       }
     }
     // Trajectory passed all tests.
-    ROS_DEBUG("Trajectory passed all safety tests.");
+    ROS_DEBUG_NAMED("safety","Trajectory passed all safety tests.");
     return true;
   }
 

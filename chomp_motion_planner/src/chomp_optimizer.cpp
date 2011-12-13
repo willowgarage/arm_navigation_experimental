@@ -450,14 +450,15 @@ namespace chomp
 
       if(shouldBreakOut)
       {
-        ROS_INFO("Trying collision free iteration %d", collision_free_iteration_);
         collision_free_iteration_++;
         if(collision_free_iteration_ > parameters_->getMaxIterationsAfterCollisionFree())
         {
-          break;
+          if(!checkCurrentIterValidity()) {
+            ROS_WARN_STREAM("Apparently regressed");
+          }
         }
+        break;
       }
-
     }
 
     if(is_collision_free_)
