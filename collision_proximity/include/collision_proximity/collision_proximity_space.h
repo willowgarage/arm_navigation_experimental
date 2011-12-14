@@ -60,10 +60,19 @@ class CollisionProximitySpace
 
 public:
 
-    enum TrajectoryPointType
+  enum TrajectoryPointType
     {
       StartCollision, EndCollision, Middle, None
     };
+  
+  enum TrajectorySafety {
+    ErrorUnsafe,
+    StartUnsafe,
+    MiddleUnsafe,
+    EndUnsafe,
+    MeshToMeshSafe,
+    InCollisionSafe
+  };
 
   CollisionProximitySpace(const std::string& robot_description_name, bool register_with_environment_server = true, bool use_signed_environment_field = false, bool use_signed_self_field = false);
   ~CollisionProximitySpace();
@@ -111,10 +120,10 @@ public:
   bool getEnvironmentProximityGradients(std::vector<GradientInfo>& gradients,
                                         bool subtract_radii = false) const;
 
-  bool isTrajectorySafe(const trajectory_msgs::JointTrajectory& trajectory,
-                        const arm_navigation_msgs::Constraints& goal_constraints,
-                        const arm_navigation_msgs::Constraints& path_constraints,
-                        const std::string& groupName);
+  TrajectorySafety isTrajectorySafe(const trajectory_msgs::JointTrajectory& trajectory,
+                                    const arm_navigation_msgs::Constraints& goal_constraints,
+                                    const arm_navigation_msgs::Constraints& path_constraints,
+                                    const std::string& groupName);
 
   // returns true if current setup is in environment collision
   bool isEnvironmentCollision() const;

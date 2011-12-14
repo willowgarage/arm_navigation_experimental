@@ -1202,10 +1202,10 @@ void CollisionProximitySpace::getProximityGradientMarkers(const std::vector<std:
   }
 }
 
-bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTrajectory& trajectory,
-                                               const arm_navigation_msgs::Constraints& goal_constraints,
-                                               const arm_navigation_msgs::Constraints& path_constraints,
-                                               const std::string& groupName)
+CollisionProximitySpace::TrajectorySafety CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTrajectory& trajectory,
+                                                                                    const arm_navigation_msgs::Constraints& goal_constraints,
+                                                                                    const arm_navigation_msgs::Constraints& path_constraints,
+                                                                                    const std::string& groupName)
 {
   ROS_DEBUG_NAMED("safety", "Calling isTrajectorySafe");
 
@@ -1214,7 +1214,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
   if(!collision_models_interface_->getPlanningSceneState()->hasJointStateGroup(groupName))
   {
     ROS_ERROR("Group %s does not exist. Cannot evaluate trajectory safety.", groupName.c_str());
-    return false;
+    return ErrorUnsafe;
   }
   planning_models::KinematicState::JointStateGroup* stateGroup = collision_models_interface_->getPlanningSceneState()->
       getJointStateGroup(groupName);
@@ -1240,7 +1240,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
                                                          trajectory, goal_constraints, path_constraints, error_code, error_codes, false))
   {
     ROS_INFO_STREAM("Mesh to mesh valid");
-    return true;
+    return MeshToMeshSafe;
   }
   // Otherwise we have to do something more clever. We know it may have mesh to mesh collisions, but we might
   // want to plan into collision or out of collision. We will still avoid planning through obstacles.
@@ -1319,7 +1319,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
       else if(type == EndCollision && !in_collision)
       {
         ROS_DEBUG_NAMED("safety","Got point in the end collision phase that was not in collision : %lu", (long unsigned int) i);
-        return false;
+        return EndUnsafe;
       }
 
 
@@ -1353,7 +1353,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
             if(dist < lastDist)
             {
               ROS_DEBUG_NAMED("safety","Start phase was not monotonically increasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
-              return false;
+              return StartUnsafe;
             }
             break;
           case EndCollision:
@@ -1362,7 +1362,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
             if(dist > lastDist)
             {
               ROS_DEBUG_NAMED("safety","End phase was not monotonically decreasing in distance. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
-              return false;
+              return EndUnsafe;
             }
             break;
           case Middle:
@@ -1370,7 +1370,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
             if(in_collision)
             {
               ROS_DEBUG_NAMED("safety","Middle phase had a collision. Reason: point %lu sphere %lu", (long unsigned int)i, (long unsigned int)j);
-              return false;
+              return MiddleUnsafe;
             }
             break;
           case None:
@@ -1383,7 +1383,7 @@ bool CollisionProximitySpace::isTrajectorySafe(const trajectory_msgs::JointTraje
     }
     // Trajectory passed all tests.
     ROS_DEBUG_NAMED("safety","Trajectory passed all safety tests.");
-    return true;
+    return InCollisionSafe;
   }
 
 

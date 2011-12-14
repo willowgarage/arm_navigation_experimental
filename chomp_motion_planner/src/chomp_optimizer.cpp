@@ -297,7 +297,9 @@ namespace chomp
     // iterate
     for(iteration_ = 0; iteration_ < parameters_->getMaxIterations(); iteration_++)
     {
+      ros::WallTime for_time = ros::WallTime::now();
       performForwardKinematics();
+      ROS_DEBUG_STREAM("Forward kinematics took " << (ros::WallTime::now()-for_time));
       double cCost = getCollisionCost();
       double sCost = getSmoothnessCost();
       double cost = cCost + sCost;
@@ -333,7 +335,9 @@ namespace chomp
         }
       }
       calculateSmoothnessIncrements();
+      ros::WallTime coll_time = ros::WallTime::now();
       calculateCollisionIncrements();
+      ROS_DEBUG_STREAM("Collision increments took " << (ros::WallTime::now()-coll_time));
       calculateTotalIncrements();
 
       if(!parameters_->getUseHamiltonianMonteCarlo())
@@ -355,9 +359,17 @@ namespace chomp
       if(iteration_ % 10 == 0)
       {
         ROS_DEBUG("Trajectory cost: %f (s=%f, c=%f)", getTrajectoryCost(), getSmoothnessCost(), getCollisionCost());
-        if(checkCurrentIterValidity())
+        CollisionProximitySpace::TrajectorySafety safety = checkCurrentIterValidity();
+        if(safety == CollisionProximitySpace::MeshToMeshSafe) 
         {
-          ROS_INFO("Chomp Got safe iteration at iter %d. Breaking out early.", iteration_);
+          num_collision_free_iterations_ = 0;
+          ROS_INFO("Chomp Got mesh to mesh safety at iter %d. Breaking out early.", iteration_);
+          is_collision_free_ = true;
+          iteration_++;
+          shouldBreakOut = true;
+        } else if(safety == CollisionProximitySpace::InCollisionSafe) {
+          num_collision_free_iterations_ = parameters_->getMaxIterationsAfterCollisionFree();
+          ROS_INFO("Chomp Got in collision safety at iter %d. Breaking out soon.", iteration_);
           is_collision_free_ = true;
           iteration_++;
           shouldBreakOut = true;
@@ -372,17 +384,9 @@ namespace chomp
       {
         if(cCost < parameters_->getCollisionThreshold())
         {
-          if(checkCurrentIterValidity())
-          {
-            is_collision_free_ = true;
-            iteration_++;
-            shouldBreakOut = true;
-          }
-          else
-          {
-            is_collision_free_ = false;
-            ROS_DEBUG("CHOMP thought trajectory was collision free, but it is not safe!");
-          }
+          is_collision_free_ = true;
+          iteration_++;
+          shouldBreakOut = true;
         }
       }
 
@@ -395,7 +399,7 @@ namespace chomp
 
       if(fabs(averageCostVelocity) < minimaThreshold && currentCostIter == -1 && !is_collision_free_ && parameters_->getAddRandomness())
       {
-        ROS_DEBUG("Detected local minima. Attempting to break out!");
+        ROS_INFO("Detected local minima. Attempting to break out!");
         int iter = 0;
         bool success = false;
         while(iter < 5 && !success)
@@ -411,7 +415,7 @@ namespace chomp
           iter ++;
           if(new_cost < original_cost)
           {
-            ROS_DEBUG("Got out of minimum in %d iters!", iter);
+            ROS_INFO("Got out of minimum in %d iters!", iter);
             averageCostVelocity = 0.0;
             currentCostIter = 0;
             success = true;
@@ -429,7 +433,7 @@ namespace chomp
 
         if(!success)
         {
-          ROS_DEBUG("Failed to exit minimum!");
+          ROS_INFO("Failed to exit minimum!");
         }
       }
       else if(currentCostIter == -1)
@@ -451,13 +455,17 @@ namespace chomp
       if(shouldBreakOut)
       {
         collision_free_iteration_++;
-        if(collision_free_iteration_ > parameters_->getMaxIterationsAfterCollisionFree())
+        if(num_collision_free_iterations_ == 0) {
+          break;
+        } else if(collision_free_iteration_ > num_collision_free_iterations_)
         {
-          if(!checkCurrentIterValidity()) {
+          CollisionProximitySpace::TrajectorySafety safety = checkCurrentIterValidity();
+          if(safety != CollisionProximitySpace::MeshToMeshSafe &&
+             safety != CollisionProximitySpace::InCollisionSafe) {
             ROS_WARN_STREAM("Apparently regressed");
           }
+          break;
         }
-        break;
       }
     }
 
@@ -482,11 +490,12 @@ namespace chomp
       animatePath();
 
     ROS_INFO("Terminated after %d iterations, using path from iteration %d", iteration_, last_improvement_iteration_);
-    ROS_INFO("Optimization core finished in %f sec", (ros::WallTime::now() - start_time).toSec());
+    ROS_INFO("Optimization core finished in %f sec", (ros::WallTime::now() - start_time).toSec() );
+    ROS_INFO_STREAM("Time per iteration " << (ros::WallTime::now() - start_time).toSec()/(iteration_*1.0));
   }
 
-  bool ChompOptimizer::checkCurrentIterValidity()
-  {
+CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidity()
+{
     JointTrajectory jointTrajectory;
     jointTrajectory.joint_names = joint_names_;
     jointTrajectory.header.frame_id = collision_space_->getCollisionModelsInterface()->getRobotFrameId();
@@ -505,7 +514,7 @@ namespace chomp
       jointTrajectory.points.push_back(point);
     }
 
-    bool valid = collision_space_->isTrajectorySafe(jointTrajectory, goalConstraints, pathConstraints, planning_group_);
+    return collision_space_->isTrajectorySafe(jointTrajectory, goalConstraints, pathConstraints, planning_group_);
     /*
     bool valid = collision_space_->getCollisionModelsInterface()->isJointTrajectoryValid(*robot_state_,
                                                                                          jointTrajectory,
@@ -514,7 +523,6 @@ namespace chomp
                                                                                          trajectoryErrorCodes, false);
                                                                                          */
 
-    return valid;
   }
 
   void ChompOptimizer::calculateSmoothnessIncrements()
@@ -972,35 +980,41 @@ namespace chomp
         currentState->getJointStateGroup(groupName)->getJointStateVector();
     for(size_t i = 0; i < jointStates.size(); i++)
     {
+
+      bool continuous = false;
+      
       KinematicState::JointState* jointState = jointStates[i];
+      const KinematicModel::RevoluteJointModel* revolute_joint 
+        = dynamic_cast<const KinematicModel::RevoluteJointModel*>(jointState->getJointModel());
+      if(revolute_joint && revolute_joint->continuous_) {
+        continuous = true;
+      }
+      
       map<string, pair<double, double> > bounds = jointState->getJointModel()->getAllVariableBounds();
       int j = 0;
       for(map<string, pair<double, double> >::iterator it = bounds.begin(); it != bounds.end(); it++)
       {
-        double range = it->second.second - it->second.first;
         double randVal = jointState->getJointStateValues()[j] + (getRandomDouble()
-            * (parameters_->getRandomJumpAmount()) - getRandomDouble() * (parameters_->getRandomJumpAmount()));
+                                                                 * (parameters_->getRandomJumpAmount()) - getRandomDouble() * (parameters_->getRandomJumpAmount()));
 
-        if(range == numeric_limits<double>::infinity())
+        if(!continuous) 
         {
-          state_vec(i) = randVal;
-          j++;
-          continue;
-        }
-        if(randVal > it->second.second)
-        {
-          randVal = it->second.second;
-        }
-        else if(randVal < it->second.first)
-        {
-          randVal = it->second.first;
+          if(randVal > it->second.second)
+          {
+            randVal = it->second.second;
+          }
+          else if(randVal < it->second.first)
+          {
+            randVal = it->second.first;
+          }
         }
 
+        ROS_DEBUG_STREAM("Joint " << it->first << " old value " << jointState->getJointStateValues()[j] << " new value " << randVal);
         state_vec(i) = randVal;
+        
         j++;
       }
     }
-
   }
 
   void ChompOptimizer::getRandomMomentum()

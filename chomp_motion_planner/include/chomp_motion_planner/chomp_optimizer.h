@@ -100,7 +100,7 @@ private:
 
   void setRobotStateFromPoint(ChompTrajectory& group_trajectory, int i);
 
-  bool checkCurrentIterValidity();
+  collision_proximity::CollisionProximitySpace::TrajectorySafety checkCurrentIterValidity();
 
   int num_joints_;
   int num_vars_free_;
@@ -109,7 +109,7 @@ private:
   int free_vars_start_;
   int free_vars_end_;
   int iteration_;
-  int collision_free_iteration_;
+  unsigned int collision_free_iteration_;
   ChompTrajectory *full_trajectory_;
   planning_models::KinematicModel *robot_model_;
   planning_models::KinematicState *robot_state_;
@@ -132,6 +132,7 @@ private:
   Eigen::MatrixXd best_group_trajectory_;
   double best_group_trajectory_cost_;
   int last_improvement_iteration_;
+  unsigned int num_collision_free_iterations_;
 
   // HMC stuff:
   Eigen::MatrixXd momentum_;
