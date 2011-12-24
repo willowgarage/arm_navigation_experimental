@@ -82,12 +82,14 @@ struct TrajectoryExecutionData {
 
   TrajectoryExecutionResult result_;
 
-  double time_to_settle_;
-  double max_overshoot_distance_;
+  // stats
+  ros::Duration time_;							// recorded
+  ros::Duration time_to_settle_;		// overshoot
+  double angular_distance_;					// recorded
 
+  // trajectories
   trajectory_msgs::JointTrajectory recorded_trajectory_;
   trajectory_msgs::JointTrajectory overshoot_trajectory_;
-
 };
 
 struct TrajectoryExecutionDataVector : public std::vector<TrajectoryExecutionData> 
@@ -126,7 +128,7 @@ protected:
   
 
   void compareLastRecordedToStart(const TrajectoryExecutionRequest& last_ter,
-				  const TrajectoryExecutionRequest& next_ter,
+                                  const TrajectoryExecutionRequest& next_ter,
                                   const TrajectoryExecutionData& ted);
 
 

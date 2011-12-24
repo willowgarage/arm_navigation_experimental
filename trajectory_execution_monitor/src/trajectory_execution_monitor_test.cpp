@@ -8,7 +8,9 @@ using namespace trajectory_execution_monitor;
 bool trajectoryFinishedCallbackFunction(TrajectoryExecutionDataVector tedv) {
   ROS_INFO_STREAM("Trajectories " << tedv.size() << " ok " << (tedv.back().result_ == SUCCEEDED));
   for(unsigned int i = 0; i < tedv.size(); i++) {
-    ROS_INFO_STREAM("Recorded trajectory " << i << " has " << tedv[i].recorded_trajectory_.points.size());
+    ROS_INFO_STREAM("Recorded trajectory " << i << " has " << tedv[i].recorded_trajectory_.points.size() << " points" );
+    ROS_INFO_STREAM("Recorded trajectory " << i << " has time " << tedv[i].time_ << " seconds" );
+    ROS_INFO_STREAM("Recorded trajectory " << i << " has angular sum " << tedv[i].angular_distance_ << " radians" );
   }
   return true;
 }
@@ -76,6 +78,10 @@ int main(int argc, char** argv) {
   ter.controller_name_ = "/r_arm_controller/follow_joint_trajectory";
   ter.recorder_name_ = "/joint_states";
   ter.trajectory_ = jt;
+  ter.test_for_close_enough_ = true;
+  ter.max_settling_time_ = 20;
+  ter.max_settling_velocity_epsilon_ = 0.001;
+  ter.max_joint_distance_ = 0.001;
   traj_reqs.push_back(ter);
 
   trajectory_msgs::JointTrajectory gt;

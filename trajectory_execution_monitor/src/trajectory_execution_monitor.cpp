@@ -35,6 +35,7 @@
 /** \author E. Gil Jones */
 
 #include <trajectory_execution_monitor/trajectory_execution_monitor.h>
+#include <trajectory_execution_monitor/trajectory_stats.h>
 
 using namespace trajectory_execution_monitor;
 
@@ -108,6 +109,12 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok) {
                   execution_result_vector_.back())))
   {
     ROS_INFO_STREAM("Trajectory finished with ok");
+
+    // calculate stats
+    TrajectoryExecutionData & data = execution_result_vector_.back();
+    data.angular_distance_ = TrajectoryStats::getAngularDistance(data.recorded_trajectory_);
+    data.time_ = TrajectoryStats::getDuration(data.recorded_trajectory_);
+
     if(!ok) {
       if((*execution_data_)[current_trajectory_index_].failure_ok_) {
         execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_OK;
@@ -150,11 +157,8 @@ bool TrajectoryExecutionMonitor::closeEnough(const TrajectoryExecutionRequest& t
     ROS_WARN_STREAM("No points in recorded trajectory");
     return false;
   }
-  double total_distance = 0.0;
-  for(unsigned int i = 0; i < ter.trajectory_.points.back().positions.size(); i++) {
-    ROS_DEBUG_STREAM("Distance for " << ter.trajectory_.joint_names[i] << " is " << fabs(ter.trajectory_.points.back().positions[i]-ted.recorded_trajectory_.points.back().positions[i]));
-    total_distance += fabs(ter.trajectory_.points.back().positions[i]-ted.recorded_trajectory_.points.back().positions[i]);
-  }
+  ROS_WARN_STREAM("Comparing trajectories trajectory");
+  double total_distance = TrajectoryStats::distance(ter.trajectory_.points.back(),ted.recorded_trajectory_.points.back());
   if(total_distance < ter.max_joint_distance_) {
     ROS_INFO_STREAM("Allowing because max distance low " << total_distance);
     return true;
