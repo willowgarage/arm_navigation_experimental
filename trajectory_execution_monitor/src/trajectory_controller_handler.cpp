@@ -40,10 +40,39 @@ using namespace trajectory_execution_monitor;
 
 bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Time& time,
                                                                   const std::map<std::string, double>& joint_positions,
-                                                                  const std::map<std::string, double>& joint_velocities) {
+                                                                  const std::map<std::string, double>& joint_velocities)
+{
+
+  // FIXME-- hack-- replace > XX with actual condition
+  if( controller_state_ == OVERSHOOTING && overshoot_trajectory_.points.size() > 10 )
+  {
+    controller_state_ = IDLE;
+    recorder_->delayedDeregisterCallback(group_controller_combo_name_);
+    trajectory_finished_callback_(success_);
+    return false;
+  }
+
+  if( controller_state_ == EXECUTING )
+  {
+    return _addNewStateToTrajectory(time, joint_positions, joint_velocities, recorded_trajectory_);
+  }
+  else if( controller_state_ == OVERSHOOTING )
+  {
+    return _addNewStateToTrajectory(time, joint_positions, joint_velocities, overshoot_trajectory_);
+  }
+  return false;
+}
+
+bool TrajectoryControllerHandler::_addNewStateToTrajectory(const ros::Time& time,
+                                                           const std::map<std::string, double>& joint_positions,
+                                                           const std::map<std::string, double>& joint_velocities,
+                                                           trajectory_msgs::JointTrajectory& trajectory)
+{
+  ros::Time start_time;
+
   trajectory_msgs::JointTrajectoryPoint p;
-  for(unsigned int i = 0; i < recorded_trajectory_.joint_names.size(); i++) {
-    const std::string& jn = recorded_trajectory_.joint_names[i];
+  for(unsigned int i = 0; i < trajectory.joint_names.size(); i++) {
+    const std::string& jn = trajectory.joint_names[i];
     if(joint_positions.find(jn) == joint_positions.end()) {
       return false;
     }
@@ -51,16 +80,29 @@ bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Tim
     if(joint_velocities.find(jn) == joint_velocities.end()) {
       p.velocities.push_back(joint_velocities.at(jn));
     }
-    p.time_from_start = time-recorded_trajectory_.header.stamp;
+    p.time_from_start = time-trajectory.header.stamp;
   }
-  recorded_trajectory_.points.push_back(p);
+  trajectory.points.push_back(p);
+
   return true;
 }
 
 void TrajectoryControllerHandler::initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory)
 {
-  goal_trajectory_ = goal_trajectory_;
+  goal_trajectory_ = goal_trajectory;
+
   recorded_trajectory_.header.stamp = ros::Time::now();
   recorded_trajectory_.joint_names = goal_trajectory.joint_names;
   recorded_trajectory_.points.clear();
+
+  controller_state_ = EXECUTING;
+}
+
+void TrajectoryControllerHandler::initializeOvershootTrajectory()
+{
+  overshoot_trajectory_.header.stamp = ros::Time::now();
+  overshoot_trajectory_.joint_names = goal_trajectory_.joint_names;
+  overshoot_trajectory_.points.clear();
+
+  controller_state_ = OVERSHOOTING;
 }

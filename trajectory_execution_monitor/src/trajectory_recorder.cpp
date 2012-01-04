@@ -40,13 +40,24 @@ using namespace trajectory_execution_monitor;
 
 void TrajectoryRecorder::callCallbacks(const ros::Time& time,
                                        const std::map<std::string, double>& joint_positions,
-                                       const std::map<std::string, double>& joint_velocities) const 
+                                       const std::map<std::string, double>& joint_velocities)
 {
+  // Call all the callbacks
   for(std::map<std::string, NewStateCallbackFunction>::const_iterator it = callback_map_.begin();
       it != callback_map_.end();
-      it++) {
+      it++) 
+  {
     it->second(time, 
                joint_positions,
                joint_velocities);
   }
+
+  // Delete the callbacks that just requested to be deleted
+  for(unsigned int i=0; i<deregister_list_.size(); ++i)
+  {
+    const std::string& name = deregister_list_[i];
+    callback_map_.erase(name);
+  }
+  deregister_list_.clear();
+
 };

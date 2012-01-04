@@ -56,8 +56,11 @@ struct TrajectoryExecutionRequest {
   bool failure_ok_;
   bool test_for_close_enough_;
 
+  bool monitor_overshoot_;
+
   double max_settling_velocity_epsilon_;
   double max_settling_time_;
+
   double max_joint_distance_;
   double failure_time_factor_;
   
@@ -142,7 +145,7 @@ protected:
   std::map<std::string, boost::shared_ptr<TrajectoryControllerHandler> > trajectory_controller_handler_map_;
 
   planning_environment::CollisionModels cm_;
-  
+
 };
 
 }

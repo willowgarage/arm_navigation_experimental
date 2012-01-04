@@ -62,6 +62,7 @@ public:
   static double getAngularDistance(const trajectory_msgs::JointTrajectory& trajectory);
 
   /// @brief returns the sum of the differences of all joints angular difference between two trajectories
+  /// Pass in the joint names if you want the values to show up in the log.
   static double distance(const trajectory_msgs::JointTrajectoryPoint& point, const trajectory_msgs::JointTrajectoryPoint& point2, const std::vector<std::string> joint_names=std::vector<std::string>() );
 
 };

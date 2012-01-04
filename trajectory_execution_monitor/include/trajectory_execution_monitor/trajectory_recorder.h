@@ -45,6 +45,7 @@
 namespace trajectory_execution_monitor
 {
 
+// function that gets called when new state information arrives
 typedef boost::function<bool(const ros::Time& time, const std::map<std::string, double>&, const std::map<std::string,double>&)> NewStateCallbackFunction;
 
 class TrajectoryRecorder {
@@ -58,9 +59,16 @@ public:
     callback_map_[name] = callback;
   };
 
+  // Do NOT call this from inside NewStateCallbackFunction,
+  // or you may find yourself invalidating an iterator and segfaulting.
   void deregisterCallback(const std::string& name) {
     callback_map_.erase(name);
   };
+
+  // This function is called to deregister a callback when the calling function is one of the NewStateCallbackFunctions.
+  void delayedDeregisterCallback(const std::string& name) {
+    deregister_list_.push_back(name);
+  }
 
   const std::string& getName() const {
     return recorder_name_;
@@ -70,10 +78,11 @@ protected:
 
   void callCallbacks(const ros::Time& time,
                      const std::map<std::string, double>& joint_positions,
-                     const std::map<std::string, double>& joint_velocities) const; 
+                     const std::map<std::string, double>& joint_velocities) ;
   
   std::string recorder_name_;
   std::map<std::string, NewStateCallbackFunction> callback_map_;
+  std::vector<std::string> deregister_list_;
 
 };
 

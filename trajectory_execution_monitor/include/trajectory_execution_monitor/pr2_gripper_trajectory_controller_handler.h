@@ -100,8 +100,12 @@ public:
                               const pr2_controllers_msgs::Pr2GripperCommandResultConstPtr& result)
   {
     recorder_->deregisterCallback(group_controller_combo_name_);
-    ROS_INFO_STREAM("Gripper controller is done with state " << (state == actionlib::SimpleClientGoalState::SUCCEEDED));
-    trajectory_finished_callback_(state == actionlib::SimpleClientGoalState::SUCCEEDED);
+    success_ = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
+
+    // We don't record overshoot on the gripepr
+    controller_state_ = IDLE;
+    ROS_INFO_STREAM("Gripper controller is done with state " << success_);
+    trajectory_finished_callback_(success_);
   }
 
   void controllerActiveCallback() 

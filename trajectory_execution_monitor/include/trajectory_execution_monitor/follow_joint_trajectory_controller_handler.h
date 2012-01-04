@@ -84,13 +84,26 @@ public:
   void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                               const control_msgs::FollowJointTrajectoryResultConstPtr& result)
   {
-    recorder_->deregisterCallback(group_controller_combo_name_);
     ROS_INFO_STREAM("Controller is done with state " << (state == actionlib::SimpleClientGoalState::SUCCEEDED));
     if(state != actionlib::SimpleClientGoalState::SUCCEEDED) {
-      ROS_WARN_STREAM("Failed state is " << actionlib::SimpleClientGoalState::SUCCEEDED << " code " 
+      ROS_WARN_STREAM("Failed state is " << actionlib::SimpleClientGoalState::SUCCEEDED << " code "
                       << result->error_code);
     }
-    trajectory_finished_callback_(state == actionlib::SimpleClientGoalState::SUCCEEDED);
+
+    success_ = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
+
+    // We record overshoot
+    if( success_ )
+    {
+      initializeOvershootTrajectory();
+    }
+    else
+    {
+      ROS_WARN("controller returned an error.  Not recording the overshoot.");
+      controller_state_ = IDLE;
+      recorder_->deregisterCallback(group_controller_combo_name_);
+      trajectory_finished_callback_(success_);
+    }
   }
 
   void controllerActiveCallback() 
@@ -106,11 +119,7 @@ public:
 
 protected:
 
-  trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
   actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> follow_joint_trajectory_action_client_;
-
-  boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
-
 }; 
 
 #endif

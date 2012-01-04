@@ -8,9 +8,14 @@ using namespace trajectory_execution_monitor;
 bool trajectoryFinishedCallbackFunction(TrajectoryExecutionDataVector tedv) {
   ROS_INFO_STREAM("Trajectories " << tedv.size() << " ok " << (tedv.back().result_ == SUCCEEDED));
   for(unsigned int i = 0; i < tedv.size(); i++) {
-    ROS_INFO_STREAM("Recorded trajectory " << i << " has " << tedv[i].recorded_trajectory_.points.size() << " points" );
-    ROS_INFO_STREAM("Recorded trajectory " << i << " has time " << tedv[i].time_ << " seconds" );
-    ROS_INFO_STREAM("Recorded trajectory " << i << " has angular sum " << tedv[i].angular_distance_ << " radians" );
+    ROS_INFO_STREAM("Recorded  trajectory " << i << " has " << tedv[i].recorded_trajectory_.points.size() << " points" );
+    ROS_INFO_STREAM("Recorded  trajectory " << i << " has time " << tedv[i].time_ << " seconds" );
+    ROS_INFO_STREAM("Recorded  trajectory " << i << " has angular sum " << tedv[i].angular_distance_ << " radians" );
+    if(tedv[i].overshoot_trajectory_.points.size() > 0 )
+    {
+      ROS_INFO_STREAM("Overshoot trajectory " << i << " has " << tedv[i].overshoot_trajectory_.points.size() << " points" );
+      ROS_INFO_STREAM("Overshoot trajectory " << i << " has time " << tedv[i].time_to_settle_ << " seconds" );
+    }
   }
   return true;
 }
@@ -24,11 +29,13 @@ int main(int argc, char** argv) {
   spinner.start();
 
   boost::shared_ptr<TrajectoryRecorder> tr(new JointStateTrajectoryRecorder("/joint_states"));
-  boost::shared_ptr<TrajectoryControllerHandler> fjt(new FollowJointTrajectoryControllerHandler("right_arm",
-                                                                                                "/r_arm_controller/follow_joint_trajectory"));
+  boost::shared_ptr<TrajectoryControllerHandler> fjt(
+      new FollowJointTrajectoryControllerHandler("right_arm",
+                                                 "/r_arm_controller/follow_joint_trajectory"));
 
-  boost::shared_ptr<TrajectoryControllerHandler> gripper(new Pr2GripperTrajectoryControllerHandler("r_end_effector",
-                                                                                                 "/r_gripper_controller/gripper_action"));
+  boost::shared_ptr<TrajectoryControllerHandler> gripper(
+      new Pr2GripperTrajectoryControllerHandler("r_end_effector",
+                                                "/r_gripper_controller/gripper_action"));
 
   TrajectoryExecutionMonitor tem;
   tem.addTrajectoryRecorder(tr);
@@ -49,7 +56,7 @@ int main(int argc, char** argv) {
   jt.points.resize(100);
 
   double start_angle = 0.0;
-  double goal_angle = -.9;
+  double goal_angle = -.5;
 
   if(argc > 2) {
     std::stringstream s(argv[1]);
@@ -58,7 +65,7 @@ int main(int argc, char** argv) {
     g >> goal_angle;
   }
 
-  ros::Duration r(10.0);
+  ros::Duration r(3.0);
 
   jt.header.stamp = ros::Time::now();
 

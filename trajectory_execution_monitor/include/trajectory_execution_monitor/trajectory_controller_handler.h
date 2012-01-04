@@ -50,13 +50,17 @@ namespace trajectory_execution_monitor
 typedef boost::function<void(bool)> TrajectoryFinishedCallbackFunction;
 
 class TrajectoryControllerHandler {
+protected:
+  // TrajectoryControllerHandler is augmented to record overshoot of a trajectory
+  enum TrajectoryControllerState	{	IDLE, PAUSED, EXECUTING, OVERSHOOTING };
 
 public:
 
   TrajectoryControllerHandler(const std::string& group_name,
                               const std::string& controller_name) :
     group_name_(group_name),
-    controller_name_(controller_name)
+    controller_name_(controller_name),
+    controller_state_(IDLE)
   {
     group_controller_combo_name_ = combineGroupAndControllerNames(group_name,controller_name);  
   };
@@ -84,6 +88,10 @@ public:
     return recorded_trajectory_;
   }
 
+  const trajectory_msgs::JointTrajectory& getLastOvershootTrajectory() const {
+    return overshoot_trajectory_;
+  }
+
   const std::string& getGroupName() const {
     return group_name_;
   }
@@ -101,18 +109,27 @@ protected:
   bool addNewStateToRecordedTrajectory(const ros::Time& time,
                                        const std::map<std::string, double>& joint_positions,
                                        const std::map<std::string, double>& joint_velocities);
+  bool _addNewStateToTrajectory(const ros::Time& time,
+                                const std::map<std::string, double>& joint_positions,
+                                const std::map<std::string, double>& joint_velocities,
+                                trajectory_msgs::JointTrajectory& trajectory);
 
+  // TODO - change to startRecor... & startOver
   void initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory);
+  void initializeOvershootTrajectory();
 
   std::string group_name_;
   std::string controller_name_;
   std::string group_controller_combo_name_;
 
   trajectory_msgs::JointTrajectory recorded_trajectory_;
+  trajectory_msgs::JointTrajectory overshoot_trajectory_;
   trajectory_msgs::JointTrajectory goal_trajectory_;
 
   boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
   trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
+  TrajectoryControllerState	controller_state_;
+  bool success_;
 
   //TODO - consider pause and resume execution
 
