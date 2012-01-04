@@ -260,19 +260,27 @@ namespace chomp
     const KinematicModel::JointModel* parentModel = NULL;
     bool foundRoot = false;
 
+    if(model == robot_model_->getRoot()) return;
+
     while(!foundRoot)
     {
       if(parentModel == NULL)
-      {
+      { 
+        if(model->getParentLinkModel() == NULL) {
+          ROS_ERROR_STREAM("Model " << model->getName() << " not root but has NULL link model parent");
+          return;
+        } else if(model->getParentLinkModel()->getParentJointModel() == NULL) {
+          ROS_ERROR_STREAM("Model " << model->getName() << " not root but has NULL joint model parent");
+          return;
+        }
         parentModel = model->getParentLinkModel()->getParentJointModel();
-      }
-      else
+      } else
       {
-        parentModel = parentModel->getParentLinkModel()->getParentJointModel();
-
         if(parentModel == robot_model_->getRoot())
         {
           foundRoot = true;
+        } else {
+          parentModel = parentModel->getParentLinkModel()->getParentJointModel();
         }
       }
       joint_parent_map_[model->getName()][parentModel->getName()] = true;
@@ -286,7 +294,7 @@ namespace chomp
     int currentCostIter = 0;
     int costWindow = 10;
     vector<double>costs(costWindow, 0.0);
-    double minimaThreshold = 0.01;
+    double minimaThreshold = 0.05;
     bool shouldBreakOut = false;
 
     if(parameters_->getAnimatePath())
@@ -402,7 +410,7 @@ namespace chomp
         ROS_INFO("Detected local minima. Attempting to break out!");
         int iter = 0;
         bool success = false;
-        while(iter < 5 && !success)
+        while(iter < 20 && !success)
         {
           performForwardKinematics();
           double original_cost = getTrajectoryCost();

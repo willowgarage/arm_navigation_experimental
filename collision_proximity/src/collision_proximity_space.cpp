@@ -1246,7 +1246,7 @@ CollisionProximitySpace::TrajectorySafety CollisionProximitySpace::isTrajectoryS
   // want to plan into collision or out of collision. We will still avoid planning through obstacles.
   else
   {
-    ROS_INFO_STREAM("Mesh to mesh invalid with " << error_code.val);
+    ROS_DEBUG_STREAM("Mesh to mesh invalid with " << error_code.val);
 
     std::vector<double> lastDistances;
     TrajectoryPointType type = None;
