@@ -60,6 +60,7 @@ public:
                               const std::string& controller_name) :
     group_name_(group_name),
     controller_name_(controller_name),
+    monitor_overshoot_(false),
     controller_state_(IDLE)
   {
     group_controller_combo_name_ = combineGroupAndControllerNames(group_name,controller_name);  
@@ -74,6 +75,17 @@ public:
     return(group_name+"_"+controller_name);
   }
 
+  // Call this function if the trajectory should monitor overshoot after the trajectory is executed.
+  // returns true if the subclass can monitor overshoot
+  virtual bool enableOvershoot(
+                        double max_overshoot_velocity_epsilon,
+                        ros::Duration min_overshoot_time,
+                        ros::Duration max_overshoot_time);
+
+  // Disable overshoot monitoring
+  virtual void disableOvershoot();
+
+  // Call enableOvershoot function if overshoot should get monitored.  But default this does not happen.
   virtual bool executeTrajectory(const trajectory_msgs::JointTrajectory& trajectory,
                                  boost::shared_ptr<TrajectoryRecorder>& recorder,
                                  const TrajectoryFinishedCallbackFunction& traj_callback) = 0;
@@ -114,9 +126,10 @@ protected:
                                 const std::map<std::string, double>& joint_velocities,
                                 trajectory_msgs::JointTrajectory& trajectory);
 
-  // TODO - change to startRecor... & startOver
   void initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory);
   void initializeOvershootTrajectory();
+  // returns the index from min_overshoot_time_ ago.
+  unsigned int findClosestIndex( ros::Duration time_from_start_ );
 
   std::string group_name_;
   std::string controller_name_;
@@ -125,6 +138,11 @@ protected:
   trajectory_msgs::JointTrajectory recorded_trajectory_;
   trajectory_msgs::JointTrajectory overshoot_trajectory_;
   trajectory_msgs::JointTrajectory goal_trajectory_;
+
+  bool monitor_overshoot_;
+  double max_overshoot_velocity_epsilon_;
+  ros::Duration min_overshoot_time_;
+  ros::Duration max_overshoot_time_;
 
   boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
   trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;

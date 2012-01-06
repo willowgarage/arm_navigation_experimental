@@ -59,7 +59,13 @@ public:
 
   /// @brief returns the sum of the angular movements (in radians) by every joint in the arm as it moves through the trajectory.
   /// Linear interpolation is used to calculate this metric.
-  static double getAngularDistance(const trajectory_msgs::JointTrajectory& trajectory);
+  /// startIndex allows calculation of this metric starting midway through the trajectory
+  static double getAngularDistance(const trajectory_msgs::JointTrajectory& trajectory, unsigned int startIndex=0);
+
+  /// @brief returns the max of the angular velocities (in radians) by every joint in the arm as it moves through the trajectory.
+  /// Linear interpolation is used to calculate this metric.
+  /// startIndex allows calculation of this metric starting midway through the trajectory
+  static double getMaxAngularVelocity(const trajectory_msgs::JointTrajectory& trajectory, unsigned int startIndex=0);
 
   /// @brief returns the sum of the differences of all joints angular difference between two trajectories
   /// Pass in the joint names if you want the values to show up in the log.

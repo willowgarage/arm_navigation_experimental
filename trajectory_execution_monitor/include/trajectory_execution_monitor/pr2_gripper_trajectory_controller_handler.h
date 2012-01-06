@@ -62,6 +62,14 @@ public:
     }
   }
 
+  // Gripper does not monitor overshoot.
+  bool enableOvershoot( double max_overshoot_velocity_epsilon,
+                        ros::Duration min_overshoot_time,
+                        ros::Duration max_overshoot_time )
+  {
+    return false;
+  }
+
   bool executeTrajectory(const trajectory_msgs::JointTrajectory& trajectory,
                          boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder>& recorder,
                          const trajectory_execution_monitor::TrajectoryFinishedCallbackFunction& traj_callback) 

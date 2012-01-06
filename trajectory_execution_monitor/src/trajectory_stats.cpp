@@ -55,27 +55,63 @@ ros::Duration TrajectoryStats::getDuration(const trajectory_msgs::JointTrajector
   return point2.time_from_start - point1.time_from_start;
 }
 
-double TrajectoryStats::getAngularDistance(const trajectory_msgs::JointTrajectory& trajectory)
+double TrajectoryStats::getAngularDistance(const trajectory_msgs::JointTrajectory& trajectory, unsigned int start_index )
 {
   double angular_diff_sum = 0.0;
   size_t tsize = trajectory.points.size();
 
   // Loop through trajectory points
-  for(unsigned int i=1; i<tsize; i++)
+  if( tsize > 1 )
   {
-    trajectory_msgs::JointTrajectoryPoint point1 = trajectory.points[i-1];
-    trajectory_msgs::JointTrajectoryPoint point2 = trajectory.points[i];
-
-    if(point1.positions.size() != point2.positions.size())
+    for(unsigned int i=start_index; i<tsize-1; i++)
     {
-      ROS_ERROR("Invalid Trajectory, the number of joints is inconsistent");
-      return 0.0;
-    }
+      trajectory_msgs::JointTrajectoryPoint point1 = trajectory.points[i];
+      trajectory_msgs::JointTrajectoryPoint point2 = trajectory.points[i+1];
 
-    angular_diff_sum += distance(point1,point2);
+      if(point1.positions.size() != point2.positions.size())
+      {
+        ROS_ERROR("Invalid Trajectory, the number of joints is inconsistent");
+        return 0.0;
+      }
+
+      angular_diff_sum += distance(point1,point2);
+    }
   }
 
   return angular_diff_sum;
+}
+
+double TrajectoryStats::getMaxAngularVelocity(const trajectory_msgs::JointTrajectory& trajectory, unsigned int start_index )
+{
+  double max_angular_vel = 0.0;
+  size_t tsize = trajectory.points.size();
+
+  // Loop through trajectory points
+  if( tsize > 1 )
+  {
+    for(unsigned int i=start_index; i<tsize-1; i++)
+    {
+      trajectory_msgs::JointTrajectoryPoint point1 = trajectory.points[i];
+      trajectory_msgs::JointTrajectoryPoint point2 = trajectory.points[i+1];
+
+      if(point1.positions.size() != point2.positions.size())
+      {
+        ROS_ERROR("Invalid Trajectory, the number of joints is inconsistent");
+        return 0.0;
+      }
+
+      const double seconds = point2.time_from_start.toSec() - point1.time_from_start.toSec();
+      const double dist = distance(point1,point2);
+      const double velocity = std::abs( dist/seconds );
+
+      if( velocity > max_angular_vel )
+      {
+        max_angular_vel = velocity;
+      }
+    }
+  }
+
+  return max_angular_vel;
 }
 
 double TrajectoryStats::distance(

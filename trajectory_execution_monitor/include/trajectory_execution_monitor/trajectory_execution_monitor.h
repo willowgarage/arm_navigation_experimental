@@ -32,7 +32,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/** \author E. Gil Jones */
+/** \author E. Gil Jones, Ken Anderson */
 
 #include <ros/ros.h>
 #include <boost/function.hpp>
@@ -53,19 +53,20 @@ struct TrajectoryExecutionRequest {
   std::string controller_name_;
   std::string recorder_name_;
 
+  bool monitor_overshoot_;
+  double max_overshoot_velocity_epsilon_;
+  ros::Duration min_overshoot_time_;
+  ros::Duration max_overshoot_time_;
+
   bool failure_ok_;
   bool test_for_close_enough_;
-
-  bool monitor_overshoot_;
-
-  double max_settling_velocity_epsilon_;
-  double max_settling_time_;
-
   double max_joint_distance_;
   double failure_time_factor_;
   
   trajectory_msgs::JointTrajectory trajectory_;
   boost::function<void(const std::string& group_name)> callback_function_;
+
+  TrajectoryExecutionRequest();
 };
 
 enum TrajectoryExecutionResult {
@@ -87,7 +88,7 @@ struct TrajectoryExecutionData {
 
   // stats
   ros::Duration time_;							// recorded
-  ros::Duration time_to_settle_;		// overshoot
+  ros::Duration overshoot_time_;		// overshoot
   double angular_distance_;					// recorded
 
   // trajectories

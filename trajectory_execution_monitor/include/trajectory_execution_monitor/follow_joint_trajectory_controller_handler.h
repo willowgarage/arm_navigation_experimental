@@ -93,13 +93,16 @@ public:
     success_ = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
 
     // We record overshoot
-    if( success_ )
+    if( success_ && monitor_overshoot_ ) // TODO - check other conditions...
     {
       initializeOvershootTrajectory();
     }
     else
     {
-      ROS_WARN("controller returned an error.  Not recording the overshoot.");
+      if( !success_ )
+      {
+        ROS_WARN("controller returned an error.  Not recording the overshoot.");
+      }
       controller_state_ = IDLE;
       recorder_->deregisterCallback(group_controller_combo_name_);
       trajectory_finished_callback_(success_);

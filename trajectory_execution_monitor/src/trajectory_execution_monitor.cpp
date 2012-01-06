@@ -39,6 +39,18 @@
 
 using namespace trajectory_execution_monitor;
 
+TrajectoryExecutionRequest::TrajectoryExecutionRequest() :
+  monitor_overshoot_(false),
+  max_overshoot_velocity_epsilon_(20),
+  min_overshoot_time_(ros::Duration(0.5)),
+  max_overshoot_time_(ros::Duration(0.01)),
+
+  failure_ok_(false),
+  test_for_close_enough_(false),
+  max_joint_distance_(0.01),
+  failure_time_factor_(1.5)
+{}
+
 void TrajectoryExecutionMonitor::addTrajectoryRecorder(boost::shared_ptr<TrajectoryRecorder>& trajectory_recorder) {
   trajectory_recorder_map_[trajectory_recorder->getName()] = trajectory_recorder;
 }
@@ -89,6 +101,16 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
   
   boost::shared_ptr<TrajectoryRecorder>& requested_recorder = trajectory_recorder_map_.find(recorder_name)->second;
   last_requested_handler_ = trajectory_controller_handler_map_.find(combo_name)->second;
+
+  // Enable overshoot, if required
+  if(ter.monitor_overshoot_)
+  {
+    last_requested_handler_->enableOvershoot(ter.max_overshoot_velocity_epsilon_, ter.min_overshoot_time_, ter.max_overshoot_time_);
+  }
+  else
+  {
+    last_requested_handler_->disableOvershoot();
+  }
   
   trajectory_msgs::JointTrajectory traj = ter.trajectory_;
   traj.header.stamp = ros::Time::now();
@@ -117,7 +139,7 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok)
     // calculate stats
     TrajectoryExecutionData & data = execution_result_vector_.back();
     data.time_ = TrajectoryStats::getDuration(data.recorded_trajectory_);
-    data.time_to_settle_ = TrajectoryStats::getDuration(data.overshoot_trajectory_);
+    data.overshoot_time_ = TrajectoryStats::getDuration(data.overshoot_trajectory_);
     data.angular_distance_ = TrajectoryStats::getAngularDistance(data.recorded_trajectory_);
 
     if(!ok) {

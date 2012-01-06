@@ -32,24 +32,47 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/** \author E. Gil Jones */
+/** \author E. Gil Jones, Ken Anderson */
 
 #include <trajectory_execution_monitor/trajectory_controller_handler.h>
+#include <trajectory_execution_monitor/trajectory_stats.h>
 
 using namespace trajectory_execution_monitor;
+
+unsigned int TrajectoryControllerHandler::findClosestIndex( ros::Duration time_from_start )
+{
+  for(unsigned int i=0; i<overshoot_trajectory_.points.size(); i++)
+  {
+  trajectory_msgs::JointTrajectoryPoint& p = overshoot_trajectory_.points[i];
+    //if( overshoot_trajectory_.points[i].time_from_start > time )
+    if( p.time_from_start > time_from_start )
+      return i;
+  }
+
+  return overshoot_trajectory_.points.size()-1;
+}
 
 bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Time& time,
                                                                   const std::map<std::string, double>& joint_positions,
                                                                   const std::map<std::string, double>& joint_velocities)
 {
-
-  // FIXME-- hack-- replace > XX with actual condition
-  if( controller_state_ == OVERSHOOTING && overshoot_trajectory_.points.size() > 10 )
+  if( controller_state_ == OVERSHOOTING )
   {
-    controller_state_ = IDLE;
-    recorder_->delayedDeregisterCallback(group_controller_combo_name_);
-    trajectory_finished_callback_(success_);
-    return false;
+    ros::Duration dur = time - overshoot_trajectory_.header.stamp;
+    if( dur > min_overshoot_time_ )
+    {
+      // calculate the angular distance over the last X seconds
+      unsigned int closest_index = findClosestIndex( dur-min_overshoot_time_ );
+      double max_vel = TrajectoryStats::getMaxAngularVelocity(overshoot_trajectory_, closest_index);
+
+      if( max_vel <= max_overshoot_velocity_epsilon_ )
+      {	// Settled
+        controller_state_ = IDLE;
+        recorder_->delayedDeregisterCallback(group_controller_combo_name_);
+        trajectory_finished_callback_(success_);
+        return false;
+      }
+    }
   }
 
   if( controller_state_ == EXECUTING )
@@ -87,6 +110,24 @@ bool TrajectoryControllerHandler::_addNewStateToTrajectory(const ros::Time& time
   return true;
 }
 
+bool TrajectoryControllerHandler::enableOvershoot(
+    double max_overshoot_velocity_epsilon,
+    ros::Duration min_overshoot_time,
+    ros::Duration max_overshoot_time )
+{
+  monitor_overshoot_ = true;
+  max_overshoot_velocity_epsilon_ = max_overshoot_velocity_epsilon;
+  min_overshoot_time_ = min_overshoot_time;
+  max_overshoot_time_ = max_overshoot_time;
+  return true;
+}
+
+void TrajectoryControllerHandler::disableOvershoot()
+{
+  monitor_overshoot_ = false;
+}
+
+
 void TrajectoryControllerHandler::initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory)
 {
   goal_trajectory_ = goal_trajectory;
@@ -105,4 +146,5 @@ void TrajectoryControllerHandler::initializeOvershootTrajectory()
   overshoot_trajectory_.points.clear();
 
   controller_state_ = OVERSHOOTING;
+  // TODO - initialize timeout
 }

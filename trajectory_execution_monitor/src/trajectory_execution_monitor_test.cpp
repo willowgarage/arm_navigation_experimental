@@ -14,7 +14,7 @@ bool trajectoryFinishedCallbackFunction(TrajectoryExecutionDataVector tedv) {
     if(tedv[i].overshoot_trajectory_.points.size() > 0 )
     {
       ROS_INFO_STREAM("Overshoot trajectory " << i << " has " << tedv[i].overshoot_trajectory_.points.size() << " points" );
-      ROS_INFO_STREAM("Overshoot trajectory " << i << " has time " << tedv[i].time_to_settle_ << " seconds" );
+      ROS_INFO_STREAM("Overshoot trajectory " << i << " has time " << tedv[i].overshoot_time_ << " seconds" );
     }
   }
   return true;
@@ -86,8 +86,10 @@ int main(int argc, char** argv) {
   ter.recorder_name_ = "/joint_states";
   ter.trajectory_ = jt;
   ter.test_for_close_enough_ = true;
-  ter.max_settling_time_ = 20;
-  ter.max_settling_velocity_epsilon_ = 0.001;
+  ter.monitor_overshoot_ = true;
+  ter.max_overshoot_time_ = ros::Duration(20);
+  ter.min_overshoot_time_ = ros::Duration(0.5);
+  ter.max_overshoot_velocity_epsilon_ = 0.01;
   ter.max_joint_distance_ = 0.001;
   traj_reqs.push_back(ter);
 
