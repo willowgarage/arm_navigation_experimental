@@ -105,8 +105,8 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
     }
     joint_state_group->updateKinematicLinks();
     KinematicState::LinkState* end_effector_state1 = kin_state->getLinkState(motion_plan_req.getEndEffectorLink());
-    const btTransform& end_effector_transform1 = end_effector_state1->getGlobalLinkTransform();
-    const btVector3 end_effector_location1 = end_effector_transform1.getOrigin();
+    const tf::Transform& end_effector_transform1 = end_effector_state1->getGlobalLinkTransform();
+    const tf::Vector3 end_effector_location1 = end_effector_transform1.getOrigin();
 
     // Get position of end-effector at the next point of the trajectory.
     trajectory_msgs::JointTrajectoryPoint point2 = trajectory_.points[i];
@@ -117,8 +117,8 @@ double TrajectoryStats::getCartesianDistance(planning_scene_utils::MotionPlanReq
     }
     joint_state_group->updateKinematicLinks();
     KinematicState::LinkState* end_effector_state2 = kin_state->getLinkState(motion_plan_req.getEndEffectorLink());
-    const btTransform& end_effector_transform2 = end_effector_state2->getGlobalLinkTransform();
-    const btVector3 end_effector_location2 = end_effector_transform2.getOrigin();
+    const tf::Transform& end_effector_transform2 = end_effector_state2->getGlobalLinkTransform();
+    const tf::Vector3 end_effector_location2 = end_effector_transform2.getOrigin();
 
     // Calculate
     double cartesian_distance = end_effector_location1.distance(end_effector_location2);

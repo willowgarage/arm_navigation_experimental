@@ -220,10 +220,10 @@ TEST_F(TestCollisionSpaceCCD, TestAttachedObjects)
   std::vector<shapes::Shape*> shape_vector;
   shape_vector.push_back(sphere1);
 
-  btTransform pose;
+  tf::Transform pose;
   pose.setIdentity();
 
-  std::vector<btTransform> poses;
+  std::vector<tf::Transform> poses;
   poses.push_back(pose);
   
   std::vector<std::string> touch_links;
@@ -320,10 +320,10 @@ TEST_F(TestCollisionSpaceCCD, TestStaticObjects)
   shapes::Sphere* sphere1 = new shapes::Sphere();
   sphere1->radius = .2;
 
-  btTransform pose;
+  tf::Transform pose;
   pose.setIdentity();
 
-  std::vector<btTransform> poses;
+  std::vector<tf::Transform> poses;
   poses.push_back(pose);
 
   std::vector<shapes::Shape*> shape_vector;
@@ -348,10 +348,10 @@ TEST_F(TestCollisionSpaceCCD, TestStaticObjects)
   std::vector<shapes::Shape*> att_shapes;
   att_shapes.push_back(att_box);
 
-  btTransform att_pose;
+  tf::Transform att_pose;
   att_pose.setIdentity();
 
-  std::vector<btTransform> att_poses;
+  std::vector<tf::Transform> att_poses;
   att_poses.push_back(att_pose);
   
   std::vector<std::string> touch_links;

@@ -186,7 +186,7 @@ int main(int argc, char** argv)
 
   std::vector<double> link_distances;
   std::vector<std::vector<double> > distances;
-  std::vector<std::vector<btVector3> > gradients;
+  std::vector<std::vector<tf::Vector3> > gradients;
   std::vector<std::string> link_names;
   std::vector<std::string> attached_body_names;
   std::vector<collision_proximity::CollisionType> collisions;
@@ -278,7 +278,7 @@ int main(int argc, char** argv)
       if(0) {
         std::vector<double> prox_link_distances;
         std::vector<std::vector<double> > prox_distances;
-        std::vector<std::vector<btVector3> > prox_gradients;
+        std::vector<std::vector<tf::Vector3> > prox_gradients;
         std::vector<std::string> prox_link_names;
         std::vector<std::string> prox_attached_body_names;
         cps->getStateGradients(prox_link_names, prox_attached_body_names, prox_link_distances, prox_distances, prox_gradients);

@@ -137,8 +137,8 @@ namespace chomp
     collision_point_pos_eigen_.resize(num_vars_all_, vector<Vector3d>(num_collision_points_));
     collision_point_vel_eigen_.resize(num_vars_all_, vector<Vector3d>(num_collision_points_));
     collision_point_acc_eigen_.resize(num_vars_all_, vector<Vector3d>(num_collision_points_));
-    joint_axes_.resize(num_vars_all_, vector<btVector3>(num_joints_));
-    joint_positions_.resize(num_vars_all_, vector<btVector3>(num_joints_));
+    joint_axes_.resize(num_vars_all_, vector<tf::Vector3>(num_joints_));
+    joint_positions_.resize(num_vars_all_, vector<tf::Vector3>(num_joints_));
 
     collision_point_potential_.resize(num_vars_all_, vector<double>(num_collision_points_));
     collision_point_vel_mag_.resize(num_vars_all_, vector<double>(num_collision_points_));
@@ -717,7 +717,7 @@ CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidi
 
   void ChompOptimizer::computeJointProperties(int trajectoryPoint)
   {
-    btTransform inverseWorldTransform = collision_space_->getInverseWorldTransform(*robot_state_);
+    tf::Transform inverseWorldTransform = collision_space_->getInverseWorldTransform(*robot_state_);
      for(int j = 0; j < num_joints_; j++)
      {
        string jointName = joint_names_[j];
@@ -728,14 +728,14 @@ CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidi
 
        string parentLinkName = jointModel->getParentLinkModel()->getName();
        string childLinkName = jointModel->getChildLinkModel()->getName();
-       btTransform jointTransform =
+       tf::Transform jointTransform =
            robot_state_->getLinkState(parentLinkName)->getGlobalLinkTransform()
            * (robot_model_->getLinkModel(childLinkName)->getJointOriginTransform()
                * (robot_state_->getJointState(jointModel->getName())->getVariableTransform()));
 
 
        jointTransform = inverseWorldTransform * jointTransform;
-       btVector3 axis;
+       tf::Vector3 axis;
 
 
        if(revoluteJoint != NULL)
@@ -762,7 +762,7 @@ CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidi
     {
       if(isParent(jointName, joint_names_[j]))
       {
-        btVector3 column = joint_axes_[trajectoryPoint][j].cross(btVector3(collision_point_pos(0),
+        tf::Vector3 column = joint_axes_[trajectoryPoint][j].cross(tf::Vector3(collision_point_pos(0),
                                                                            collision_point_pos(1),
                                                                            collision_point_pos(2))
                                                                      - joint_positions_[trajectoryPoint][j]);

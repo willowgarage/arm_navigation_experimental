@@ -431,7 +431,7 @@ void MotionPlanRequestData::updateGoalState()
     geometry_msgs::PoseStamped pose = 
       arm_navigation_msgs::poseConstraintsToPoseStamped(getMotionPlanRequest().goal_constraints.position_constraints[0],
                                                         getMotionPlanRequest().goal_constraints.orientation_constraints[0]);
-    btTransform end_effector_pose = toBulletTransform(pose.pose);
+    tf::Transform end_effector_pose = toBulletTransform(pose.pose);
     goal_state_->updateKinematicStateWithLinkAt(end_effector_link_, end_effector_pose);
   }
 }
@@ -549,8 +549,8 @@ void MotionPlanRequestData::setGoalAndPathPositionOrientationConstraints(arm_nav
   arm_navigation_msgs::OrientationConstraint& goal_constraint = mpr.goal_constraints.orientation_constraints[0];
   arm_navigation_msgs::OrientationConstraint& path_constraint = mpr.path_constraints.orientation_constraints[0];
 
-  btTransform cur = state->getLinkState(end_effector_link_)->getGlobalLinkTransform();
-  //btScalar roll, pitch, yaw;
+  tf::Transform cur = state->getLinkState(end_effector_link_)->getGlobalLinkTransform();
+  //tfScalar roll, pitch, yaw;
   //cur.getBasis().getRPY(roll,pitch,yaw);
   goal_constraint.header.frame_id = world_frame;
   goal_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
@@ -773,18 +773,18 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
   /////
   /// Subscribers
   //////
-  if(params.sync_robot_state_with_gazebo_)
-  {
-    ros::service::waitForService("/gazebo/set_model_configuration");
-    ros::service::waitForService(params.list_controllers_service_);
-    ros::service::waitForService(params.load_controllers_service_);
-    ros::service::waitForService(params.unload_controllers_service_);
-    ros::service::waitForService(params.switch_controllers_service_);
-    ros::service::waitForService("/gazebo/pause_physics");
-    ros::service::waitForService("/gazebo/unpause_physics");
-    ros::service::waitForService("/gazebo/set_link_properties");
-    ros::service::waitForService("/gazebo/get_link_properties");
-  }
+  // if(params.sync_robot_state_with_gazebo_)
+  // {
+  //   ros::service::waitForService("/gazebo/set_model_configuration");
+  //   ros::service::waitForService(params.list_controllers_service_);
+  //   ros::service::waitForService(params.load_controllers_service_);
+  //   ros::service::waitForService(params.unload_controllers_service_);
+  //   ros::service::waitForService(params.switch_controllers_service_);
+  //   ros::service::waitForService("/gazebo/pause_physics");
+  //   ros::service::waitForService("/gazebo/unpause_physics");
+  //   ros::service::waitForService("/gazebo/set_link_properties");
+  //   ros::service::waitForService("/gazebo/get_link_properties");
+  // }
 
   if(params.left_arm_group_ != "none")
   {
@@ -811,18 +811,18 @@ PlanningSceneEditor::PlanningSceneEditor(PlanningSceneParameters& params)
     ros::service::waitForService(params.proximity_space_validity_name_);
   }
 
-  if(params.sync_robot_state_with_gazebo_)
-  {
-    gazebo_joint_state_client_ = nh_.serviceClient<gazebo_msgs::SetModelConfiguration>("/gazebo/set_model_configuration", true);
-    list_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::ListControllers>(params.list_controllers_service_, true);
-    load_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::LoadController>(params.load_controllers_service_, true);
-    unload_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::UnloadController>(params.unload_controllers_service_, true);
-    switch_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::SwitchController>(params.switch_controllers_service_, true);
-    pause_gazebo_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/pause_physics", true);
-    unpause_gazebo_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics", true);
-    set_link_properties_client_ = nh_.serviceClient<gazebo_msgs::SetLinkProperties>("/gazebo/set_link_properties", true);
-    get_link_properties_client_ = nh_.serviceClient<gazebo_msgs::GetLinkProperties>("/gazebo/get_link_properties", true);
-  }
+  // if(params.sync_robot_state_with_gazebo_)
+  // {
+  //   gazebo_joint_state_client_ = nh_.serviceClient<gazebo_msgs::SetModelConfiguration>("/gazebo/set_model_configuration", true);
+  //   list_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::ListControllers>(params.list_controllers_service_, true);
+  //   load_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::LoadController>(params.load_controllers_service_, true);
+  //   unload_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::UnloadController>(params.unload_controllers_service_, true);
+  //   switch_controllers_client_ = nh_.serviceClient<pr2_mechanism_msgs::SwitchController>(params.switch_controllers_service_, true);
+  //   pause_gazebo_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/pause_physics", true);
+  //   unpause_gazebo_client_ = nh_.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics", true);
+  //   set_link_properties_client_ = nh_.serviceClient<gazebo_msgs::SetLinkProperties>("/gazebo/set_link_properties", true);
+  //   get_link_properties_client_ = nh_.serviceClient<gazebo_msgs::GetLinkProperties>("/gazebo/get_link_properties", true);
+  // }
 
   if(params.left_arm_group_ != "none")
   {
@@ -1853,8 +1853,8 @@ bool PlanningSceneEditor::planToRequest(MotionPlanRequestData& data, unsigned in
 //                                                                     OrientationConstraint& goal_constraint,
 //                                                                     OrientationConstraint& path_constraint)
 // {
-//   btTransform cur = state.getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
-//   //btScalar roll, pitch, yaw;
+//   tf::Transform cur = state.getLinkState(mpr.getEndEffectorLink())->getGlobalLinkTransform();
+//   //tfScalar roll, pitch, yaw;
 //   //cur.getBasis().getRPY(roll,pitch,yaw);
 //   goal_constraint.header.frame_id = cm_->getWorldFrameId();
 //   goal_constraint.header.stamp = ros::Time(ros::WallTime::now().toSec());
@@ -2866,7 +2866,7 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
 
   if(feedback->event_type == InteractiveMarkerFeedback::POSE_UPDATE)
   {
-    btTransform pose = toBulletTransform(feedback->pose);
+    tf::Transform pose = toBulletTransform(feedback->pose);
 
     if(type == StartPosition)
     {
@@ -2943,8 +2943,8 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
       MotionPlanRequestData& data = motion_plan_map_[getMotionPlanRequestNameFromId(controller.motion_plan_id_)];
       if(type == StartPosition)
       {
-        btTransform cur_transform = data.getStartState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
-        btTransform other_transform = data.getGoalState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        tf::Transform cur_transform = data.getStartState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        tf::Transform other_transform = data.getGoalState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
         cur_transform.setRotation(other_transform.getRotation());
         data.getStartState()->updateKinematicStateWithLinkAt(data.getEndEffectorLink(), cur_transform);
         interactive_marker_server_->setPose(feedback->marker_name, 
@@ -2954,8 +2954,8 @@ void PlanningSceneEditor::IKControllerCallback(const InteractiveMarkerFeedbackCo
       }
       else
       {
-        btTransform cur_transform = data.getGoalState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
-        btTransform other_transform = data.getStartState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        tf::Transform cur_transform = data.getGoalState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+        tf::Transform other_transform = data.getStartState()->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
         cur_transform.setRotation(other_transform.getRotation());
         data.getGoalState()->updateKinematicStateWithLinkAt(data.getEndEffectorLink(), cur_transform);
         interactive_marker_server_->setPose(feedback->marker_name, 
@@ -3093,7 +3093,7 @@ void PlanningSceneEditor::createIKController(MotionPlanRequestData& data, Positi
     nametag = "_end_control";
   }
 
-  btTransform transform = state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
+  tf::Transform transform = state->getLinkState(data.getEndEffectorLink())->getGlobalLinkTransform();
   InteractiveMarker marker;
 
 
@@ -3300,10 +3300,10 @@ void PlanningSceneEditor::collisionObjectMovementCallback(const InteractiveMarke
         sendPlanningScene(planning_scene_map_[current_planning_scene_name_]);
       } else {
         CollisionObject coll = (*selectable_objects_)[name].collision_object_;
-        btTransform orig, cur;
+        tf::Transform orig, cur;
         tf::poseMsgToTF(coll.poses[0], orig);
         tf::poseMsgToTF(feedback->pose, cur);
-        btTransform nt = orig.inverse()*cur;
+        tf::Transform nt = orig.inverse()*cur;
         if(last_resize_handle_ == menu_entry_maps_["Collision Object"]["Grow"]) {
           if(coll.shapes[0].type == arm_navigation_msgs::Shape::BOX) {
             coll.shapes[0].dimensions[0] += fabs(nt.getOrigin().x());
@@ -3471,7 +3471,7 @@ void PlanningSceneEditor::attachedCollisionObjectInteractiveCallback(const Inter
 std::string PlanningSceneEditor::createMeshObject(const std::string& name,
                                                   geometry_msgs::Pose pose,
                                                   const std::string& filename,
-                                                  const btVector3& scale,
+                                                  const tf::Vector3& scale,
                                                   std_msgs::ColorRGBA color)
 {
   shapes::Mesh* mesh = shapes::createMeshFromFilename(filename, &scale);
@@ -3738,7 +3738,7 @@ bool PlanningSceneEditor::solveIKForEndEffectorPose(MotionPlanRequestData& data,
 }
 
 void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionType position, std::string& jointName,
-                                        btTransform value)
+                                        tf::Transform value)
 {
   KinematicState* currentState = NULL;
 
@@ -3766,7 +3766,7 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
   bool isPrismatic = (dynamic_cast<const KinematicModel::PrismaticJointModel*> (jointModel) != NULL);
 
   KinematicState::LinkState* linkState = currentState->getLinkState(parentLink);
-  btTransform transformedValue;
+  tf::Transform transformedValue;
 
   if(isPrismatic)
   {
@@ -3780,7 +3780,7 @@ void PlanningSceneEditor::setJointState(MotionPlanRequestData& data, PositionTyp
         * linkState->getGlobalLinkTransform().inverse() * value;
   }
 
-  btTransform oldState = jointState->getVariableTransform();
+  tf::Transform oldState = jointState->getVariableTransform();
   jointState->setJointStateValues(transformedValue);
 
   map<string, double> stateMap;
@@ -3878,7 +3878,7 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
     {
       string parentLinkName = model->getParentLinkModel()->getName();
       string childLinkName = model->getChildLinkModel()->getName();
-      btTransform transform = state->getLinkState(parentLinkName)->getGlobalLinkTransform()
+      tf::Transform transform = state->getLinkState(parentLinkName)->getGlobalLinkTransform()
           * (state->getKinematicModel()->getLinkModel(childLinkName)->getJointOriginTransform()
               * (state->getJointState(jointName)->getVariableTransform()));
 
@@ -3940,7 +3940,7 @@ void PlanningSceneEditor::createJointMarkers(MotionPlanRequestData& data, Positi
   interactive_marker_server_->applyChanges();
 }
 
-void PlanningSceneEditor::makeInteractive1DOFTranslationMarker(btTransform transform, btVector3 axis, string name,
+void PlanningSceneEditor::makeInteractive1DOFTranslationMarker(tf::Transform transform, tf::Vector3 axis, string name,
                                                                string description, float scale, float value)
 {
   InteractiveMarker marker;
@@ -3977,7 +3977,7 @@ void PlanningSceneEditor::makeInteractive1DOFTranslationMarker(btTransform trans
 
 }
 
-void PlanningSceneEditor::makeInteractive1DOFRotationMarker(btTransform transform, btVector3 axis, string name,
+void PlanningSceneEditor::makeInteractive1DOFRotationMarker(tf::Transform transform, tf::Vector3 axis, string name,
                                                             string description, float scale, float angle)
 {
   InteractiveMarker marker;
@@ -4037,97 +4037,97 @@ void PlanningSceneEditor::setIKControlsVisible(std::string id, PositionType type
 
 void PlanningSceneEditor::executeTrajectory(TrajectoryData& trajectory)
 {
-  if(params_.sync_robot_state_with_gazebo_)
-  {
-    pr2_mechanism_msgs::ListControllers listControllers;
+  // if(params_.sync_robot_state_with_gazebo_)
+  // {
+  //   pr2_mechanism_msgs::ListControllers listControllers;
 
-    if(!list_controllers_client_.call(listControllers.request, listControllers.response))
-    {
-      ROS_ERROR("Failed to get list of controllers!");
-      return;
-    }
+  //   if(!list_controllers_client_.call(listControllers.request, listControllers.response))
+  //   {
+  //     ROS_ERROR("Failed to get list of controllers!");
+  //     return;
+  //   }
 
-    std::map<std::string, planning_models::KinematicModel::JointModelGroup*> jointModelGroupMap =
-        cm_->getKinematicModel()->getJointModelGroupMap();
-    planning_models::KinematicModel::JointModelGroup* rightGroup = NULL;
-    planning_models::KinematicModel::JointModelGroup* leftGroup = NULL;
-    if(params_.right_arm_group_ != "none")
-    {
-      rightGroup = jointModelGroupMap[params_.right_arm_group_];
-    }
+  //   std::map<std::string, planning_models::KinematicModel::JointModelGroup*> jointModelGroupMap =
+  //       cm_->getKinematicModel()->getJointModelGroupMap();
+  //   planning_models::KinematicModel::JointModelGroup* rightGroup = NULL;
+  //   planning_models::KinematicModel::JointModelGroup* leftGroup = NULL;
+  //   if(params_.right_arm_group_ != "none")
+  //   {
+  //     rightGroup = jointModelGroupMap[params_.right_arm_group_];
+  //   }
 
-    if(params_.left_arm_group_ != "none")
-    {
-      leftGroup = jointModelGroupMap[params_.left_arm_group_];
-    }
+  //   if(params_.left_arm_group_ != "none")
+  //   {
+  //     leftGroup = jointModelGroupMap[params_.left_arm_group_];
+  //   }
 
-    pr2_mechanism_msgs::SwitchController switchControllers;
-    switchControllers.request.stop_controllers = listControllers.response.controllers;
-    if(!switch_controllers_client_.call(switchControllers.request, switchControllers.response))
-    {
-      ROS_ERROR("Failed to shut down controllers!");
-      return;
-    }
+  //   pr2_mechanism_msgs::SwitchController switchControllers;
+  //   switchControllers.request.stop_controllers = listControllers.response.controllers;
+  //   if(!switch_controllers_client_.call(switchControllers.request, switchControllers.response))
+  //   {
+  //     ROS_ERROR("Failed to shut down controllers!");
+  //     return;
+  //   }
 
-    ROS_INFO("Shut down controllers.");
+  //   ROS_INFO("Shut down controllers.");
 
-    MotionPlanRequestData& motionPlanData = motion_plan_map_[getMotionPlanRequestNameFromId(trajectory.getMotionPlanRequestId())];
+  //   MotionPlanRequestData& motionPlanData = motion_plan_map_[getMotionPlanRequestNameFromId(trajectory.getMotionPlanRequestId())];
 
-    gazebo_msgs::SetModelConfiguration modelConfiguration;
-    modelConfiguration.request.model_name = params_.gazebo_model_name_;
-    modelConfiguration.request.urdf_param_name = params_.robot_description_param_;
+  //   gazebo_msgs::SetModelConfiguration modelConfiguration;
+  //   modelConfiguration.request.model_name = params_.gazebo_model_name_;
+  //   modelConfiguration.request.urdf_param_name = params_.robot_description_param_;
 
-    for(size_t i = 0; i < motionPlanData.getStartState()->getJointStateVector().size(); i++)
-    {
-      const KinematicState::JointState* jointState = motionPlanData.getStartState()->getJointStateVector()[i];
-      if(jointState->getJointStateValues().size() > 0)
-      {
-        modelConfiguration.request.joint_names.push_back(jointState->getName());
-        modelConfiguration.request.joint_positions.push_back(jointState->getJointStateValues()[0]);
-      }
-    }
+  //   for(size_t i = 0; i < motionPlanData.getStartState()->getJointStateVector().size(); i++)
+  //   {
+  //     const KinematicState::JointState* jointState = motionPlanData.getStartState()->getJointStateVector()[i];
+  //     if(jointState->getJointStateValues().size() > 0)
+  //     {
+  //       modelConfiguration.request.joint_names.push_back(jointState->getName());
+  //       modelConfiguration.request.joint_positions.push_back(jointState->getJointStateValues()[0]);
+  //     }
+  //   }
 
-    if(!gazebo_joint_state_client_.call(modelConfiguration.request, modelConfiguration.response))
-    {
-      ROS_ERROR("Failed to call gazebo set joint state client!");
-      return;
-    }
+  //   if(!gazebo_joint_state_client_.call(modelConfiguration.request, modelConfiguration.response))
+  //   {
+  //     ROS_ERROR("Failed to call gazebo set joint state client!");
+  //     return;
+  //   }
 
-    ROS_INFO("Set joint state");
+  //   ROS_INFO("Set joint state");
 
-    if(!modelConfiguration.response.success)
-    {
-      ROS_ERROR("Failed to set gazebo model configuration to start state!");
-      return;
-    }
-    ROS_INFO("Gazebo returned: %s", modelConfiguration.response.status_message.c_str());
+  //   if(!modelConfiguration.response.success)
+  //   {
+  //     ROS_ERROR("Failed to set gazebo model configuration to start state!");
+  //     return;
+  //   }
+  //   ROS_INFO("Gazebo returned: %s", modelConfiguration.response.status_message.c_str());
 
-    pr2_mechanism_msgs::SwitchController restartControllers;
-    restartControllers.request.start_controllers = listControllers.response.controllers;
-    if(!switch_controllers_client_.call(restartControllers.request, restartControllers.response))
-    {
-      ROS_ERROR("Failed to restart controllers: service call failed!");
-      return;
-    }
-    else if(!restartControllers.response.ok)
-    {
-      ROS_ERROR("Failed to restart controllers: Response not ok!");
-    }
+  //   pr2_mechanism_msgs::SwitchController restartControllers;
+  //   restartControllers.request.start_controllers = listControllers.response.controllers;
+  //   if(!switch_controllers_client_.call(restartControllers.request, restartControllers.response))
+  //   {
+  //     ROS_ERROR("Failed to restart controllers: service call failed!");
+  //     return;
+  //   }
+  //   else if(!restartControllers.response.ok)
+  //   {
+  //     ROS_ERROR("Failed to restart controllers: Response not ok!");
+  //   }
 
-    ROS_INFO("Restart controllers.");
+  //   ROS_INFO("Restart controllers.");
 
-    ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.5));
-    SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
-    FollowJointTrajectoryGoal goal;
-    goal.trajectory.joint_names = trajectory.getTrajectory().joint_names;
-    goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(0.2);
-    trajectory_msgs::JointTrajectoryPoint endPoint = trajectory.getTrajectory().points[0];
-    endPoint.time_from_start = ros::Duration(1.0);
-    goal.trajectory.points.push_back(endPoint);
-    controller->sendGoalAndWait(goal, ros::Duration(1.0), ros::Duration(1.0));
-    ros::Time::sleepUntil(ros::Time::now() + ros::Duration(1.0));
+  //   ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.5));
+  //   SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
+  //   FollowJointTrajectoryGoal goal;
+  //   goal.trajectory.joint_names = trajectory.getTrajectory().joint_names;
+  //   goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(0.2);
+  //   trajectory_msgs::JointTrajectoryPoint endPoint = trajectory.getTrajectory().points[0];
+  //   endPoint.time_from_start = ros::Duration(1.0);
+  //   goal.trajectory.points.push_back(endPoint);
+  //   controller->sendGoalAndWait(goal, ros::Duration(1.0), ros::Duration(1.0));
+  //   ros::Time::sleepUntil(ros::Time::now() + ros::Duration(1.0));
 
-  }
+  // }
 
   SimpleActionClient<FollowJointTrajectoryAction>* controller = arm_controller_map_[trajectory.getGroupName()];
   FollowJointTrajectoryGoal goal;

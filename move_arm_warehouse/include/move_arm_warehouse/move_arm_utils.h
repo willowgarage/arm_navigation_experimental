@@ -63,15 +63,15 @@
 #include <arm_navigation_msgs/CollisionObject.h>
 #include <planning_environment/monitors/kinematic_model_state_monitor.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
-#include <gazebo_msgs/SetModelConfiguration.h>
+//#include <gazebo_msgs/SetModelConfiguration.h>
 #include <std_srvs/Empty.h>
 #include <pr2_mechanism_msgs/ListControllers.h>
 #include <pr2_mechanism_msgs/LoadController.h>
 #include <pr2_mechanism_msgs/UnloadController.h>
 #include <pr2_mechanism_msgs/SwitchController.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
-#include <gazebo_msgs/SetLinkProperties.h>
-#include <gazebo_msgs/GetLinkProperties.h>
+// #include <gazebo_msgs/SetLinkProperties.h>
+// #include <gazebo_msgs/GetLinkProperties.h>
 
 typedef map<std::string, interactive_markers::MenuHandler::EntryHandle> MenuEntryMap;
 typedef map<std::string, MenuEntryMap> MenuMap;
@@ -84,7 +84,7 @@ typedef map<std::string, interactive_markers::MenuHandler> MenuHandlerMap;
 namespace planning_scene_utils
 {
 
-inline static geometry_msgs::Pose toGeometryPose(btTransform transform)
+inline static geometry_msgs::Pose toGeometryPose(tf::Transform transform)
 {
   geometry_msgs::Pose toReturn;
   toReturn.position.x = transform.getOrigin().x();
@@ -97,12 +97,12 @@ inline static geometry_msgs::Pose toGeometryPose(btTransform transform)
   return toReturn;
 }
 
-inline static btTransform toBulletTransform(geometry_msgs::Pose pose)
+inline static tf::Transform toBulletTransform(geometry_msgs::Pose pose)
 {
-  btQuaternion quat =
-    btQuaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
-  btVector3 vec = btVector3(pose.position.x, pose.position.y, pose.position.z);
-  return btTransform(quat, vec);
+  tf::Quaternion quat =
+    tf::Quaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
+  tf::Vector3 vec = tf::Vector3(pose.position.x, pose.position.y, pose.position.z);
+  return tf::Transform(quat, vec);
 }
 
 inline static std::string getPlanningSceneNameFromId(const unsigned int id) {
@@ -366,8 +366,8 @@ protected:
   std::set<unsigned int> trajectories_;
   planning_models::KinematicState* start_state_;
   planning_models::KinematicState* goal_state_;
-  btTransform last_good_start_pose_;
-  btTransform last_good_goal_pose_;
+  tf::Transform last_good_start_pose_;
+  tf::Transform last_good_goal_pose_;
   visualization_msgs::MarkerArray collision_markers_;
   RenderType render_type_;
   unsigned int next_trajectory_id_;
@@ -484,25 +484,25 @@ public:
   }
 
   /// @brief Returns the last starting pose that had a good IK solution
-  inline btTransform getLastGoodStartPose() const
+  inline tf::Transform getLastGoodStartPose() const
   {
     return last_good_start_pose_;
   }
 
   /// @brief Returns the last goal pose that had a good IK solution
-  inline btTransform getLastGoodGoalPose() const
+  inline tf::Transform getLastGoodGoalPose() const
   {
     return last_good_goal_pose_;
   }
 
   /// @brief Stores a pose as the last starting pose with a good IK solution
-  inline void setLastGoodStartPose(btTransform pose)
+  inline void setLastGoodStartPose(tf::Transform pose)
   {
     last_good_start_pose_ = pose;
   }
 
   /// @brief Stores a poase as the last goal pose with a good IK solution
-  inline void setLastGoodGoalPose(btTransform pose)
+  inline void setLastGoodGoalPose(tf::Transform pose)
   {
     last_good_goal_pose_ = pose;
   }
@@ -1571,7 +1571,7 @@ public:
   std::map<std::string, bool> joint_clicked_map_;
 
   /// @brief Map of joint controls and their last transforms.
-  std::map<std::string, btTransform> joint_prev_transform_map_;
+  std::map<std::string, tf::Transform> joint_prev_transform_map_;
 
   PlanningSceneEditor();
   PlanningSceneEditor(PlanningSceneParameters& params);
@@ -1804,7 +1804,7 @@ public:
   std::string createMeshObject(const std::string& name, 
                                geometry_msgs::Pose pose,
                                const std::string& filename,
-                               const btVector3& scale,
+                               const tf::Vector3& scale,
                                std_msgs::ColorRGBA color);
   //////
   /// @brief creates a 6DOF control over the end effector of either the start or goal position of the given request.
@@ -1987,7 +1987,7 @@ void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTra
   /// @param scale the size of the marker's radius, in meters.
   /// @param angle the initial angle of the marker about its axis.
   /////
-  void makeInteractive1DOFRotationMarker(btTransform transform, btVector3 axis, string name, string description,
+  void makeInteractive1DOFRotationMarker(tf::Transform transform, tf::Vector3 axis, string name, string description,
                                          float scale = 1.0f, float angle = 0.0f);
 
   //////
@@ -1999,7 +1999,7 @@ void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTra
   /// @param scale the size of the marker in meters.
   /// @param value the initial translation of the prismatic joint along its axis.
   //////
-  void makeInteractive1DOFTranslationMarker(btTransform transform, btVector3 axis, string name, string description,
+  void makeInteractive1DOFTranslationMarker(tf::Transform transform, tf::Vector3 axis, string name, string description,
                                             float scale = 1.0f, float value = 0.0f);
 
   //////
@@ -2057,7 +2057,7 @@ void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTra
   /// @param jointName the joint to set the state for.
   /// @param value the joint will attempt to match this position and orientation.
   /////
-  void setJointState(MotionPlanRequestData& data, PositionType position, std::string& jointName, btTransform value);
+  void setJointState(MotionPlanRequestData& data, PositionType position, std::string& jointName, tf::Transform value);
 
   /////
   /// @brief if robot data is not being used, publishes fake joint states of the current robot state to

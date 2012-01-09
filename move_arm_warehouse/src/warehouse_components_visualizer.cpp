@@ -245,7 +245,7 @@ class WarehouseComponentsVisualizer
         KinematicState* end_state_;
         map<string, StateTrajectoryDisplay> state_trajectory_display_map_;
         vector<string> joint_names_;
-        btTransform last_good_state_;
+        tf::Transform last_good_state_;
 
     };
 
@@ -394,7 +394,7 @@ class WarehouseComponentsVisualizer
 
         // These positions will be reset by main()
         makeSelectableMarker(WarehouseComponentsVisualizer::EndEffectorControl,
-                             btTransform(btQuaternion(0.0f, 0.0f, 0.0f, 1.0f), btVector3(0.0f, 0.0f, 0.0f)), it->first,
+                             tf::Transform(tf::Quaternion(0.0f, 0.0f, 0.0f, 1.0f), tf::Vector3(0.0f, 0.0f, 0.0f)), it->first,
                              it->first, 0.5f);
         cmd++;
       }
@@ -506,7 +506,7 @@ class WarehouseComponentsVisualizer
       cylinder_object.id = id.str();
       collision_poles_[id.str()] = cylinder_object;
 
-      btTransform cur = toBulletTransform(pose);
+      tf::Transform cur = toBulletTransform(pose);
       makePoleContextMenu(cur, id.str(), "", 2.0f);
     }
 
@@ -656,7 +656,7 @@ class WarehouseComponentsVisualizer
       if(is_ik_control_active_ && old_group_name != "" && selectableMarkerExists(old_group_name + "_selectable"))
       {
         GroupCollection& gc = group_map_[old_group_name];
-        btTransform cur = robot_state_->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
+        tf::Transform cur = robot_state_->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
         deselectMarker(selectable_markers_[old_group_name + "_selectable"], cur);
 
         if(is_joint_control_active_)
@@ -673,7 +673,7 @@ class WarehouseComponentsVisualizer
       if(is_ik_control_active_ && selectableMarkerExists(current_group_name_ + "_selectable"))
       {
         GroupCollection& gc = group_map_[current_group_name_];
-        btTransform cur = gc.getState(ik_control_type_)->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
+        tf::Transform cur = gc.getState(ik_control_type_)->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
         selectMarker(selectable_markers_[current_group_name_ + "_selectable"], cur);
         createSelectableJointMarkers(gc);
       }
@@ -707,14 +707,14 @@ class WarehouseComponentsVisualizer
     {
       lock_.lock();
       GroupCollection& gc = group_map_[current_group_name_];
-      btTransform cur = gc.getState(ik_control_type_)->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
+      tf::Transform cur = gc.getState(ik_control_type_)->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
       double mult = CONTROL_SPEED / 100.0;
 
-      btVector3& curOrigin = cur.getOrigin();
-      btVector3 newOrigin(curOrigin.x() + (vx * mult), curOrigin.y() + (vy * mult), curOrigin.z() + (vz * mult));
+      tf::Vector3& curOrigin = cur.getOrigin();
+      tf::Vector3 newOrigin(curOrigin.x() + (vx * mult), curOrigin.y() + (vy * mult), curOrigin.z() + (vz * mult));
       cur.setOrigin(newOrigin);
 
-      btScalar roll, pitch, yaw;
+      tfScalar roll, pitch, yaw;
 
       cur.getBasis().getRPY(roll, pitch, yaw);
       roll += vr * mult;
@@ -781,7 +781,7 @@ class WarehouseComponentsVisualizer
         {
           string parentLinkName = model->getParentLinkModel()->getName();
           string childLinkName = model->getChildLinkModel()->getName();
-          btTransform
+          tf::Transform
               transform =
                   gc.getState(ik_control_type_)->getLinkState(parentLinkName)->getGlobalLinkTransform()
                       * (gc.getState(ik_control_type_)->getKinematicModel()->getLinkModel(childLinkName)->getJointOriginTransform()
@@ -847,7 +847,7 @@ class WarehouseComponentsVisualizer
     /// @param gc the group collection that the joint is in.
     /// @param value, a transform that the joint will attempt to match.
     /////
-    void setJointState(GroupCollection& gc, std::string& jointName, btTransform value)
+    void setJointState(GroupCollection& gc, std::string& jointName, tf::Transform value)
     {
 
 
@@ -863,7 +863,7 @@ class WarehouseComponentsVisualizer
       bool isPrismatic = (dynamic_cast<const KinematicModel::PrismaticJointModel*>(jointModel) != NULL);
 
       KinematicState::LinkState* linkState = currentState->getLinkState(parentLink);
-      btTransform transformedValue;
+      tf::Transform transformedValue;
 
 
       if(isPrismatic)
@@ -877,9 +877,9 @@ class WarehouseComponentsVisualizer
 
       }
 
-      //transformedValue = btTransform(btQuaternion(dynamic_cast<const KinematicModel::RevoluteJointModel*>(jointModel)->axis_, value.getRotation().getAngle()), transformedValue.getOrigin());
+      //transformedValue = tf::Transform(tf::Quaternion(dynamic_cast<const KinematicModel::RevoluteJointModel*>(jointModel)->axis_, value.getRotation().getAngle()), transformedValue.getOrigin());
 
-      btTransform oldState = jointState->getVariableTransform();
+      tf::Transform oldState = jointState->getVariableTransform();
       jointState->setJointStateValues(transformedValue);
 
 
@@ -918,7 +918,7 @@ class WarehouseComponentsVisualizer
       }
     }
 
-    void setNewEndEffectorPosition(GroupCollection& gc, btTransform& cur, bool coll_aware)
+    void setNewEndEffectorPosition(GroupCollection& gc, tf::Transform& cur, bool coll_aware)
     {
       if(!gc.getState(ik_control_type_)->updateKinematicStateWithLinkAt(gc.ik_link_name_, cur))
       {
@@ -941,8 +941,8 @@ class WarehouseComponentsVisualizer
                                                arm_navigation_msgs::OrientationConstraint& goal_constraint,
                                                arm_navigation_msgs::OrientationConstraint& path_constraint) const
   {
-    btTransform cur = state.getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
-    //btScalar roll, pitch, yaw;
+    tf::Transform cur = state.getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
+    //tfScalar roll, pitch, yaw;
     //cur.getBasis().getRPY(roll,pitch,yaw);
     goal_constraint.header.frame_id = cm_->getWorldFrameId();
     goal_constraint.header.stamp = ros::Time::now();
@@ -1193,7 +1193,7 @@ class WarehouseComponentsVisualizer
 
     void randomlyPerturb(WarehouseComponentsVisualizer::GroupCollection& gc)
     {
-      btTransform currentPose = gc.getState(ik_control_type_)->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
+      tf::Transform currentPose = gc.getState(ik_control_type_)->getLinkState(gc.ik_link_name_)->getGlobalLinkTransform();
 
       int maxTries = 10;
       int numTries = 0;
@@ -1220,9 +1220,9 @@ class WarehouseComponentsVisualizer
         double yA = currentPose.getRotation().y() + yAngleVar;
         double zA = currentPose.getRotation().z() + zAngleVar;
 
-        btVector3 newPos(x,y,z);
-        btQuaternion newOrient(xA,yA,zA,1.0);
-        btTransform newTrans(newOrient,newPos);
+        tf::Vector3 newPos(x,y,z);
+        tf::Quaternion newOrient(xA,yA,zA,1.0);
+        tf::Transform newTrans(newOrient,newPos);
 
         setNewEndEffectorPosition(gc, newTrans, collision_aware_);
         if(gc.good_ik_solution_)
@@ -1612,7 +1612,7 @@ class WarehouseComponentsVisualizer
       sendPlanningScene();
       moveEndEffectorMarkers(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false);
 
-      btTransform cur = toBulletTransform(last_ee_poses_[current_group_name_]);
+      tf::Transform cur = toBulletTransform(last_ee_poses_[current_group_name_]);
       setNewEndEffectorPosition(gc, cur, collision_aware_);
     }
 
@@ -1629,7 +1629,7 @@ class WarehouseComponentsVisualizer
         case InteractiveMarkerFeedback::BUTTON_CLICK:
           if(feedback->marker_name.rfind("_selectable") != string::npos)
           {
-            btTransform cur = toBulletTransform(feedback->pose);
+            tf::Transform cur = toBulletTransform(feedback->pose);
             if(isGroupName(feedback->marker_name.substr(0, feedback->marker_name.rfind("_selectable"))))
             {
               unsigned int cmd = 0;
@@ -1657,7 +1657,7 @@ class WarehouseComponentsVisualizer
           MenuHandler::EntryHandle handle;
           if(feedback->marker_name.rfind("_selectable") != string::npos)
           {
-            btTransform cur = toBulletTransform(feedback->pose);
+            tf::Transform cur = toBulletTransform(feedback->pose);
             if(is_ik_control_active_
                 && isGroupName(feedback->marker_name.substr(0, feedback->marker_name.rfind("_selectable"))))
             {
@@ -1859,7 +1859,7 @@ class WarehouseComponentsVisualizer
             }
             else if(menu_entry_maps_["End Effector"][handle] == "Deselect")
             {
-              btTransform cur = toBulletTransform(feedback->pose);
+              tf::Transform cur = toBulletTransform(feedback->pose);
               deselectMarker(selectable_markers_[feedback->marker_name + "_selectable"], cur);
             }
           }
@@ -1878,7 +1878,7 @@ class WarehouseComponentsVisualizer
             }
             else if(menu_entry_maps_["Collision Object"][handle] == "Deselect")
             {
-              btTransform cur = toBulletTransform(feedback->pose);
+              tf::Transform cur = toBulletTransform(feedback->pose);
               deselectMarker(selectable_markers_[feedback->marker_name + "_selectable"], cur);
             }
           }
@@ -1911,13 +1911,13 @@ class WarehouseComponentsVisualizer
         case InteractiveMarkerFeedback::POSE_UPDATE:
           if(is_ik_control_active_ && isGroupName(feedback->marker_name))
           {
-            btTransform cur = toBulletTransform(feedback->pose);
+            tf::Transform cur = toBulletTransform(feedback->pose);
             setNewEndEffectorPosition(gc, cur, collision_aware_);
             last_ee_poses_[current_group_name_] = feedback->pose;
           }
           else if(is_joint_control_active_ && feedback->marker_name.rfind("_joint_control") != string::npos)
           {
-            btTransform cur = toBulletTransform(feedback->pose);
+            tf::Transform cur = toBulletTransform(feedback->pose);
 
             string jointName = feedback->marker_name.substr(0, feedback->marker_name.rfind("_joint_control"));
             setJointState(gc, jointName, cur);
@@ -1972,7 +1972,7 @@ class WarehouseComponentsVisualizer
     ////
     /// @brief Wrapper for makeSelectableMarker which assumes we are creating a collision pole.
     ////
-    void makePoleContextMenu(btTransform transform, string name, string description, float scale = 1.0f)
+    void makePoleContextMenu(tf::Transform transform, string name, string description, float scale = 1.0f)
     {
 
       makeSelectableMarker(WarehouseComponentsVisualizer::CollisionObject, transform, name, description, scale);
@@ -1987,7 +1987,7 @@ class WarehouseComponentsVisualizer
     /// @param scale uniformly sizes the marker and its controls
     /// @param publish if true, the marker server will publish the marker. Otherwise, it will not.
     /////
-    void makeSelectableMarker(InteractiveMarkerType type, btTransform transform, string name, string description,
+    void makeSelectableMarker(InteractiveMarkerType type, tf::Transform transform, string name, string description,
                               float scale = 1.0f, bool publish = true)
     {
       SelectableMarker selectable_marker;
@@ -2062,7 +2062,7 @@ class WarehouseComponentsVisualizer
     /// @param marker a reference to the selectablemarker struct.
     /// @param transform location to select the marker.
     /////
-    void selectMarker(SelectableMarker& marker, btTransform transform)
+    void selectMarker(SelectableMarker& marker, tf::Transform transform)
     {
       InteractiveMarker dummy;
       if(interactive_marker_server_->get(marker.controlName_, dummy))
@@ -2097,7 +2097,7 @@ class WarehouseComponentsVisualizer
     /// @param marker a reference to the selectablemarker struct.
     /// @param transform location of the marker when it is de-selected.
     /////
-    void deselectMarker(SelectableMarker& marker, btTransform transform)
+    void deselectMarker(SelectableMarker& marker, tf::Transform transform)
     {
       if(!interactive_marker_server_->erase(marker.controlName_))
       {
@@ -2122,7 +2122,7 @@ class WarehouseComponentsVisualizer
       makeSelectableMarker(marker.type_, transform, marker.controlName_, marker.controlDescription_, scale);
     }
 
-    void makeInteractive1DOFTranslationMarker(btTransform transform, btVector3 axis, string name, string description,
+    void makeInteractive1DOFTranslationMarker(tf::Transform transform, tf::Vector3 axis, string name, string description,
                                               float scale = 1.0f, float value = 0.0f)
     {
       InteractiveMarker marker;
@@ -2159,7 +2159,7 @@ class WarehouseComponentsVisualizer
 
     }
 
-    void makeInteractive1DOFRotationMarker(btTransform transform, btVector3 axis, string name, string description,
+    void makeInteractive1DOFRotationMarker(tf::Transform transform, tf::Vector3 axis, string name, string description,
                                            float scale = 1.0f, float angle = 0.0f)
     {
       InteractiveMarker marker;
@@ -2205,7 +2205,7 @@ class WarehouseComponentsVisualizer
     /// @param scale uniformly sets the size in meters of the marker.
     /// @param pole if true, the marker is a large green cylinder. Otherwise it is a small white cube.
     /////
-    void makeInteractive6DOFMarker(bool fixed, btTransform transform, string name, string description,
+    void makeInteractive6DOFMarker(bool fixed, tf::Transform transform, string name, string description,
                                    float scale = 1.0f, bool pole = false)
     {
       InteractiveMarker marker;
@@ -2331,7 +2331,7 @@ class WarehouseComponentsVisualizer
     }
   protected:
 
-    Pose toGeometryPose(btTransform transform)
+    Pose toGeometryPose(tf::Transform transform)
     {
       Pose toReturn;
       toReturn.position.x = transform.getOrigin().x();
@@ -2344,11 +2344,11 @@ class WarehouseComponentsVisualizer
       return toReturn;
     }
 
-    btTransform toBulletTransform(geometry_msgs::Pose pose)
+    tf::Transform toBulletTransform(geometry_msgs::Pose pose)
     {
-      btQuaternion quat = btQuaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
-      btVector3 vec = btVector3(pose.position.x, pose.position.y, pose.position.z);
-      return btTransform(quat, vec);
+      tf::Quaternion quat = tf::Quaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
+      tf::Vector3 vec = tf::Vector3(pose.position.x, pose.position.y, pose.position.z);
+      return tf::Transform(quat, vec);
     }
 
     void deleteKinematicStates()
@@ -2417,7 +2417,7 @@ class WarehouseComponentsVisualizer
     bool is_joint_control_active_;
 
     map<string, bool> joint_clicked_map_;
-    map<string, btTransform> joint_prev_transform_map_;
+    map<string, tf::Transform> joint_prev_transform_map_;
 
     move_arm_warehouse::MoveArmWarehouseLoggerReader* logger_;
     arm_navigation_msgs::PlanningScene planning_scene_;

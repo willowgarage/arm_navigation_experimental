@@ -126,8 +126,8 @@ private:
   std::vector<std::vector<double> > collision_point_potential_;
   std::vector<std::vector<double> > collision_point_vel_mag_;
   std::vector<std::vector<Eigen::Vector3d> > collision_point_potential_gradient_;
-  std::vector<std::vector<btVector3> > joint_axes_;
-  std::vector<std::vector<btVector3> > joint_positions_;
+  std::vector<std::vector<tf::Vector3> > joint_axes_;
+  std::vector<std::vector<tf::Vector3> > joint_positions_;
   Eigen::MatrixXd group_trajectory_backup_;
   Eigen::MatrixXd best_group_trajectory_;
   double best_group_trajectory_cost_;

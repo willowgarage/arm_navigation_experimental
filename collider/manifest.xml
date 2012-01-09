@@ -24,6 +24,9 @@
   <depend package="image_geometry"/>
   <depend package="robot_self_filter"/>
   <depend package="planning_environment"/>
+  <depend package="common_rosdeps"/>
+
+  <rosdep name="eigen" />
 
 </package>
 

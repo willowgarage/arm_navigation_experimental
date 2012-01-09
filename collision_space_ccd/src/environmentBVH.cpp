@@ -91,7 +91,7 @@ void EnvironmentModelBVH<BV>::setRobotModel(const planning_models::KinematicMode
 }
 
 template<typename BV>
-void EnvironmentModelBVH<BV>::getAttachedBodyPoses(std::map<std::string, std::vector<btTransform> >& pose_map) const
+void EnvironmentModelBVH<BV>::getAttachedBodyPoses(std::map<std::string, std::vector<tf::Transform> >& pose_map) const
 {
   pose_map.clear();
 
@@ -102,7 +102,7 @@ void EnvironmentModelBVH<BV>::getAttachedBodyPoses(std::map<std::string, std::ve
     
     /* create new set of attached bodies */	
     const unsigned int nab = lg->att_bodies.size();
-    std::vector<btTransform> nbt;
+    std::vector<tf::Transform> nbt;
     for(unsigned int j = 0; j < nab; ++j)
     {
       for(unsigned int k = 0; k < lg->att_bodies[j]->geom.size(); k++)
@@ -260,7 +260,7 @@ CollisionGeom* EnvironmentModelBVH<BV>::createBVHGeom(const shapes::Shape *shape
 }
 
 template<typename BV>
-void EnvironmentModelBVH<BV>::updateGeom(CollisionGeom* geom,  const btTransform &pose) const
+void EnvironmentModelBVH<BV>::updateGeom(CollisionGeom* geom,  const tf::Transform &pose) const
 {
   geom->applyTransform(pose);
 }
@@ -820,7 +820,7 @@ void EnvironmentModelBVH<BV>::testGeomCollision(CollisionData* cdata, CollisionG
       Vec3f contact = pairs[i].contact_point;
 
       ROS_DEBUG_STREAM("Contact at " << contact[0] << " " << contact[1] << " " << contact[2]);
-      btVector3 pos(contact[0], contact[1], contact[2]);
+      tf::Vector3 pos(contact[0], contact[1], contact[2]);
 
       //figure out whether the contact is allowed
       //allowed contacts only allowed with objects for now
@@ -860,7 +860,7 @@ void EnvironmentModelBVH<BV>::testGeomCollision(CollisionData* cdata, CollisionG
 
       EnvironmentModelBVH::Contact add;
       add.pos = pos;
-      add.normal = btVector3(normal[0], normal[1], normal[2]);
+      add.normal = tf::Vector3(normal[0], normal[1], normal[2]);
       add.depth = depth;
       add.body_name_1 = cdata->body_name_1;
       add.body_name_2 = cdata->body_name_2;
@@ -911,7 +911,7 @@ bool EnvironmentModelBVH<BV>::hasObject(const std::string& ns) const
 }
 
 template<typename BV>
-void EnvironmentModelBVH<BV>::addObjects(const std::string& ns, const std::vector<shapes::Shape*>& shapes, const std::vector<btTransform>& poses)
+void EnvironmentModelBVH<BV>::addObjects(const std::string& ns, const std::vector<shapes::Shape*>& shapes, const std::vector<tf::Transform>& poses)
 {
   assert(shapes.size() == poses.size());
   typename std::map<std::string, CollisionNamespace*>::iterator it = coll_namespaces_.find(ns);
@@ -943,7 +943,7 @@ void EnvironmentModelBVH<BV>::addObjects(const std::string& ns, const std::vecto
 }
 
 template<typename BV>
-void EnvironmentModelBVH<BV>::addObject(const std::string& ns, shapes::Shape* shape, const btTransform& pose)
+void EnvironmentModelBVH<BV>::addObject(const std::string& ns, shapes::Shape* shape, const tf::Transform& pose)
 {
   typename std::map<std::string, CollisionNamespace*>::iterator it = coll_namespaces_.find(ns);
   CollisionNamespace* cn = NULL;
