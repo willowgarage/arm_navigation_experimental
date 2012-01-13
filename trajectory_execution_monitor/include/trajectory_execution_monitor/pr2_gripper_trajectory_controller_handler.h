@@ -109,20 +109,22 @@ public:
   {
     ROS_INFO_STREAM("Gripper controller is done with state " << state.toString());
 
-    if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+    if( controller_state_ == trajectory_execution_monitor::TrajectoryControllerStates::EXECUTING ||
+        controller_state_ == trajectory_execution_monitor::TrajectoryControllerStates::OVERSHOOTING )
     {
-      completion_state_ = trajectory_execution_monitor::TrajectoryControllerCompletionStates::SUCCESS;
-    }
-    else
-    {
-      ROS_WARN_STREAM("Failed state is " << state.toString() );
-      completion_state_ = trajectory_execution_monitor::TrajectoryControllerCompletionStates::EXECUTION_FAILURE;
-    }
+      if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+      {
+        controller_state_ = trajectory_execution_monitor::TrajectoryControllerStates::SUCCESS;
+      }
+      else
+      {
+        ROS_WARN_STREAM("Failed state is " << state.toString() );
+        controller_state_ = trajectory_execution_monitor::TrajectoryControllerStates::EXECUTION_FAILURE;
+      }
 
-    // We don't record overshoot on the gripper
-
-    // Take-down
-    done();
+      // We don't record overshoot on the gripper
+      done();
+    }
   }
 
   void controllerActiveCallback() 

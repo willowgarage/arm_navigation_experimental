@@ -130,15 +130,15 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
 }
 
 void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(
-        TrajectoryControllerCompletionState controller_state )
+        TrajectoryControllerState controller_state )
 {
   //adding this in any case
   execution_result_vector_.back().recorded_trajectory_ = last_requested_handler_->getLastRecordedTrajectory();
   execution_result_vector_.back().overshoot_trajectory_ = last_requested_handler_->getLastOvershootTrajectory();
 
   const TrajectoryExecutionRequest& req = (*execution_data_)[current_trajectory_index_];
-  bool ok = (	controller_state==TrajectoryControllerCompletionStates::SUCCESS ||
-              controller_state==TrajectoryControllerCompletionStates::OVERSHOOT_TIMEOUT);
+  bool ok = (	controller_state==TrajectoryControllerStates::SUCCESS ||
+              controller_state==TrajectoryControllerStates::OVERSHOOT_TIMEOUT);
   bool continue_execution =
             ok ||
             req.failure_ok_ ||
@@ -146,7 +146,7 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(
 
   if(	continue_execution )
   {
-    ROS_INFO_STREAM("Trajectory finished, executing next trajectory");
+    ROS_INFO_STREAM("Trajectory finished");
 
     // calculate stats
     TrajectoryExecutionData & data = execution_result_vector_.back();
@@ -187,7 +187,8 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(
       result_callback_(execution_result_vector_);
     }
   } else {
-    ROS_INFO_STREAM("Trajectory finished with failure");
+    ROS_ERROR_STREAM( "Trajectory finished with failure.  controller_state=" << controller_state <<
+                      ". Stopping the remaining trajectories" << std::endl );
     execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE;
     result_callback_(execution_result_vector_);
   }

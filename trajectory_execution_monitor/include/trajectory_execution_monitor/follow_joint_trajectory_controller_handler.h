@@ -86,31 +86,37 @@ public:
   {
     ROS_INFO_STREAM("Controller is done with state " << state.toString() );
 
-    if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+    if( controller_state_ == trajectory_execution_monitor::TrajectoryControllerStates::EXECUTING ||
+        controller_state_ == trajectory_execution_monitor::TrajectoryControllerStates::OVERSHOOTING )
     {
-      completion_state_ = trajectory_execution_monitor::TrajectoryControllerCompletionStates::SUCCESS;
-    }
-    else
-    {
-      ROS_WARN_STREAM("Failed state is " << state.toString() << " code " << result->error_code);
-      completion_state_ = trajectory_execution_monitor::TrajectoryControllerCompletionStates::EXECUTION_FAILURE;
-    }
-
-    // record overshoot
-    if( completion_state_==trajectory_execution_monitor::TrajectoryControllerCompletionStates::SUCCESS )
-    {
-      if( monitor_overshoot_ )
+      if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
       {
-        initializeOvershootTrajectory();
+        controller_state_ = trajectory_execution_monitor::TrajectoryControllerStates::SUCCESS;
+      }
+      else
+      {
+        ROS_WARN_STREAM("Failed state is " << state.toString() << " code " << result->error_code);
+        controller_state_ = trajectory_execution_monitor::TrajectoryControllerStates::EXECUTION_FAILURE;
+      }
+
+      // record overshoot
+      if( controller_state_==trajectory_execution_monitor::TrajectoryControllerStates::SUCCESS )
+      {
+        if( monitor_overshoot_ )
+        {
+          initializeOvershootTrajectory();
+        }
+        else
+        {
+          done();
+        }
+      }
+      else
+      {
+        ROS_WARN_STREAM("Controller returned an error.  Not recording the overshoot.");
+        done();
       }
     }
-    else
-    {
-      ROS_WARN_STREAM("Controller returned an error.  Not recording the overshoot.");
-    }
-
-    // Take-down
-    done();
   }
 
   void controllerActiveCallback() 

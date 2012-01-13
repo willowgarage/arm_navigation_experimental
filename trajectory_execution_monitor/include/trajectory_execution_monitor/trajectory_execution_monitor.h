@@ -126,7 +126,7 @@ protected:
   bool sendTrajectory(const TrajectoryExecutionRequest& ter);
   
   void trajectoryFinishedCallbackFunction(
-    TrajectoryControllerCompletionState controller_state );
+    TrajectoryControllerState controller_state );
 
   bool closeEnough(const TrajectoryExecutionRequest& ter,
                    const TrajectoryExecutionData& ted);

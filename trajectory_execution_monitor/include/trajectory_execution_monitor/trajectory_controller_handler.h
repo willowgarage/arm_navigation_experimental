@@ -47,25 +47,26 @@
 namespace trajectory_execution_monitor
 {
 
-namespace TrajectoryControllerCompletionStates
+namespace TrajectoryControllerStates
 {
-  enum TrajectoryControllerCompletionState
+  enum TrajectoryControllerState
   {
-    SUCCESS = 0,
+    IDLE = 0,
+    PAUSED,
+    EXECUTING,
+    OVERSHOOTING,
+    SUCCESS,
     OVERSHOOT_TIMEOUT,	// usually considered a success
     EXECUTION_FAILURE,
     EXECUTION_TIMEOUT,
     CANCELLED
   };
 }
-typedef TrajectoryControllerCompletionStates::TrajectoryControllerCompletionState TrajectoryControllerCompletionState;
+typedef TrajectoryControllerStates::TrajectoryControllerState TrajectoryControllerState;
 
-typedef boost::function<void(TrajectoryControllerCompletionState)> TrajectoryFinishedCallbackFunction;
+typedef boost::function<void(TrajectoryControllerState)> TrajectoryFinishedCallbackFunction;
 
 class TrajectoryControllerHandler {
-protected:
-  // TrajectoryControllerHandler is augmented to record overshoot of a trajectory
-  enum TrajectoryControllerState	{	IDLE, PAUSED, EXECUTING, OVERSHOOTING };
 
 public:
 
@@ -74,8 +75,7 @@ public:
     group_name_(group_name),
     controller_name_(controller_name),
     monitor_overshoot_(false),
-    controller_state_(IDLE),
-    completion_state_(TrajectoryControllerCompletionStates::EXECUTION_FAILURE),
+    controller_state_(TrajectoryControllerStates::IDLE),
     timeout_(ros::Duration(100))
   {
     group_controller_combo_name_ = combineGroupAndControllerNames(group_name,controller_name);  
@@ -152,6 +152,7 @@ protected:
   // Deregisters from the recorder, and executes callback to the monitor.
   // Make sure the _success is set before calling this function
   void done();
+  void doneDelayed();
 
   void initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory);
   void initializeOvershootTrajectory();
@@ -174,7 +175,6 @@ protected:
   boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
   trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
   TrajectoryControllerState	controller_state_;
-  TrajectoryControllerCompletionState completion_state_;
 
   // Used for timeout
   ros::Duration timeout_;

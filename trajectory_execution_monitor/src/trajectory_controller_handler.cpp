@@ -56,7 +56,7 @@ bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Tim
                                                                   const std::map<std::string, double>& joint_positions,
                                                                   const std::map<std::string, double>& joint_velocities)
 {
-  if( controller_state_ == OVERSHOOTING )
+  if( controller_state_ == TrajectoryControllerStates::OVERSHOOTING )
   {
     ros::Duration dur = time - overshoot_trajectory_.header.stamp;
     if( dur > min_overshoot_time_ )
@@ -67,19 +67,18 @@ bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Tim
 
       if( max_vel <= max_overshoot_velocity_epsilon_ )
       {	// Settled
-        controller_state_ = IDLE;
-        recorder_->delayedDeregisterCallback(group_controller_combo_name_);
-        trajectory_finished_callback_( completion_state_ );
+        controller_state_ = TrajectoryControllerStates::SUCCESS;
+        doneDelayed();
         return false;
       }
     }
   }
 
-  if( controller_state_ == EXECUTING )
+  if( controller_state_ == TrajectoryControllerStates::EXECUTING )
   {
     return _addNewStateToTrajectory(time, joint_positions, joint_velocities, recorded_trajectory_);
   }
-  else if( controller_state_ == OVERSHOOTING )
+  else if( controller_state_ == TrajectoryControllerStates::OVERSHOOTING )
   {
     return _addNewStateToTrajectory(time, joint_positions, joint_velocities, overshoot_trajectory_);
   }
@@ -130,18 +129,18 @@ void TrajectoryControllerHandler::disableOvershoot()
 
 void TrajectoryControllerHandler::timeout(const ros::TimerEvent& event)
 {
-  if( controller_state_ == OVERSHOOTING )
+  if( controller_state_ == TrajectoryControllerStates::OVERSHOOTING )
   {
     ROS_ERROR("overshoot exceeded %f seconds", max_overshoot_time_.toSec());
-    completion_state_ = TrajectoryControllerCompletionStates::OVERSHOOT_TIMEOUT;
+    controller_state_ = TrajectoryControllerStates::OVERSHOOT_TIMEOUT;
+    done();
   }
-  else if( controller_state_ == EXECUTING )
+  else if( controller_state_ == TrajectoryControllerStates::EXECUTING )
   {
     ROS_ERROR("Execution exceeded %f seconds", timeout_.toSec() );
-    completion_state_ = TrajectoryControllerCompletionStates::EXECUTION_TIMEOUT;
+    controller_state_ = TrajectoryControllerStates::EXECUTION_TIMEOUT;
+    done();
   }
-
-  done();
 }
 
 void TrajectoryControllerHandler::initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory)
@@ -152,7 +151,7 @@ void TrajectoryControllerHandler::initializeRecordedTrajectory(const trajectory_
   recorded_trajectory_.joint_names = goal_trajectory.joint_names;
   recorded_trajectory_.points.clear();
 
-  controller_state_ = EXECUTING;
+  controller_state_ = TrajectoryControllerStates::EXECUTING;
 
   timer_ = nh_.createTimer(timeout_, &TrajectoryControllerHandler::timeout, this, true, true);
 }
@@ -163,7 +162,7 @@ void TrajectoryControllerHandler::initializeOvershootTrajectory()
   overshoot_trajectory_.joint_names = goal_trajectory_.joint_names;
   overshoot_trajectory_.points.clear();
 
-  controller_state_ = OVERSHOOTING;
+  controller_state_ = TrajectoryControllerStates::OVERSHOOTING;
 
   timer_.stop();
   timer_ = nh_.createTimer(max_overshoot_time_, &TrajectoryControllerHandler::timeout, this, true, true);
@@ -171,7 +170,18 @@ void TrajectoryControllerHandler::initializeOvershootTrajectory()
 
 void TrajectoryControllerHandler::done()
 {
-  controller_state_ = IDLE;
+  timer_.stop();
+  const TrajectoryControllerState state = controller_state_;
+  controller_state_ = TrajectoryControllerStates::IDLE;
   recorder_->deregisterCallback(group_controller_combo_name_);
-  trajectory_finished_callback_( completion_state_ );
+  trajectory_finished_callback_( state );
+}
+
+void TrajectoryControllerHandler::doneDelayed()
+{
+  timer_.stop();
+  const TrajectoryControllerState state = controller_state_;
+  controller_state_ = TrajectoryControllerStates::IDLE;
+  recorder_->delayedDeregisterCallback(group_controller_combo_name_);
+  trajectory_finished_callback_( state );
 }
