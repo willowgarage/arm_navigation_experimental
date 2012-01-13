@@ -32,7 +32,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/** \author E. Gil Jones */
+/** \author E. Gil Jones, Ken Anderson */
 
 #ifndef _TRAJECTORY_CONTROLLER_HANDLER_H_
 #define _TRAJECTORY_CONTROLLER_HANDLER_H_
@@ -56,12 +56,24 @@ protected:
 
 public:
 
+  // TODO: move out and encapsulate
+  enum TrajectoryControllerCompletionState
+  {
+    SUCCESS = 0,
+    OVERSHOOT_TIMEOUT,	// usually considered a success
+    EXECUTION_FAILURE,
+    EXECUTION_TIMEOUT,
+    CANCELLED
+  };
+
   TrajectoryControllerHandler(const std::string& group_name,
                               const std::string& controller_name) :
     group_name_(group_name),
     controller_name_(controller_name),
     monitor_overshoot_(false),
-    controller_state_(IDLE)
+    controller_state_(IDLE),
+    completion_state_(EXECUTION_FAILURE),
+    timeout_(ros::Duration(100))
   {
     group_controller_combo_name_ = combineGroupAndControllerNames(group_name,controller_name);  
   };
@@ -77,13 +89,18 @@ public:
 
   // Call this function if the trajectory should monitor overshoot after the trajectory is executed.
   // returns true if the subclass can monitor overshoot
-  virtual bool enableOvershoot(
+  bool enableOvershoot(
                         double max_overshoot_velocity_epsilon,
                         ros::Duration min_overshoot_time,
                         ros::Duration max_overshoot_time);
 
   // Disable overshoot monitoring
-  virtual void disableOvershoot();
+  void disableOvershoot();
+
+  // Call to set a maximum exection time, otherwise the default max execution time gets used
+  void setMaximumExecutionTime( ros::Duration max_execution_time ) {
+    timeout_ = max_execution_time;
+  }
 
   // Call enableOvershoot function if overshoot should get monitored.  But default this does not happen.
   virtual bool executeTrajectory(const trajectory_msgs::JointTrajectory& trajectory,
@@ -91,6 +108,9 @@ public:
                                  const TrajectoryFinishedCallbackFunction& traj_callback) = 0;
 
   virtual void cancelExecution() = 0;
+
+  // If timeout gets called, then we exceeded our maximum execution time
+  void timeout(const ros::TimerEvent& event);
 
   const trajectory_msgs::JointTrajectory& getLastGoalTrajectory() const {
     return goal_trajectory_;
@@ -126,10 +146,14 @@ protected:
                                 const std::map<std::string, double>& joint_velocities,
                                 trajectory_msgs::JointTrajectory& trajectory);
 
+  // Deregisters from the recorder, and executes callback to the monitor.
+  // Make sure the _success is set before calling this function
+  void done();
+
   void initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory);
   void initializeOvershootTrajectory();
-  // returns the index from min_overshoot_time_ ago.
-  unsigned int findClosestIndex( ros::Duration time_from_start_ );
+  // returns the index of the first point who's time_from_start_ value is equal to or greater than time_from_start.
+  unsigned int findClosestIndex( ros::Duration time_from_start );
 
   std::string group_name_;
   std::string controller_name_;
@@ -147,7 +171,12 @@ protected:
   boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
   trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
   TrajectoryControllerState	controller_state_;
-  bool success_;
+  TrajectoryControllerCompletionState completion_state_;
+
+  // Used for timeout
+  ros::Duration timeout_;
+  ros::NodeHandle nh_;
+  ros::Timer timer_;
 
   //TODO - consider pause and resume execution
 

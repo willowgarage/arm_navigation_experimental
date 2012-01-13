@@ -86,14 +86,14 @@ struct TrajectoryExecutionData {
 
   TrajectoryExecutionResult result_;
 
+  // trajectories
+  trajectory_msgs::JointTrajectory recorded_trajectory_;
+  trajectory_msgs::JointTrajectory overshoot_trajectory_;
+
   // stats
   ros::Duration time_;							// recorded
   ros::Duration overshoot_time_;		// overshoot
   double angular_distance_;					// recorded
-
-  // trajectories
-  trajectory_msgs::JointTrajectory recorded_trajectory_;
-  trajectory_msgs::JointTrajectory overshoot_trajectory_;
 };
 
 struct TrajectoryExecutionDataVector : public std::vector<TrajectoryExecutionData> 

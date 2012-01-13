@@ -72,7 +72,7 @@ public:
 
   bool executeTrajectory(const trajectory_msgs::JointTrajectory& trajectory,
                          boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder>& recorder,
-                         const trajectory_execution_monitor::TrajectoryFinishedCallbackFunction& traj_callback) 
+                         const trajectory_execution_monitor::TrajectoryFinishedCallbackFunction& traj_callback)
   {
     recorder_ = recorder;
     trajectory_finished_callback_ = traj_callback;
@@ -107,13 +107,22 @@ public:
   void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                               const pr2_controllers_msgs::Pr2GripperCommandResultConstPtr& result)
   {
-    recorder_->deregisterCallback(group_controller_combo_name_);
-    success_ = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
+    ROS_INFO_STREAM("Gripper controller is done with state " << state.toString());
 
-    // We don't record overshoot on the gripepr
-    controller_state_ = IDLE;
-    ROS_INFO_STREAM("Gripper controller is done with state " << success_);
-    trajectory_finished_callback_(success_);
+    if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+    {
+      completion_state_ = SUCCESS;
+    }
+    else
+    {
+      ROS_WARN_STREAM("Failed state is " << state.toString() );
+      completion_state_ = EXECUTION_FAILURE;
+    }
+
+    // We don't record overshoot on the gripper
+
+    // Take-down
+    done();
   }
 
   void controllerActiveCallback() 

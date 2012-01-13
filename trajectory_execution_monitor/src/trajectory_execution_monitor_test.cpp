@@ -91,6 +91,7 @@ int main(int argc, char** argv) {
   ter.min_overshoot_time_ = ros::Duration(0.5);
   ter.max_overshoot_velocity_epsilon_ = 0.01;
   ter.max_joint_distance_ = 0.001;
+  ter.failure_time_factor_ = 1.5;
   traj_reqs.push_back(ter);
 
   trajectory_msgs::JointTrajectory gt;

@@ -69,7 +69,7 @@ bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Tim
       {	// Settled
         controller_state_ = IDLE;
         recorder_->delayedDeregisterCallback(group_controller_combo_name_);
-        trajectory_finished_callback_(success_);
+        trajectory_finished_callback_( (completion_state_==SUCCESS) );
         return false;
       }
     }
@@ -128,6 +128,22 @@ void TrajectoryControllerHandler::disableOvershoot()
 }
 
 
+void TrajectoryControllerHandler::timeout(const ros::TimerEvent& event)
+{
+  if( controller_state_ == OVERSHOOTING )
+  {
+    ROS_ERROR("overshoot exceeded %f seconds", max_overshoot_time_.toSec());
+    completion_state_ = OVERSHOOT_TIMEOUT;
+  }
+  else if( controller_state_ == EXECUTING )
+  {
+    ROS_ERROR("Execution exceeded %f seconds", timeout_.toSec() );
+    completion_state_ = EXECUTION_TIMEOUT;
+  }
+
+  done();
+}
+
 void TrajectoryControllerHandler::initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory)
 {
   goal_trajectory_ = goal_trajectory;
@@ -137,6 +153,8 @@ void TrajectoryControllerHandler::initializeRecordedTrajectory(const trajectory_
   recorded_trajectory_.points.clear();
 
   controller_state_ = EXECUTING;
+
+  timer_ = nh_.createTimer(timeout_, &TrajectoryControllerHandler::timeout, this, true, true);
 }
 
 void TrajectoryControllerHandler::initializeOvershootTrajectory()
@@ -146,5 +164,14 @@ void TrajectoryControllerHandler::initializeOvershootTrajectory()
   overshoot_trajectory_.points.clear();
 
   controller_state_ = OVERSHOOTING;
-  // TODO - initialize timeout
+
+  timer_.stop();
+  timer_ = nh_.createTimer(max_overshoot_time_, &TrajectoryControllerHandler::timeout, this, true, true);
+}
+
+void TrajectoryControllerHandler::done()
+{
+  controller_state_ = IDLE;
+  recorder_->deregisterCallback(group_controller_combo_name_);
+  trajectory_finished_callback_( (completion_state_==SUCCESS) );
 }

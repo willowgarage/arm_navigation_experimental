@@ -32,7 +32,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/** \author E. Gil Jones */
+/** \author E. Gil Jones, Ken Anderson */
 
 #include <trajectory_execution_monitor/trajectory_execution_monitor.h>
 #include <trajectory_execution_monitor/trajectory_stats.h>
@@ -44,7 +44,6 @@ TrajectoryExecutionRequest::TrajectoryExecutionRequest() :
   max_overshoot_velocity_epsilon_(20),
   min_overshoot_time_(ros::Duration(0.5)),
   max_overshoot_time_(ros::Duration(0.01)),
-
   failure_ok_(false),
   test_for_close_enough_(false),
   max_joint_distance_(0.01),
@@ -111,12 +110,20 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
   {
     last_requested_handler_->disableOvershoot();
   }
-  
+
+  // Set the max execution time
   trajectory_msgs::JointTrajectory traj = ter.trajectory_;
+  ros::Duration traj_dur = TrajectoryStats::getDuration(traj);
+  if( traj_dur > ros::Duration(0.1) )
+  {
+    last_requested_handler_->setMaximumExecutionTime(traj_dur * ter.failure_time_factor_);
+  }
+
   traj.header.stamp = ros::Time::now();
   if(!last_requested_handler_->executeTrajectory(traj,
                                                  requested_recorder,
-                                                 boost::bind(&TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction, this, _1))) {
+                                                 boost::bind(&TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction, this, _1)))
+  {
     execution_result_vector_.back().result_ = HANDLER_FAILED_ENTIRELY;
   }
   return true;
@@ -128,6 +135,7 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok)
   execution_result_vector_.back().recorded_trajectory_ = last_requested_handler_->getLastRecordedTrajectory();
   execution_result_vector_.back().overshoot_trajectory_ = last_requested_handler_->getLastOvershootTrajectory();
 
+  // TODO -- split this up.
   if(	ok ||
       (*execution_data_)[current_trajectory_index_].failure_ok_ ||
       (	(*execution_data_)[current_trajectory_index_].test_for_close_enough_ &&
