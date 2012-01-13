@@ -111,12 +111,12 @@ public:
 
     if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
     {
-      completion_state_ = SUCCESS;
+      completion_state_ = trajectory_execution_monitor::TrajectoryControllerCompletionStates::SUCCESS;
     }
     else
     {
       ROS_WARN_STREAM("Failed state is " << state.toString() );
-      completion_state_ = EXECUTION_FAILURE;
+      completion_state_ = trajectory_execution_monitor::TrajectoryControllerCompletionStates::EXECUTION_FAILURE;
     }
 
     // We don't record overshoot on the gripper

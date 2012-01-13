@@ -47,16 +47,8 @@
 namespace trajectory_execution_monitor
 {
 
-typedef boost::function<void(bool)> TrajectoryFinishedCallbackFunction;
-
-class TrajectoryControllerHandler {
-protected:
-  // TrajectoryControllerHandler is augmented to record overshoot of a trajectory
-  enum TrajectoryControllerState	{	IDLE, PAUSED, EXECUTING, OVERSHOOTING };
-
-public:
-
-  // TODO: move out and encapsulate
+namespace TrajectoryControllerCompletionStates
+{
   enum TrajectoryControllerCompletionState
   {
     SUCCESS = 0,
@@ -65,6 +57,17 @@ public:
     EXECUTION_TIMEOUT,
     CANCELLED
   };
+}
+typedef TrajectoryControllerCompletionStates::TrajectoryControllerCompletionState TrajectoryControllerCompletionState;
+
+typedef boost::function<void(TrajectoryControllerCompletionState)> TrajectoryFinishedCallbackFunction;
+
+class TrajectoryControllerHandler {
+protected:
+  // TrajectoryControllerHandler is augmented to record overshoot of a trajectory
+  enum TrajectoryControllerState	{	IDLE, PAUSED, EXECUTING, OVERSHOOTING };
+
+public:
 
   TrajectoryControllerHandler(const std::string& group_name,
                               const std::string& controller_name) :
@@ -72,7 +75,7 @@ public:
     controller_name_(controller_name),
     monitor_overshoot_(false),
     controller_state_(IDLE),
-    completion_state_(EXECUTION_FAILURE),
+    completion_state_(TrajectoryControllerCompletionStates::EXECUTION_FAILURE),
     timeout_(ros::Duration(100))
   {
     group_controller_combo_name_ = combineGroupAndControllerNames(group_name,controller_name);  

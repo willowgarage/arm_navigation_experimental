@@ -4,8 +4,8 @@
 	<node machine="c2"  pkg="chomp_motion_planner" name="chomp_planner_longrange" type="chomp_planner_node" respawn="false" output="screen">
 		<remap from="collision_map" to="collision_map_occ"/>
 		<rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/pr2_both_arms_chomp_config.yaml" />
-		<param name="animate_path" value="false"/>
-		<param name="animate_endeffector" value="false"/>
+		<param name="animate_path" value="true"/>
+		<param name="animate_endeffector" value="true"/>
 		<param name="animate_endeffector_segment" value="r_gripper_tool_frame"/>
 	  <param name="use_signed_environment_field" value="true"/>
 	  <param name="use_signed_self_field" value="false"/>

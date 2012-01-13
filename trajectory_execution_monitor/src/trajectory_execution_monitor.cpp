@@ -71,8 +71,6 @@ void TrajectoryExecutionMonitor::executeTrajectories(const std::vector<Trajector
   if(!sendTrajectory((*execution_data_)[current_trajectory_index_])) {
     result_callback_(execution_result_vector_);
   }
-  
-  //also register timer in case controller doesn't return
 };
 
 bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest& ter) {
@@ -120,29 +118,35 @@ bool TrajectoryExecutionMonitor::sendTrajectory(const TrajectoryExecutionRequest
   }
 
   traj.header.stamp = ros::Time::now();
-  if(!last_requested_handler_->executeTrajectory(traj,
-                                                 requested_recorder,
-                                                 boost::bind(&TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction, this, _1)))
+  if(!last_requested_handler_->executeTrajectory(
+        traj,
+        requested_recorder,
+        boost::bind(&TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction, this, _1))
+  )
   {
     execution_result_vector_.back().result_ = HANDLER_FAILED_ENTIRELY;
   }
   return true;
 }
 
-void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok)
+void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(
+        TrajectoryControllerCompletionState controller_state )
 {
   //adding this in any case
   execution_result_vector_.back().recorded_trajectory_ = last_requested_handler_->getLastRecordedTrajectory();
   execution_result_vector_.back().overshoot_trajectory_ = last_requested_handler_->getLastOvershootTrajectory();
 
-  // TODO -- split this up.
-  if(	ok ||
-      (*execution_data_)[current_trajectory_index_].failure_ok_ ||
-      (	(*execution_data_)[current_trajectory_index_].test_for_close_enough_ &&
-        closeEnough((*execution_data_)[current_trajectory_index_],
-                    execution_result_vector_.back())))
+  const TrajectoryExecutionRequest& req = (*execution_data_)[current_trajectory_index_];
+  bool ok = (	controller_state==TrajectoryControllerCompletionStates::SUCCESS ||
+              controller_state==TrajectoryControllerCompletionStates::OVERSHOOT_TIMEOUT);
+  bool continue_execution =
+            ok ||
+            req.failure_ok_ ||
+            (	req.test_for_close_enough_ && closeEnough(req,execution_result_vector_.back()));
+
+  if(	continue_execution )
   {
-    ROS_INFO_STREAM("Trajectory finished with ok");
+    ROS_INFO_STREAM("Trajectory finished, executing next trajectory");
 
     // calculate stats
     TrajectoryExecutionData & data = execution_result_vector_.back();
@@ -151,7 +155,7 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok)
     data.angular_distance_ = TrajectoryStats::getAngularDistance(data.recorded_trajectory_);
 
     if(!ok) {
-      if((*execution_data_)[current_trajectory_index_].failure_ok_) {
+      if(req.failure_ok_) {
         execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_OK;
       } else {
         execution_result_vector_.back().result_ = HANDLER_REPORTS_FAILURE_BUT_CLOSE_ENOUGH;
@@ -159,9 +163,10 @@ void TrajectoryExecutionMonitor::trajectoryFinishedCallbackFunction(bool ok)
     } else {
       execution_result_vector_.back().result_ = SUCCEEDED;
     }
-    if((*execution_data_)[current_trajectory_index_].callback_function_) {
-      (*execution_data_)[current_trajectory_index_].callback_function_((*execution_data_)[current_trajectory_index_].group_name_);
+    if(req.callback_function_) {
+      req.callback_function_(req.group_name_);
     }
+
     current_trajectory_index_++;
     if(current_trajectory_index_ >= execution_data_->size()) {
       result_callback_(execution_result_vector_);

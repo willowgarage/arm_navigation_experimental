@@ -69,7 +69,7 @@ bool TrajectoryControllerHandler::addNewStateToRecordedTrajectory(const ros::Tim
       {	// Settled
         controller_state_ = IDLE;
         recorder_->delayedDeregisterCallback(group_controller_combo_name_);
-        trajectory_finished_callback_( (completion_state_==SUCCESS) );
+        trajectory_finished_callback_( completion_state_ );
         return false;
       }
     }
@@ -133,12 +133,12 @@ void TrajectoryControllerHandler::timeout(const ros::TimerEvent& event)
   if( controller_state_ == OVERSHOOTING )
   {
     ROS_ERROR("overshoot exceeded %f seconds", max_overshoot_time_.toSec());
-    completion_state_ = OVERSHOOT_TIMEOUT;
+    completion_state_ = TrajectoryControllerCompletionStates::OVERSHOOT_TIMEOUT;
   }
   else if( controller_state_ == EXECUTING )
   {
     ROS_ERROR("Execution exceeded %f seconds", timeout_.toSec() );
-    completion_state_ = EXECUTION_TIMEOUT;
+    completion_state_ = TrajectoryControllerCompletionStates::EXECUTION_TIMEOUT;
   }
 
   done();
@@ -173,5 +173,5 @@ void TrajectoryControllerHandler::done()
 {
   controller_state_ = IDLE;
   recorder_->deregisterCallback(group_controller_combo_name_);
-  trajectory_finished_callback_( (completion_state_==SUCCESS) );
+  trajectory_finished_callback_( completion_state_ );
 }

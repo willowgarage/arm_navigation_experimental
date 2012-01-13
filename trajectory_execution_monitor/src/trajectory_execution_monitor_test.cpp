@@ -108,6 +108,7 @@ int main(int argc, char** argv) {
   gter.controller_name_ = "/r_gripper_controller/gripper_action";
   gter.recorder_name_ = "/joint_states";
   gter.trajectory_ = gt;
+  gter.failure_ok_ = true;
   traj_reqs.push_back(gter);
   
   jt.points.clear();

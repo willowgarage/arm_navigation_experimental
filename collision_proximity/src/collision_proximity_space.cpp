@@ -518,6 +518,7 @@ void CollisionProximitySpace::prepareEnvironmentDistanceField(const planning_mod
     all_points.push_back(inv*collision_models_interface_->getCollisionMapPoses()[i].getOrigin());
   }
   environment_distance_field_->addPointsToField(all_points);
+  visualizeDistanceField(environment_distance_field_);
   //ROS_INFO_STREAM("Adding points took " << (n2-n1).toSec());
 }
 
