@@ -173,7 +173,7 @@ private:
 
     if(joint_parent_map_.find(childLink) == joint_parent_map_.end())
     {
-      ROS_ERROR("%s was not in joint parent map!", childLink.c_str());
+      //ROS_ERROR("%s was not in joint parent map! for lookup of %s", childLink.c_str(), parentLink.c_str());
       return false;
     }
     const std::map<std::string, bool>& parents = joint_parent_map_.at(childLink);

@@ -105,12 +105,7 @@ public:
     
 
 protected:
-
-  trajectory_execution_monitor::TrajectoryFinishedCallbackFunction trajectory_finished_callback_;
   actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> follow_joint_trajectory_action_client_;
-
-  boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder> recorder_;
-
 }; 
 
 #endif
