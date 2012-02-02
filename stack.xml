@@ -17,7 +17,8 @@
   <depend stack="image_common" /> <!-- image_transport -->
   <depend stack="octomap_mapping" /> <!-- octomap, octomap_ros -->
   <depend stack="orocos_kinematics_dynamics" /> <!-- kdl -->
-  <depend stack="perception_pcl" /> <!-- pcl, pcl_ros -->
+  <depend stack="pcl" /> <!-- pcl -->
+  <depend stack="perception_pcl" /> <!-- pcl_ros -->
   <depend stack="pluginlib" /> <!-- pluginlib -->
   <depend stack="pr2_controllers" /> <!-- pr2_controllers_msgs -->
   <depend stack="pr2_mechanism" /> <!-- pr2_mechanism_msgs -->
