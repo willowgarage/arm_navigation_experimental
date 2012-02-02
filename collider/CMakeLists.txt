@@ -31,4 +31,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 rosbuild_add_executable(collider_node src/collider.cpp src/collider_node.cpp)
 rosbuild_add_openmp_flags(collider_node)
-rosbuild_link_boost(collider_node thread)
+rosbuild_link_boost(collider_node thread signals)

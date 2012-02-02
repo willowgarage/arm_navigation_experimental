@@ -38,3 +38,4 @@ rosbuild_genmsg()
 #target_link_libraries(example ${PROJECT_NAME})
 
 rosbuild_add_executable(move_arm_head_monitor src/move_arm_head_monitor.cpp)
+rosbuild_link_boost(move_arm_head_monitor thread signals)
