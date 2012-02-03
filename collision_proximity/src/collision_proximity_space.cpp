@@ -110,9 +110,9 @@ CollisionProximitySpace::CollisionProximitySpace(const std::string& robot_descri
   /*
     shapes::Box base_box(1.0,1.0,.3);
     BodyDecomposition* bd = new BodyDecomposition("base_box", &base_box, resolution_);
-    btTransform trans;
+    tf::Transform trans;
     trans.setIdentity();
-    trans.setOrigin(btVector3(0.0,0.0,.15));
+    trans.setOrigin(tf::Vector3(0.0,0.0,.15));
     bd->updatePose(trans);
     BodyDecompositionVector* bdv = new BodyDecompositionVector();
     bdv->addToVector(bd);
@@ -386,7 +386,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
   if(current_group_name_.empty()) {
     return;
   }
-  btTransform inv = getInverseWorldTransform(state);
+  tf::Transform inv = getInverseWorldTransform(state);
   for(unsigned int i = 0; i < current_link_indices_.size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[current_link_indices_[i]];
     current_link_body_decompositions_[i]->updateSpheresPose(inv*ls->getGlobalCollisionBodyTransform());
@@ -396,7 +396,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
     for(unsigned int j = 0; j < ls->getAttachedBodyStateVector().size(); j++) {
       const planning_models::KinematicState::AttachedBodyState* att_state = ls->getAttachedBodyStateVector()[j];
       for(unsigned int k = 0; k < att_state->getGlobalCollisionBodyTransforms().size(); k++) {
-        btTransform test = inv*att_state->getGlobalCollisionBodyTransforms()[k];
+        tf::Transform test = inv*att_state->getGlobalCollisionBodyTransforms()[k];
         current_attached_body_decompositions_[i]->updateSpheresPose(k, inv*att_state->getGlobalCollisionBodyTransforms()[k]);
       }
     }
@@ -407,7 +407,7 @@ void CollisionProximitySpace::setCurrentGroupState(const planning_models::Kinema
 
 void CollisionProximitySpace::setBodyPosesGivenKinematicState(const planning_models::KinematicState& state)
 {
-  btTransform inv = getInverseWorldTransform(state);
+  tf::Transform inv = getInverseWorldTransform(state);
   for(unsigned int i = 0; i < state.getLinkStateVector().size(); i++) {
     const planning_models::KinematicState::LinkState* ls = state.getLinkStateVector()[i];
     if(body_decomposition_map_.find(ls->getName()) == body_decomposition_map_.end()) {
@@ -428,26 +428,26 @@ void CollisionProximitySpace::setBodyPosesGivenKinematicState(const planning_mod
         continue;
       }
       for(unsigned int k = 0; k < att_state->getGlobalCollisionBodyTransforms().size(); k++) {
-        btTransform test = inv*att_state->getGlobalCollisionBodyTransforms()[k];
+        tf::Transform test = inv*att_state->getGlobalCollisionBodyTransforms()[k];
         attached_object_map_[id]->updateBodyPose(k, inv*att_state->getGlobalCollisionBodyTransforms()[k]);
       }
     }
   }
 }
 
-btTransform CollisionProximitySpace::getInverseWorldTransform(const planning_models::KinematicState& state) const {
+tf::Transform CollisionProximitySpace::getInverseWorldTransform(const planning_models::KinematicState& state) const {
   const planning_models::KinematicState::JointState* world_state = state.getJointStateVector()[0];//(monitor_->getKinematicModel()->getRoot()->getName());
   if(world_state == NULL) {
     ROS_WARN_STREAM("World state " << collision_models_interface_->getKinematicModel()->getRoot()->getName() << " not found");
   }
-  const btTransform& world_trans = world_state->getVariableTransform();
-  btTransform ret(world_trans);
+  const tf::Transform& world_trans = world_state->getVariableTransform();
+  tf::Transform ret(world_trans);
   return ret.inverse();
 }
 
 void CollisionProximitySpace::syncObjectsWithCollisionSpace(const planning_models::KinematicState& state)
 {
-  btTransform inv = getInverseWorldTransform(state);
+  tf::Transform inv = getInverseWorldTransform(state);
   const collision_space::EnvironmentObjects *eo = collision_models_interface_->getCollisionSpace()->getObjects();
   std::vector<std::string> ns = eo->getNamespaces();
   for(unsigned int i = 0; i < ns.size(); i++) {
@@ -457,7 +457,7 @@ void CollisionProximitySpace::syncObjectsWithCollisionSpace(const planning_model
     for(unsigned int j = 0; j < no.shape.size(); j++) {
       BodyDecomposition* bd = new BodyDecomposition(ns[i]+"_"+makeStringFromUnsignedInt(j), no.shape[j], resolution_);
       bd->updatePose(inv*no.shape_pose[j]);
-      btTransform trans = bd->getBody()->getPose();
+      tf::Transform trans = bd->getBody()->getPose();
       bdv->addToVector(bd); 
     }
     static_object_map_[ns[i]] = bdv;
@@ -504,13 +504,13 @@ void CollisionProximitySpace::setDistanceFieldForGroupQueries(const std::string&
 void CollisionProximitySpace::prepareEnvironmentDistanceField(const planning_models::KinematicState& state)
 {
   environment_distance_field_->reset();
-  btTransform inv = getInverseWorldTransform(state);
-  std::vector<btVector3> all_points;
+  tf::Transform inv = getInverseWorldTransform(state);
+  std::vector<tf::Vector3> all_points;
   for(std::map<std::string, BodyDecompositionVector*>::iterator it = static_object_map_.begin();
       it != static_object_map_.end();
       it++) {
     for(unsigned int i = 0; i < it->second->getSize(); i++) {
-      std::vector<btVector3> obj_points = it->second->getBodyDecomposition(i)->getCollisionPoints();
+      std::vector<tf::Vector3> obj_points = it->second->getBodyDecomposition(i)->getCollisionPoints();
       all_points.insert(all_points.end(),obj_points.begin(), obj_points.end());
     }
   }
@@ -526,8 +526,8 @@ void CollisionProximitySpace::prepareSelfDistanceField(const std::vector<std::st
                                                        const planning_models::KinematicState& state)
 {
   self_distance_field_->reset();
-  btTransform inv = getInverseWorldTransform(state);
-  std::vector<btVector3> all_points;
+  tf::Transform inv = getInverseWorldTransform(state);
+  std::vector<tf::Vector3> all_points;
   for(unsigned int i = 0; i < link_names.size(); i++) {
     if(body_decomposition_map_.find(link_names[i]) == body_decomposition_map_.end()) {
       //there is no collision geometry as far as we can tell
@@ -544,7 +544,7 @@ void CollisionProximitySpace::prepareSelfDistanceField(const std::vector<std::st
         continue;
       }
       const BodyDecompositionVector* att = attached_object_map_.find(id)->second;
-      const std::vector<btVector3>& att_points = att->getCollisionPoints();
+      const std::vector<tf::Vector3>& att_points = att->getCollisionPoints();
       all_points.insert(all_points.end(), att_points.begin(), att_points.end());
     }
   }
@@ -563,7 +563,7 @@ bool CollisionProximitySpace::getEnvironmentProximity(ProximityInfo& prox) const
     }
     const BodyDecomposition* bd = body_decomposition_map_.find(link_names[i])->second;
     unsigned int lc;
-    btVector3 grad;
+    tf::Vector3 grad;
     double dist = getCollisionSphereProximity(bd->getCollisionSpheres(), lc, grad);
     if(dist == 0.0) {
       //ROS_WARN_STREAM("Zero distance on link " << link_names[i]);
@@ -603,10 +603,10 @@ bool CollisionProximitySpace::getEnvironmentProximity(ProximityInfo& prox) const
   return true;
 }
 
-double CollisionProximitySpace::getCollisionSphereProximity(const std::vector<CollisionSphere>& sphere_list, unsigned int& closest, btVector3& gradient) const {
+double CollisionProximitySpace::getCollisionSphereProximity(const std::vector<CollisionSphere>& sphere_list, unsigned int& closest, tf::Vector3& gradient) const {
   double distance = DBL_MAX;
   for(unsigned int i = 0; i < sphere_list.size(); i++) {
-    btVector3 p = sphere_list[i].center_;
+    tf::Vector3 p = sphere_list[i].center_;
     double gx, gy, gz;
     double dist = distance_field_->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz);//-sphere_list[i].radius_;
     //ROS_INFO_STREAM("Point " << p.x() << " " << p.y() << " " << p.z() << " dist " << dist);
@@ -614,7 +614,7 @@ double CollisionProximitySpace::getCollisionSphereProximity(const std::vector<Co
     if(dist < distance) {
       distance = dist;
       closest = i;
-      gradient = btVector3(gx,gy,gz);
+      gradient = tf::Vector3(gx,gy,gz);
     }
   }
   return distance;
@@ -1247,7 +1247,7 @@ CollisionProximitySpace::TrajectorySafety CollisionProximitySpace::isTrajectoryS
   // want to plan into collision or out of collision. We will still avoid planning through obstacles.
   else
   {
-    ROS_INFO_STREAM("Mesh to mesh invalid with " << error_code.val);
+    ROS_DEBUG_STREAM("Mesh to mesh invalid with " << error_code.val);
 
     std::vector<double> lastDistances;
     TrajectoryPointType type = None;
@@ -1396,7 +1396,7 @@ CollisionProximitySpace::TrajectorySafety CollisionProximitySpace::isTrajectoryS
   
 void CollisionProximitySpace::visualizeDistanceField(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const
 {
-  btTransform ident;
+  tf::Transform ident;
   ident.setIdentity();
   distance_field->visualize(0.0, 0.0, collision_models_interface_->getWorldFrameId(), ident, ros::Time::now());
 }
@@ -1406,7 +1406,7 @@ void CollisionProximitySpace::visualizeDistanceFieldPlane(distance_field::Distan
   double length = distance_field->getSize(distance_field::PropagationDistanceField::DIM_X);
   double width = distance_field->getSize(distance_field::PropagationDistanceField::DIM_Y);
   double height = distance_field->getSize(distance_field::PropagationDistanceField::DIM_Z);
-  btVector3 origin(distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_X) + length / 2.0,
+  tf::Vector3 origin(distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_X) + length / 2.0,
                    distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_Y)  + width / 2.0,
                    distance_field->getOrigin(distance_field::PropagationDistanceField::DIM_Z) + height / 2.0);
 
@@ -1468,7 +1468,7 @@ void CollisionProximitySpace::visualizeClosestCollisionSpheres(const std::vector
       all_collision_spheres.insert(all_collision_spheres.end(), body_spheres2.begin(), body_spheres2.end());
     }
   }
-  std::vector<btVector3> all_collision_gradients;
+  std::vector<tf::Vector3> all_collision_gradients;
   std::vector<double> distances;
   double closest_distance;
   getCollisionSphereGradients(all_collision_spheres, closest_distance, distances, all_collision_gradients);
@@ -1557,7 +1557,7 @@ void CollisionProximitySpace::visualizeCollisions(const std::vector<std::string>
           }
           //mark.lifetime = ros::Duration(1.0);
           mark.frame_locked = true;
-          const btTransform& trans = body_decomposition_map_.find(name)->second->getBody()->getPose();
+          const tf::Transform& trans = body_decomposition_map_.find(name)->second->getBody()->getPose();
           tf::poseTFToMsg(trans, mark.pose);
           mark.mesh_resource = mesh->filename;
           arr.markers.push_back(mark);
@@ -1596,7 +1596,7 @@ void CollisionProximitySpace::visualizeCollisions(const std::vector<std::string>
         mark.color.g = 1.0;
       }
       //mark.lifetime = ros::Duration(1.0);
-      const btTransform& trans = bd->getBody()->getPose();
+      const tf::Transform& trans = bd->getBody()->getPose();
       tf::poseTFToMsg(trans, mark.pose);
       arr.markers.push_back(mark);
     }
@@ -1618,7 +1618,7 @@ void CollisionProximitySpace::visualizeObjectVoxels(const std::vector<std::strin
   cube_list.color.b = 1.0;
   cube_list.color.a = .5;  
   for(unsigned int i = 0; i < object_names.size(); i++) {
-    const std::vector<btVector3>* coll_points;
+    const std::vector<tf::Vector3>* coll_points;
     if(body_decomposition_map_.find(object_names[i]) != body_decomposition_map_.end()) {
       coll_points = &(body_decomposition_map_.find(object_names[i])->second)->getCollisionPoints();
     } else if(static_object_map_.find(object_names[i]) != static_object_map_.end()) {

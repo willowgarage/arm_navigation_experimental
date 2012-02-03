@@ -268,10 +268,10 @@ public:
       trans_cloud = pcl_cloud;
     }
 
-    btTransform cur_link_pose = state.getLinkState(monitor_goal_.target_link)->getGlobalCollisionBodyTransform();
+    tf::Transform cur_link_pose = state.getLinkState(monitor_goal_.target_link)->getGlobalCollisionBodyTransform();
     near_cloud.header = trans_cloud.header;
     for(unsigned int i = 0; i < trans_cloud.points.size(); i++) {
-      btVector3 pt = btVector3(trans_cloud.points[i].x, trans_cloud.points[i].y, trans_cloud.points[i].z);
+      tf::Vector3 pt = tf::Vector3(trans_cloud.points[i].x, trans_cloud.points[i].y, trans_cloud.points[i].z);
       double dist = pt.distance(cur_link_pose.getOrigin());
       if(dist <= max_point_distance_) {
         near_cloud.push_back(trans_cloud.points[i]);
@@ -279,17 +279,17 @@ public:
     }
     
     std::vector<shapes::Shape*> spheres(near_cloud.points.size());;
-    std::vector<btTransform> positions(near_cloud.points.size());
+    std::vector<tf::Transform> positions(near_cloud.points.size());
     
     ros::Time n3 = ros::Time::now();
       
     if(near_cloud.points.size() != 0) {
 
-      btQuaternion ident(0.0, 0.0, 0.0, 1.0);
+      tf::Quaternion ident(0.0, 0.0, 0.0, 1.0);
       //making spheres from the points
       for (unsigned int i = 0 ; i < near_cloud.points.size(); ++i) {
-        positions[i] = btTransform(ident, 
-                                   btVector3(near_cloud.points[i].x, near_cloud.points[i].y, near_cloud.points[i].z));
+        positions[i] = tf::Transform(ident, 
+                                   tf::Vector3(near_cloud.points[i].x, near_cloud.points[i].y, near_cloud.points[i].z));
         spheres[i] = new shapes::Sphere(point_sphere_size_);
       }
       
@@ -529,7 +529,7 @@ public:
       return;
     }
 
-    btTransform link_state = state.getLinkState(goal->head_monitor_link)->getGlobalCollisionBodyTransform();
+    tf::Transform link_state = state.getLinkState(goal->head_monitor_link)->getGlobalCollisionBodyTransform();
     x_start = link_state.getOrigin().x();
     y_start = link_state.getOrigin().y();
     z_start = link_state.getOrigin().z();
@@ -563,7 +563,7 @@ public:
         joint_values[goal->motion_plan_request.goal_constraints.joint_constraints[i].joint_name] = goal->motion_plan_request.goal_constraints.joint_constraints[i].position;
       }
       state.setKinematicState(joint_values);
-      btTransform link_state = state.getLinkState(goal->head_monitor_link)->getGlobalCollisionBodyTransform();
+      tf::Transform link_state = state.getLinkState(goal->head_monitor_link)->getGlobalCollisionBodyTransform();
       x_goal = link_state.getOrigin().x();
       y_goal = link_state.getOrigin().y();
       z_goal = link_state.getOrigin().z();

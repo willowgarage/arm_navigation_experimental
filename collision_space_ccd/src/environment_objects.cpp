@@ -67,7 +67,7 @@ void EnvironmentObjects::addObject(const std::string &ns, shapes::StaticShape *s
   objects_[ns].static_shape.push_back(shape);
 }
 
-void EnvironmentObjects::addObject(const std::string &ns, shapes::Shape *shape, const btTransform &pose)
+void EnvironmentObjects::addObject(const std::string &ns, shapes::Shape *shape, const tf::Transform &pose)
 {
   objects_[ns].shape.push_back(shape);
   objects_[ns].shape_pose.push_back(pose);

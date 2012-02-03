@@ -131,9 +131,7 @@ public:
     
 
 protected:
-
   actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> follow_joint_trajectory_action_client_;
-
 }; 
 
 #endif

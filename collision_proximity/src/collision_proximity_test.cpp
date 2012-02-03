@@ -136,7 +136,7 @@ int main(int argc, char** argv)
   ros::Rate r(10.0);
   std::vector<double> link_distances;
   std::vector<std::vector<double> > distances;
-  std::vector<std::vector<btVector3> > gradients;
+  std::vector<std::vector<tf::Vector3> > gradients;
   std::vector<std::string> link_names;
   std::vector<std::string> attached_body_names;
   std::vector<collision_proximity::CollisionType> collisions;

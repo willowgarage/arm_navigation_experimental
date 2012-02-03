@@ -47,8 +47,8 @@
 # rot_spacing: the max rotation (rad) to move the wrist between waypoints (only used if num_steps is 0)
 # collision_aware: if this is 0, collisions won't be checked for (returns non-collision aware IK solutions)
 # start_from_end: if this is 1, the planner searches for an IK solution for the end first, then works backwards from there
-# max_joint_vels: a list of maximum joint velocities to use when computing times and velocities for the joint trajectory (defaults to [.2]*7 if left empty)
-# max_joint_accs: a list of maximum accelerations to use when computing times and velocities for the joint trajectory (defaults to [.5]*7 if left empty)
+# max_joint_vels: a list of maximum joint velocities to use when computing times and velocities for the joint trajectory (defaults to [.1]*7 if left empty)
+# max_joint_accs: a list of maximum accelerations to use when computing times and velocities for the joint trajectory (defaults to [.25]*7 if left empty)
 
 # Parameters can be changed by calling the r_interpolated_ik_motion_plan_set_params service (or l_inter...)
 
@@ -80,7 +80,7 @@
 # with values for each trajectory point as follows:
 # ArmNavigationErrorCodes.SUCCESS (1): no problem
 # ArmNavigationErrorCodes.COLLISION_CONSTRAINTS_VIOLATED (-23): no non-colliding IK solution (colliding solution provided)
-# ArmNavigationErrorCodes.PATH_CONSTRAINTS_VIOLATED (-20): inconsistency in path between this point and the next point
+# ArmNavigationErrorCodes.PATH_CONSTRAINTS_VIOLATED (-22): inconsistency in path between this point and the next point
 # ArmNavigationErrorCodes.JOINT_LIMITS_VIOLATED (-21): out of reach (no colliding solution)
 # ArmNavigationErrorCodes.PLANNING_FAILED (-1): aborted before getting to this point
 
@@ -103,10 +103,11 @@ from sensor_msgs.msg import JointState
 # class to provide the interpolated ik motion planner service
 class InterpolatedIKService:
 
-    def __init__(self, which_arm): #which_arm is 'r' or 'l'
+    def __init__(self, which_arm): #which_arm is 'r', 'l', or None
         self.which_arm = which_arm 
-        self.node_name = which_arm+'_interpolated_ik_motion_planner_server'
-
+        self.node_name = 'interpolated_ik_motion_planner_server'
+        if self.which_arm != None:
+            self.node_name = which_arm+'_'+self.node_name
         rospy.init_node(self.node_name)
 
         #get parameters from the parameter server
@@ -144,15 +145,19 @@ class InterpolatedIKService:
         #initialize an IKUtilities class object
         if which_arm == 'r':
             self.ik_utils = ik_utilities.IKUtilities('right')
-        else:
+        elif which_arm == 'l':
             self.ik_utils = ik_utilities.IKUtilities('left')            
+        else:
+            self.ik_utils = ik_utilities.IKUtilities()
 
         #advertise interpolated IK service
-        s1 = rospy.Service(which_arm+'_interpolated_ik_motion_plan', \
-                GetMotionPlan, self.interpolated_ik_motion_planner_callback)
+        service_name = 'interpolated_ik_motion_plan'
+        if which_arm != None:
+            service_name = which_arm+'_'+service_name
+        s1 = rospy.Service(service_name, GetMotionPlan, self.interpolated_ik_motion_planner_callback)
 
         #advertise param changing service
-        s2 = rospy.Service(which_arm+'_interpolated_ik_motion_plan_set_params', \
+        s2 = rospy.Service(service_name+'_set_params', \
                 SetInterpolatedIKMotionPlanParams, self.set_params_callback)
 
 
@@ -198,12 +203,6 @@ class InterpolatedIKService:
         #reorder the start angles to the order needed by IK
         reordered_start_angles = []
 
-        #get the current joint states for the robot
-        #joint_states_msg = rospy.wait_for_message('joint_states', JointState, 10.0)
-        #if not joint_states_msg:
-        #    rospy.logerr("unable to get joint_states message")
-        #    return 0
-
         #get the desired start angles for each IK arm joint in turn from start_state.joint_state.position
         #(use the current angle if not specified)
         for joint_name in self.ik_utils.joint_names:
@@ -216,17 +215,6 @@ class InterpolatedIKService:
                 rospy.logerr("missing joint angle, can't deal")
                 return 0
 
-            #desired start angle not specified, use the current angle
-#elif 0: #joint_name in joint_states_msg.name:
-#                index = joint_states_msg.name.index(joint_name)
-#                current_position = joint_states_msg.position[index]
-#                reordered_start_angles.append(current_position)
-
-            #malformed joint_states message?
-#            else:
-#                rospy.logerr("an expected arm joint,"+joint_name+"was not found!")
-#                return 0
-
         #get additional desired joint angles (such as for the gripper) to pass through to IK
         additional_joint_angles = []
         additional_joint_names = []
@@ -237,8 +225,6 @@ class InterpolatedIKService:
                 additional_joint_names.append(joint_name)
         IK_robot_state = None
         if additional_joint_angles:
-            #rospy.loginfo("adding additional start angles for:"+str(additional_joint_names))
-            #rospy.loginfo("additional joint angles:"+str(additional_joint_angles))
             IK_robot_state = RobotState()
             IK_robot_state.joint_state.name = additional_joint_names
             IK_robot_state.joint_state.position = additional_joint_angles
@@ -287,13 +273,9 @@ class InterpolatedIKService:
 
         #get the ordered collision operations, if there are any
         ordered_collision_operations = None #req.motion_plan_request.ordered_collision_operations
-        #if ordered_collision_operations.collision_operations == []:
-        #    ordered_collision_operations = None
 
         #get the link paddings, if there are any
         link_padding = None #req.motion_plan_request.link_padding
-        #if link_padding == []:
-        #    link_padding = None
 
         #RUN!  Check the Cartesian path for consistent, non-colliding IK solutions
         (trajectory, error_codes) = self.ik_utils.check_cartesian_path(start_pose_stamped, \
@@ -318,7 +300,7 @@ class InterpolatedIKService:
                     break
         (times, vels) = self.ik_utils.trajectory_times_and_vels(trajectory[start_ind:stop_ind], self.max_joint_vels, self.max_joint_accs)
         times = [0]*start_ind + times + [0]*(len(error_codes)-stop_ind)
-        vels = [[0]*7]*start_ind + vels + [[0]*7]*(len(error_codes)-stop_ind)
+        vels = [[0]*len(self.max_joint_vels)]*start_ind + vels + [[0]*len(self.max_joint_vels)]*(len(error_codes)-stop_ind)
 
         rospy.logdebug("trajectory:")
         for ind in range(len(trajectory)):
@@ -333,7 +315,7 @@ class InterpolatedIKService:
         #the arm joint names in the normal order, as spit out by IKQuery
         res.trajectory.joint_trajectory.joint_names = self.ik_utils.joint_names[:]
 
-        #a list of 7-lists of joint angles, velocities, and times for a trajectory that gets you from start to goal 
+        #a list of lists of joint angles, velocities, and times for a trajectory that gets you from start to goal 
         #(all 0s if there was no IK solution for a point on the path)
         res.trajectory.joint_trajectory.points = []
         for i in range(len(trajectory)):
@@ -346,9 +328,9 @@ class InterpolatedIKService:
         #a list of ArmNavigationErrorCodes messages, one for each trajectory point, with values as follows:
         #ArmNavigationErrorCodes.SUCCESS (1): no problem
         #ArmNavigationErrorCodes.COLLISION_CONSTRAINTS_VIOLATED (-23): no non-colliding IK solution (colliding solution provided)
-        #ArmNavigationErrorCodes.PATH_CONSTRAINTS_VIOLATED (-20): inconsistency in path between this point and the next point
+        #ArmNavigationErrorCodes.PATH_CONSTRAINTS_VIOLATED (-22): inconsistency in path between this point and the next point
         #ArmNavigationErrorCodes.JOINT_LIMITS_VIOLATED (-21): out of reach (no colliding solution)
-        #ArmNavigationErrorCodes.PLANNING_FAILED (0): aborted before getting to this point
+        #ArmNavigationErrorCodes.PLANNING_FAILED (-1): aborted before getting to this point
         error_code_dict = {0:ArmNavigationErrorCodes.SUCCESS, 1:ArmNavigationErrorCodes.COLLISION_CONSTRAINTS_VIOLATED, \
                            2:ArmNavigationErrorCodes.PATH_CONSTRAINTS_VIOLATED, 3:ArmNavigationErrorCodes.JOINT_LIMITS_VIOLATED, \
                            4:ArmNavigationErrorCodes.PLANNING_FAILED}
@@ -368,11 +350,9 @@ class InterpolatedIKService:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2 or sys.argv[1] != 'r' and sys.argv[1] != 'l':
-        rospy.logerr("usage: interpolated_ik_motion_planner.py which_arm (which_arm is r or l)")
-        sys.exit(1)
-
-    which_arm = sys.argv[1]
+    which_arm = None
+    if len(sys.argv) >= 2:
+        which_arm = sys.argv[1]
     interpolated_ik_service = InterpolatedIKService(which_arm)
     rospy.loginfo("Ready to serve interpolated IK motion plan requests.")
 

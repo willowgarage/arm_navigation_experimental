@@ -40,7 +40,7 @@
 #include <fstream>
 #include <vector>
 #include <boost/math/constants/constants.hpp>
-#include <LinearMath/btTransform.h>
+#include <tf/LinearMath/Transform.h>
 #include "collision_checking/collision.h"
 
 namespace collision_checking
@@ -74,7 +74,7 @@ struct CollisionGeom
 
   virtual BVH_CollideResult collide(CollisionGeom* other, int num_contacts = 0) { BVH_CollideResult res; return res; }
 
-  virtual void applyTransform(const btTransform& pose, bool refit = true, bool bottomup = true)
+  virtual void applyTransform(const tf::Transform& pose, bool refit = true, bool bottomup = true)
   {
     t2 = t1;
     t1 = pose;
@@ -83,8 +83,8 @@ struct CollisionGeom
   virtual void computeAABB() {}
 
   bool ccd;
-  btTransform t1; // current
-  btTransform t2; // previous
+  tf::Transform t1; // current
+  tf::Transform t2; // previous
 
   AABB aabb;
 };
@@ -130,7 +130,7 @@ public:
     return res;
   }
 
-  void applyTransform(const btTransform& pose, bool refit = false, bool bottomup = true)
+  void applyTransform(const tf::Transform& pose, bool refit = false, bool bottomup = true)
   {
     t2 = t1;
     t1 = pose;
@@ -139,7 +139,7 @@ public:
     for(int i = 0; i < model.num_vertices; ++i)
     {
       const Vec3f& p = model.vertices[i];
-      btVector3 v(p[0], p[1], p[2]);
+      tf::Vector3 v(p[0], p[1], p[2]);
       v = pose * v;
       points[i] = Vec3f(v.x(), v.y(), v.z());
     }
@@ -214,9 +214,9 @@ public:
       Vec3f R2[3];
       Vec3f T1;
       Vec3f T2;
-      btVector3 t = t1.getOrigin();
+      tf::Vector3 t = t1.getOrigin();
       T1 = Vec3f(t.x(), t.y(), t.z());
-      btMatrix3x3 r = t1.getBasis();
+      tf::Matrix3x3 r = t1.getBasis();
       for(int i = 0; i < 3; ++i)
         R1[i] = Vec3f(r[i].x(), r[i].y(), r[i].z());
 
@@ -232,7 +232,7 @@ public:
     return res;
   }
 
-  void applyTransform(const btTransform& pose, bool refit = true, bool bottomup = true)
+  void applyTransform(const tf::Transform& pose, bool refit = true, bool bottomup = true)
   {
     t2 = t1;
     t1 = pose;
@@ -250,9 +250,9 @@ public:
       for(int i = 0; i < model.num_vertices; ++i)
       {
         Vec3f p = model.vertices[i];
-        btVector3 v(p[0], p[1], p[2]);
-        btVector3 v1 = t1 * v;
-        btVector3 v2 = t2 * v;
+        tf::Vector3 v(p[0], p[1], p[2]);
+        tf::Vector3 v1 = t1 * v;
+        tf::Vector3 v2 = t2 * v;
 
         aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
         aabb_ += Vec3f(v2.x(), v2.y(), v2.z());
@@ -263,8 +263,8 @@ public:
       for(int i = 0; i < model.num_vertices; ++i)
       {
         Vec3f p = model.vertices[i];
-        btVector3 v(p[0], p[1], p[2]);
-        btVector3 v1 = t1 * v;
+        tf::Vector3 v(p[0], p[1], p[2]);
+        tf::Vector3 v1 = t1 * v;
         aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       }
     }
@@ -276,8 +276,8 @@ public:
     {
       BVNode<OBB>* obb = model.bvs;
       Vec3f p;
-      btVector3 v;
-      btVector3 v1;
+      tf::Vector3 v;
+      tf::Vector3 v1;
 
       Vec3f& axis0 = obb->bv.axis[0];
       Vec3f& axis1 = obb->bv.axis[1];
@@ -286,56 +286,56 @@ public:
       Vec3f& extent = obb->bv.extent;
 
       p = To + axis0 * extent[0] + axis1 * extent[1] + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * extent[0] + axis1 * extent[1] + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * extent[0] + axis1 * (-extent[1]) + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * extent[0] + axis1 * (-extent[1]) + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * extent[1] + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * extent[1] + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * (-extent[1]) + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * (-extent[1]) + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
       v1 = t2 * v;
@@ -345,8 +345,8 @@ public:
     {
       BVNode<OBB>* obb = model.bvs;
       Vec3f p;
-      btVector3 v;
-      btVector3 v1;
+      tf::Vector3 v;
+      tf::Vector3 v1;
 
       Vec3f& axis0 = obb->bv.axis[0];
       Vec3f& axis1 = obb->bv.axis[1];
@@ -355,42 +355,42 @@ public:
       Vec3f& extent = obb->bv.extent;
 
       p = To + axis0 * extent[0] + axis1 * extent[1] + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * extent[0] + axis1 * extent[1] + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * extent[0] + axis1 * (-extent[1]) + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * extent[0] + axis1 * (-extent[1]) + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * extent[1] + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * extent[1] + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * (-extent[1]) + axis2 * extent[2];
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
 
       p = To + axis0 * (-extent[0]) + axis1 * (-extent[1]) + axis2 * (-extent[2]);
-      v = btVector3(p[0], p[1], p[2]);
+      v = tf::Vector3(p[0], p[1], p[2]);
       v1 = t1 * v;
       aabb_ += Vec3f(v1.x(), v1.y(), v1.z());
     }

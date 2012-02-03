@@ -13,6 +13,10 @@ rosbuild_find_ros_package(actionlib_msgs)
 include(${actionlib_msgs_PACKAGE_PATH}/cmake/actionbuild.cmake)
 genaction()
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN_INCLUDE_DIRS})
+
 # some optimization
 add_definitions(-Wall -DNDEBUG -DEIGEN_NO_DEBUG -O3 -msse3 -mssse3 -funroll-loops)
 
@@ -27,4 +31,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 rosbuild_add_executable(collider_node src/collider.cpp src/collider_node.cpp)
 rosbuild_add_openmp_flags(collider_node)
-rosbuild_link_boost(collider_node thread)
+rosbuild_link_boost(collider_node thread signals)

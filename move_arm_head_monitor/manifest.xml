@@ -17,6 +17,10 @@
   <depend package="tf" />
   <depend package="planning_environment" />
   <depend package="head_monitor_msgs" />
+  <depend package="common_rosdeps"/>
+
+  <rosdep name="eigen" />
+
 
 </package>
 

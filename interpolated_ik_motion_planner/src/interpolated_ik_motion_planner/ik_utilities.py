@@ -61,22 +61,25 @@ class IKUtilities:
 
     #initialize all service functions
     #if wait_for_services = 0, you must call check_services_and_get_ik_info externally before running any of the IK/FK functions
-    def __init__(self, whicharm, tf_listener = None, wait_for_services = 1): #whicharm is 'right' or 'left'
+    def __init__(self, whicharm = None, tf_listener = None, wait_for_services = 1): #whicharm is 'right', 'left', or None
         
         #gets the robot_prefix from the parameter server. Default is pr2 
         robot_prefix = rospy.get_param('~robot_prefix', 'pr2') 
-        self.srvroot = '/'+robot_prefix+'_'+whicharm+'_arm_kinematics/' 
+        if whicharm != None:
+            self.srvroot = '/'+robot_prefix+'_'+whicharm+'_arm_kinematics/' 
+        else:
+            self.srvroot = '/'+robot_prefix+'_arm_kinematics/'
 
         #If collision_aware_ik is set to 0, then collision-aware IK is disabled 
  	self.perception_running = rospy.get_param('~collision_aware_ik', 1) 
 
-        self._ik_service = rospy.ServiceProxy(self.srvroot+'get_ik', GetPositionIK)
+        self._ik_service = rospy.ServiceProxy(self.srvroot+'get_ik', GetPositionIK, True)
         if self.perception_running:
-            self._ik_service_with_collision = rospy.ServiceProxy(self.srvroot+'get_constraint_aware_ik', GetConstraintAwarePositionIK)
+            self._ik_service_with_collision = rospy.ServiceProxy(self.srvroot+'get_constraint_aware_ik', GetConstraintAwarePositionIK, True)
 
-        self._fk_service = rospy.ServiceProxy(self.srvroot+'get_fk', GetPositionFK)
-        self._query_service = rospy.ServiceProxy(self.srvroot+'get_ik_solver_info', GetKinematicSolverInfo)
-        self._check_state_validity_service = rospy.ServiceProxy('/environment_server/get_state_validity', GetStateValidity)
+        self._fk_service = rospy.ServiceProxy(self.srvroot+'get_fk', GetPositionFK, True)
+        self._query_service = rospy.ServiceProxy(self.srvroot+'get_ik_solver_info', GetKinematicSolverInfo, True)
+        self._check_state_validity_service = rospy.ServiceProxy('/planning_scene_validity_server/get_state_validity', GetStateValidity, True)
 
         #wait for IK/FK/query services and get the joint names and limits 
         if wait_for_services:
@@ -262,12 +265,12 @@ class IKUtilities:
                 col_free_ik_request = GetConstraintAwarePositionIKRequest()
                 col_free_ik_request.ik_request = ik_request
                 col_free_ik_request.timeout = rospy.Duration(10.0) #timeout after 10 seconds
-
+            
                 if ordered_collision_operations != None:
                     col_free_ik_request.ordered_collision_operations = ordered_collision_operations
                 if link_padding != None:
                     col_free_ik_request.link_padding = link_padding
-
+                    
                 resp = self._ik_service_with_collision(col_free_ik_request)
             else:
                 resp = self._ik_service(ik_request, rospy.Duration(10.0))        
@@ -493,7 +496,7 @@ class IKUtilities:
         min_segment_time = .01
         
         if not joint_path:
-            rospy.logerr("joint path was empty!")
+            rospy.logdebug("joint path was empty!")
             return([], [])
         traj_length = len(joint_path)
         num_joints = len(joint_path[0])

@@ -688,7 +688,7 @@ void Collider::degradeOutdatedRaw(const std_msgs::Header& sensor_header, const t
   robot_mask_right_->assumeFrame(fixed_frame_, sensor_header.stamp, sensor_header.frame_id, self_filter_min_dist_);
   robot_mask_left_->assumeFrame(fixed_frame_, sensor_header.stamp, other_stereo_frame, self_filter_min_dist_);
 
-  btVector3 sensor_pos_right, sensor_pos_left;
+  tf::Vector3 sensor_pos_right, sensor_pos_left;
   planning_models::KinematicState state(cm_->getKinematicModel());
   planning_environment::configureForAttachedBodyMask(state, 
                                                      cm_,

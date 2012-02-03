@@ -44,7 +44,7 @@
 
 #include <geometric_shapes/shapes.h>
 #include <geometric_shapes/bodies.h>
-#include <LinearMath/btTransform.h>
+#include <tf/LinearMath/Transform.h>
 
 #include <distance_field/distance_field.h>
 #include <distance_field/propagation_distance_field.h>
@@ -70,14 +70,14 @@ struct CollisionType {
 
 struct CollisionSphere {
 
-  CollisionSphere(btVector3 rel, double radius)
+  CollisionSphere(tf::Vector3 rel, double radius)
   {
     relative_vec_ = rel;
     radius_ = radius;
   }
 
-  btVector3 center_;
-  btVector3 relative_vec_;
+  tf::Vector3 center_;
+  tf::Vector3 relative_vec_;
   double radius_;
 };
 
@@ -91,9 +91,9 @@ struct GradientInfo
 
   double closest_distance;
   bool collision;
-  std::vector<btVector3> sphere_locations;
+  std::vector<tf::Vector3> sphere_locations;
   std::vector<double> distances;
-  std::vector<btVector3> gradients;
+  std::vector<tf::Vector3> gradients;
   std::vector<double> sphere_radii;
   std::string joint_name;
 
@@ -107,10 +107,10 @@ struct GradientInfo
 };
 
 //determines set of collision spheres given a posed body
-std::vector<CollisionSphere> determineCollisionSpheres(const bodies::Body* body, btTransform& relativeTransform);
+std::vector<CollisionSphere> determineCollisionSpheres(const bodies::Body* body, tf::Transform& relativeTransform);
 
 //determines a set of points at the indicated resolution that are inside the supplied body 
-std::vector<btVector3> determineCollisionPoints(const bodies::Body* body, double resolution);
+std::vector<tf::Vector3> determineCollisionPoints(const bodies::Body* body, double resolution);
 
 //determines a set of gradients of the given collision spheres in the distance field
 bool getCollisionSphereGradients(const distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field,
@@ -138,21 +138,21 @@ public:
 
   ~BodyDecomposition();
 
-  btTransform relative_cylinder_pose_;
+  tf::Transform relative_cylinder_pose_;
 
   //assumed to be in reference frame, updates the pose of the body,
   //the collision spheres, and the posed collision points
-  void updatePose(const btTransform& linkTransform);
+  void updatePose(const tf::Transform& linkTransform);
 
-  void updateSpheresPose(const btTransform& linkTransform);
-  void updatePointsPose(const btTransform& linkTransform);
+  void updateSpheresPose(const tf::Transform& linkTransform);
+  void updatePointsPose(const tf::Transform& linkTransform);
 
   const std::vector<CollisionSphere>& getCollisionSpheres() const 
   {
     return collision_spheres_;
   }
     
-  const std::vector<btVector3>& getCollisionPoints() const
+  const std::vector<tf::Vector3>& getCollisionPoints() const
   {
     return posed_collision_points_;
   }
@@ -169,8 +169,8 @@ private:
   bodies::Body* body_;
 
   std::vector<CollisionSphere> collision_spheres_;
-  std::vector<btVector3> relative_collision_points_;
-  std::vector<btVector3> posed_collision_points_;
+  std::vector<tf::Vector3> relative_collision_points_;
+  std::vector<tf::Vector3> posed_collision_points_;
     
 };
 
@@ -187,7 +187,7 @@ public:
     decomp_vector_.clear();
   }
 
-  const std::vector<btVector3>& getCollisionPoints() const
+  const std::vector<tf::Vector3>& getCollisionPoints() const
   {
     return collision_points_;
   }
@@ -220,7 +220,7 @@ public:
     return decomp_vector_[i];
   }
 
-  void updateBodyPose(unsigned int ind, const btTransform& pose) {
+  void updateBodyPose(unsigned int ind, const tf::Transform& pose) {
     if(ind < decomp_vector_.size()) {
       decomp_vector_[ind]->updatePose(pose);
     } else {
@@ -231,13 +231,13 @@ public:
     for(unsigned j = 0; j < spheres.size(); j++) {
       collision_spheres_[sphere_index_map_[ind]+j] = spheres[j];
     }
-    const std::vector<btVector3>& points = decomp_vector_[ind]->getCollisionPoints();
+    const std::vector<tf::Vector3>& points = decomp_vector_[ind]->getCollisionPoints();
     for(unsigned j = 0; j < points.size(); j++) {
       collision_points_[point_index_map_[ind]+j] = points[j];
     }
   }
 
-  void updateSpheresPose(unsigned int ind, const btTransform& pose) {
+  void updateSpheresPose(unsigned int ind, const tf::Transform& pose) {
     if(ind < decomp_vector_.size()) {
       decomp_vector_[ind]->updateSpheresPose(pose);
     } else {
@@ -255,7 +255,7 @@ private:
   std::map<unsigned int, unsigned int> point_index_map_;
   std::vector<BodyDecomposition*> decomp_vector_;
   std::vector<CollisionSphere> collision_spheres_;
-  std::vector<btVector3> collision_points_;
+  std::vector<tf::Vector3> collision_points_;
 };
 
 struct ProximityInfo 
@@ -265,8 +265,8 @@ struct ProximityInfo
   double proximity;
   unsigned int sphere_index;
   unsigned int att_index;
-  btVector3 closest_point;
-  btVector3 closest_gradient;
+  tf::Vector3 closest_point;
+  tf::Vector3 closest_gradient;
 };
 
 }

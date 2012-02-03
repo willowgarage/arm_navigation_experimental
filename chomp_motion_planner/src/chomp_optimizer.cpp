@@ -137,8 +137,8 @@ namespace chomp
     collision_point_pos_eigen_.resize(num_vars_all_, vector<Vector3d>(num_collision_points_));
     collision_point_vel_eigen_.resize(num_vars_all_, vector<Vector3d>(num_collision_points_));
     collision_point_acc_eigen_.resize(num_vars_all_, vector<Vector3d>(num_collision_points_));
-    joint_axes_.resize(num_vars_all_, vector<btVector3>(num_joints_));
-    joint_positions_.resize(num_vars_all_, vector<btVector3>(num_joints_));
+    joint_axes_.resize(num_vars_all_, vector<tf::Vector3>(num_joints_));
+    joint_positions_.resize(num_vars_all_, vector<tf::Vector3>(num_joints_));
 
     collision_point_potential_.resize(num_vars_all_, vector<double>(num_collision_points_));
     collision_point_vel_mag_.resize(num_vars_all_, vector<double>(num_collision_points_));
@@ -260,19 +260,27 @@ namespace chomp
     const KinematicModel::JointModel* parentModel = NULL;
     bool foundRoot = false;
 
+    if(model == robot_model_->getRoot()) return;
+
     while(!foundRoot)
     {
       if(parentModel == NULL)
-      {
+      { 
+        if(model->getParentLinkModel() == NULL) {
+          ROS_ERROR_STREAM("Model " << model->getName() << " not root but has NULL link model parent");
+          return;
+        } else if(model->getParentLinkModel()->getParentJointModel() == NULL) {
+          ROS_ERROR_STREAM("Model " << model->getName() << " not root but has NULL joint model parent");
+          return;
+        }
         parentModel = model->getParentLinkModel()->getParentJointModel();
-      }
-      else
+      } else
       {
-        parentModel = parentModel->getParentLinkModel()->getParentJointModel();
-
         if(parentModel == robot_model_->getRoot())
         {
           foundRoot = true;
+        } else {
+          parentModel = parentModel->getParentLinkModel()->getParentJointModel();
         }
       }
       joint_parent_map_[model->getName()][parentModel->getName()] = true;
@@ -286,7 +294,7 @@ namespace chomp
     int currentCostIter = 0;
     int costWindow = 10;
     vector<double>costs(costWindow, 0.0);
-    double minimaThreshold = 0.01;
+    double minimaThreshold = 0.05;
     bool shouldBreakOut = false;
 
     if(parameters_->getAnimatePath())
@@ -402,7 +410,7 @@ namespace chomp
         ROS_INFO("Detected local minima. Attempting to break out!");
         int iter = 0;
         bool success = false;
-        while(iter < 5 && !success)
+        while(iter < 20 && !success)
         {
           performForwardKinematics();
           double original_cost = getTrajectoryCost();
@@ -709,7 +717,7 @@ CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidi
 
   void ChompOptimizer::computeJointProperties(int trajectoryPoint)
   {
-    btTransform inverseWorldTransform = collision_space_->getInverseWorldTransform(*robot_state_);
+    tf::Transform inverseWorldTransform = collision_space_->getInverseWorldTransform(*robot_state_);
      for(int j = 0; j < num_joints_; j++)
      {
        string jointName = joint_names_[j];
@@ -720,14 +728,14 @@ CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidi
 
        string parentLinkName = jointModel->getParentLinkModel()->getName();
        string childLinkName = jointModel->getChildLinkModel()->getName();
-       btTransform jointTransform =
+       tf::Transform jointTransform =
            robot_state_->getLinkState(parentLinkName)->getGlobalLinkTransform()
            * (robot_model_->getLinkModel(childLinkName)->getJointOriginTransform()
                * (robot_state_->getJointState(jointModel->getName())->getVariableTransform()));
 
 
        jointTransform = inverseWorldTransform * jointTransform;
-       btVector3 axis;
+       tf::Vector3 axis;
 
 
        if(revoluteJoint != NULL)
@@ -754,7 +762,7 @@ CollisionProximitySpace::TrajectorySafety ChompOptimizer::checkCurrentIterValidi
     {
       if(isParent(jointName, joint_names_[j]))
       {
-        btVector3 column = joint_axes_[trajectoryPoint][j].cross(btVector3(collision_point_pos(0),
+        tf::Vector3 column = joint_axes_[trajectoryPoint][j].cross(tf::Vector3(collision_point_pos(0),
                                                                            collision_point_pos(1),
                                                                            collision_point_pos(2))
                                                                      - joint_positions_[trajectoryPoint][j]);

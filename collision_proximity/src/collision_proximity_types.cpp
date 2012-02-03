@@ -36,7 +36,7 @@
 
 #include <collision_proximity/collision_proximity_types.h>
 
-std::vector<collision_proximity::CollisionSphere> collision_proximity::determineCollisionSpheres(const bodies::Body* body, btTransform& relativeTransform)
+std::vector<collision_proximity::CollisionSphere> collision_proximity::determineCollisionSpheres(const bodies::Body* body, tf::Transform& relativeTransform)
 {
   std::vector<collision_proximity::CollisionSphere> css;
   
@@ -44,10 +44,10 @@ std::vector<collision_proximity::CollisionSphere> collision_proximity::determine
   body->computeBoundingCylinder(cyl);
   unsigned int num_points = ceil(cyl.length/(cyl.radius/2.0));
   double spacing = cyl.length/((num_points*1.0)-1.0);
-  btVector3 vec(0.0,0.0,0.0);
+  tf::Vector3 vec(0.0,0.0,0.0);
   for(unsigned int i = 1; i < num_points-1; i++) {
     vec.setZ((-cyl.length/2.0)+i*spacing);
-    btVector3 p = cyl.pose*vec;
+    tf::Vector3 p = cyl.pose*vec;
     collision_proximity::CollisionSphere cs(vec,cyl.radius);
     css.push_back(cs);
   }
@@ -55,9 +55,9 @@ std::vector<collision_proximity::CollisionSphere> collision_proximity::determine
   return css; 
 }
 
-std::vector<btVector3> collision_proximity::determineCollisionPoints(const bodies::Body* body, double resolution)
+std::vector<tf::Vector3> collision_proximity::determineCollisionPoints(const bodies::Body* body, double resolution)
 {
-  std::vector<btVector3> ret_vec;
+  std::vector<tf::Vector3> ret_vec;
   bodies::BoundingSphere sphere;
   body->computeBoundingSphere(sphere);
   //ROS_INFO_STREAM("Radius is " << sphere.radius);
@@ -65,7 +65,7 @@ std::vector<btVector3> collision_proximity::determineCollisionPoints(const bodie
   for(double xval = sphere.center.x()-sphere.radius-resolution; xval < sphere.center.x()+sphere.radius+resolution; xval += resolution) {
     for(double yval = sphere.center.y()-sphere.radius-resolution; yval < sphere.center.y()+sphere.radius+resolution; yval += resolution) {
       for(double zval = sphere.center.z()-sphere.radius-resolution; zval < sphere.center.z()+sphere.radius+resolution; zval += resolution) {
-        btVector3 rel_vec(xval, yval, zval);
+        tf::Vector3 rel_vec(xval, yval, zval);
         if(body->containsPoint(body->getPose()*rel_vec)) {
           ret_vec.push_back(rel_vec);
         }
@@ -85,7 +85,7 @@ bool collision_proximity::getCollisionSphereGradients(const distance_field::Dist
   //assumes gradient is properly initialized
   bool in_collision = false;
   for(unsigned int i = 0; i < sphere_list.size(); i++) {
-    btVector3 p = sphere_list[i].center_;
+    tf::Vector3 p = sphere_list[i].center_;
     double gx, gy, gz;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz);
     if(dist < maximum_value && subtract_radii) {
@@ -101,7 +101,7 @@ bool collision_proximity::getCollisionSphereGradients(const distance_field::Dist
       gradient.closest_distance = dist;
     }
     gradient.distances[i] = dist;
-    gradient.gradients[i] = btVector3(gx,gy,gz);
+    gradient.gradients[i] = tf::Vector3(gx,gy,gz);
   }
   return in_collision;
 }
@@ -111,7 +111,7 @@ bool collision_proximity::getCollisionSphereCollision(const distance_field::Dist
                                                       double tolerance)
 {
   for(unsigned int i = 0; i < sphere_list.size(); i++) {
-    btVector3 p = sphere_list[i].center_;
+    tf::Vector3 p = sphere_list[i].center_;
     double gx, gy, gz;
     double dist = distance_field->getDistanceGradient(p.x(), p.y(), p.z(), gx, gy, gz);
     if(dist - sphere_list[i].radius_ < tolerance) {
@@ -130,7 +130,7 @@ collision_proximity::BodyDecomposition::BodyDecomposition(const std::string& obj
   object_name_(object_name)
 {
   body_ = bodies::createBodyFromShape(shape); //unpadded
-  btTransform ident;
+  tf::Transform ident;
   ident.setIdentity();
   body_->setPose(ident);
   body_->setPadding(padding);
@@ -145,16 +145,16 @@ collision_proximity::BodyDecomposition::~BodyDecomposition()
   delete body_;
 }
 
-void collision_proximity::BodyDecomposition::updateSpheresPose(const btTransform& trans) 
+void collision_proximity::BodyDecomposition::updateSpheresPose(const tf::Transform& trans) 
 {
  //body_->setPose(trans);
-  btTransform cylTransform = trans * relative_cylinder_pose_;
+  tf::Transform cylTransform = trans * relative_cylinder_pose_;
   for(unsigned int i = 0; i < collision_spheres_.size(); i++) {
     collision_spheres_[i].center_ = cylTransform*collision_spheres_[i].relative_vec_;
   }
 }
 
-void collision_proximity::BodyDecomposition::updatePointsPose(const btTransform& trans) {
+void collision_proximity::BodyDecomposition::updatePointsPose(const tf::Transform& trans) {
   //body_->setPose(trans);
   posed_collision_points_.clear();
   posed_collision_points_.resize(relative_collision_points_.size());
@@ -164,7 +164,7 @@ void collision_proximity::BodyDecomposition::updatePointsPose(const btTransform&
 }
 
 
-void collision_proximity::BodyDecomposition::updatePose(const btTransform& trans)
+void collision_proximity::BodyDecomposition::updatePose(const tf::Transform& trans)
 {
   updateSpheresPose(trans);
   updatePointsPose(trans);

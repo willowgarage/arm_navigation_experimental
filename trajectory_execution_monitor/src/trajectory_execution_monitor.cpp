@@ -252,9 +252,9 @@ void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExec
   last_requested_state.setKinematicState(last_requested_values);
   next_requested_state.setKinematicState(next_requested_values);
 
-  btTransform recorded_pose = last_recorded_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
-  btTransform last_requested_pose = last_requested_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
-  btTransform next_requested_pose = next_requested_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
+  tf::Transform recorded_pose = last_recorded_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
+  tf::Transform last_requested_pose = last_requested_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
+  tf::Transform next_requested_pose = next_requested_state.getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
 
   ROS_INFO_STREAM("Diff in last requested versus recorded is "  
 		  << fabs(recorded_pose.getOrigin().x()-last_requested_pose.getOrigin().x()) << " "

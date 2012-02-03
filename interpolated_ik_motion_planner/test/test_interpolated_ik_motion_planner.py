@@ -44,9 +44,9 @@ def call_get_interpolated_ik_motion_plan(start_pose, goal_pose, start_angles, jo
     req = GetMotionPlanRequest()
     req.motion_plan_request.start_state.joint_state.name = joint_names
     req.motion_plan_request.start_state.joint_state.position = start_angles
-    req.motion_plan_request.start_state.multi_dof_joint_state.pose = start_pose.pose
-    req.motion_plan_request.start_state.multi_dof_joint_state.child_frame_id = 'r_wrist_roll_link'
-    req.motion_plan_request.start_state.multi_dof_joint_state.frame_id = start_pose.header.frame_id
+    req.motion_plan_request.start_state.multi_dof_joint_state.poses.append(start_pose.pose)
+    req.motion_plan_request.start_state.multi_dof_joint_state.child_frame_ids.append('r_wrist_roll_link')
+    req.motion_plan_request.start_state.multi_dof_joint_state.frame_ids.append(start_pose.header.frame_id)
     pos_constraint = PositionConstraint()
     pos_constraint.position = goal_pose.pose.position
     pos_constraint.header.frame_id = goal_pose.header.frame_id
@@ -57,8 +57,8 @@ def call_get_interpolated_ik_motion_plan(start_pose, goal_pose, start_angles, jo
     orient_constraint.header.frame_id = goal_pose.header.frame_id
     req.motion_plan_request.goal_constraints.orientation_constraints = [orient_constraint,]
 
-    if ordered_collision_operations != None:
-        req.motion_plan_request.ordered_collision_operations = ordered_collision_operations
+    #if ordered_collision_operations != None:
+    #    req.motion_plan_request.ordered_collision_operations = ordered_collision_operations
 
     try:    
         serv = rospy.ServiceProxy("r_interpolated_ik_motion_plan", GetMotionPlan)
@@ -163,8 +163,8 @@ if __name__ == "__main__":
     print "top grasp through the table"
     check_cartesian_path_lists(approachpos, approachquat, grasppos, graspquat, start_angles, pos_spacing = 0.02, collision_aware = 1, collision_check_resolution = 1, steps_before_abort = -1)
 
-    print "using current start angles"
-    check_cartesian_path_lists(approachpos, approachquat, grasppos, graspquat, start_angles = [], pos_spacing = 0.02, collision_aware = 1, collision_check_resolution = 1, steps_before_abort = -1)
+    #print "using current start angles"
+    #check_cartesian_path_lists(approachpos, approachquat, grasppos, graspquat, start_angles = [], pos_spacing = 0.02, collision_aware = 1, collision_check_resolution = 1, steps_before_abort = -1)
 
     print "ignoring collisions with all collision points"
     collision_oper = CollisionOperation(object1 = "points", \

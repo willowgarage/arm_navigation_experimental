@@ -2329,7 +2329,7 @@ void WarehouseViewer::createMeshConfirmedPressed()
   pose.orientation.z = 0;
   pose.orientation.w = 1;
 
-  btVector3 scale;
+  tf::Vector3 scale;
   scale.setX(mesh_object_scale_x_box_->value());
   scale.setY(mesh_object_scale_y_box_->value());
   scale.setZ(mesh_object_scale_z_box_->value());
