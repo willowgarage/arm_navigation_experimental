@@ -36,17 +36,15 @@
 
 #include <ros/ros.h>
 #include <boost/function.hpp>
-
 #include <trajectory_msgs/JointTrajectory.h>
-
 #include <trajectory_execution_monitor/trajectory_recorder.h>
 #include <trajectory_execution_monitor/trajectory_controller_handler.h>
-
 #include <planning_environment/models/collision_models.h>
 
 namespace trajectory_execution_monitor
 {
 
+/// \brief Collection of information required for requesting the execution of a trajectory.
 struct TrajectoryExecutionRequest {
   
   std::string group_name_;
@@ -69,8 +67,8 @@ struct TrajectoryExecutionRequest {
   TrajectoryExecutionRequest();
 };
 
+/// \brief Return code indicating the state of the executed trajectory.
 enum TrajectoryExecutionResult {
-
   NOT_ATTEMPTED = 0,
   SUCCEEDED,
   NO_RECORDER,
@@ -82,20 +80,28 @@ enum TrajectoryExecutionResult {
   HANDLER_REPORTS_FAILURE_BUT_CLOSE_ENOUGH
 };
 
+/// \brief Data that is filled in by the trajectory execution monitor.
 struct TrajectoryExecutionData {
 
+  /// \brief Error code
   TrajectoryExecutionResult result_;
 
-  // trajectories
+  /// \brief Trajectory recorded during execution.
   trajectory_msgs::JointTrajectory recorded_trajectory_;
+  /// \brief Trajectory recorded after the controller has declared the execution finished,
+  /// but we continue to record the overshoot until the group stops moving.
   trajectory_msgs::JointTrajectory overshoot_trajectory_;
 
-  // stats
-  ros::Duration time_;							// recorded
-  ros::Duration overshoot_time_;		// overshoot
+  /// \brief The duration of the recorded trajectory.
+  ros::Duration time_;
+  /// \brief The duration of the overshoot trajectory.
+  ros::Duration overshoot_time_;
+  /// \brief The angular distance of the recorded trajectory.
+  /// See TrajectoryStats::distance() for more information.
   double angular_distance_;					// recorded
 };
 
+/// \brief Convenience structure to hold multiple executed trajectories
 struct TrajectoryExecutionDataVector : public std::vector<TrajectoryExecutionData> 
 {
 
@@ -107,6 +113,7 @@ struct TrajectoryExecutionDataVector : public std::vector<TrajectoryExecutionDat
   unsigned int last_attempted_trajectory_index_;
 };
 
+/// \brief Executes and monitors a set of trajectories.
 class TrajectoryExecutionMonitor
 {
 
@@ -114,10 +121,14 @@ public:
   
   TrajectoryExecutionMonitor() : cm_("robot_description"){};
 
+  /// \brief Add a recorder to a list of recorders
   void addTrajectoryRecorder(boost::shared_ptr<TrajectoryRecorder>& trajectory_recorder);
 
+  /// \brief Add a controller to a list of controllers
   void addTrajectoryControllerHandler(boost::shared_ptr<TrajectoryControllerHandler>& trajectory_controller_handler);
 
+  /// \brief Execute a series of trajectories, in order.
+  /// The callbacks will get called, in order, after each trajectory is finished executing.
   void executeTrajectories(const std::vector<TrajectoryExecutionRequest>& to_execute,
                            const boost::function<bool(TrajectoryExecutionDataVector)>& done_callback);
 
@@ -125,13 +136,14 @@ protected:
   
   bool sendTrajectory(const TrajectoryExecutionRequest& ter);
   
-  void trajectoryFinishedCallbackFunction(
-    TrajectoryControllerState controller_state );
+  /// \brief Gets called after the execution of a trajectory.
+  void trajectoryFinishedCallbackFunction( TrajectoryControllerState controller_state );
 
+  /// \brief Returns true if the executed trajectory endpoint is close to intended trajectory endpoint.
   bool closeEnough(const TrajectoryExecutionRequest& ter,
                    const TrajectoryExecutionData& ted);
   
-
+  /// \brief Compare recorded trajectory to expected trajectory.
   void compareLastRecordedToStart(const TrajectoryExecutionRequest& last_ter,
                                   const TrajectoryExecutionRequest& next_ter,
                                   const TrajectoryExecutionData& ted);

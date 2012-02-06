@@ -39,9 +39,7 @@
 
 #include <ros/ros.h>
 #include <boost/function.hpp>
-
 #include <trajectory_msgs/JointTrajectory.h>
-
 #include <trajectory_execution_monitor/trajectory_recorder.h>
 
 namespace trajectory_execution_monitor
@@ -49,6 +47,7 @@ namespace trajectory_execution_monitor
 
 namespace TrajectoryControllerStates
 {
+  /// \brief Possible states the controller could be in during execution.
   enum TrajectoryControllerState
   {
     IDLE = 0,
@@ -64,8 +63,11 @@ namespace TrajectoryControllerStates
 }
 typedef TrajectoryControllerStates::TrajectoryControllerState TrajectoryControllerState;
 
+/// \brief Callback gets called when the controller is finished, or the controller has timed-out.
 typedef boost::function<void(TrajectoryControllerState)> TrajectoryFinishedCallbackFunction;
 
+/// \brief Sets up the controller for execution, handles the responses,
+/// and times-out the controller if necessary.
 class TrajectoryControllerHandler {
 
 public:
@@ -90,29 +92,32 @@ public:
     return(group_name+"_"+controller_name);
   }
 
-  // Call this function if the trajectory should monitor overshoot after the trajectory is executed.
-  // returns true if the subclass can monitor overshoot
+  /// \brief This function is called if the trajectory should monitor overshoot (after the trajectory is executed).
+  /// Returns true if the subclass can monitor overshoot
   bool enableOvershoot(
                         double max_overshoot_velocity_epsilon,
                         ros::Duration min_overshoot_time,
                         ros::Duration max_overshoot_time);
 
-  // Disable overshoot monitoring
+  /// \brief Disable overshoot monitoring. Overshoot monitoring is disabled by default.
   void disableOvershoot();
 
-  // Call to set a maximum exection time, otherwise the default max execution time gets used
+  /// \brief Sets a maximum exection time, otherwise the default max execution time will be used
   void setMaximumExecutionTime( ros::Duration max_execution_time ) {
     timeout_ = max_execution_time;
   }
 
-  // Call enableOvershoot function if overshoot should get monitored.  But default this does not happen.
+  /// \brief Execute the trajectory while recording using recorder.
+  /// Call the callback function when finished.
+  /// To enable overshoot monitoring, call enableOvershoot function.  Overshoot is not monitored by default.
   virtual bool executeTrajectory(const trajectory_msgs::JointTrajectory& trajectory,
                                  boost::shared_ptr<TrajectoryRecorder>& recorder,
                                  const TrajectoryFinishedCallbackFunction& traj_callback) = 0;
 
+  /// \brief cancel the execution of the trajectory. This should be implemented by derived classes.
   virtual void cancelExecution() = 0;
 
-  // If timeout gets called, then we exceeded our maximum execution time
+  /// \brief This function gets called when our maximum execution time is exceeded.
   void timeout(const ros::TimerEvent& event);
 
   const trajectory_msgs::JointTrajectory& getLastGoalTrajectory() const {
@@ -149,9 +154,11 @@ protected:
                                 const std::map<std::string, double>& joint_velocities,
                                 trajectory_msgs::JointTrajectory& trajectory);
 
-  // Deregisters from the recorder, and executes callback to the monitor.
-  // Make sure the _success is set before calling this function
+  /// \brief Deregisters from the recorder, and executes callback to the monitor.
+  /// _success should be set before calling this function.
   void done();
+  /// \brief Sets a flag to deregister when returning execution to the recorder (after its callback).
+  /// This function should be called from within the TrajectoryFinishedCallbackFunction
   void doneDelayed();
 
   void initializeRecordedTrajectory(const trajectory_msgs::JointTrajectory& goal_trajectory);

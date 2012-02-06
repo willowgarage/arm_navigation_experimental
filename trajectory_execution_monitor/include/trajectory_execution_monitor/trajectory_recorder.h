@@ -32,7 +32,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/** \author E. Gil Jones */
+/** \author E. Gil Jones, Ken Anderson */
 
 #ifndef _TRAJECTORY_RECORDER_H_
 #define _TRAJECTORY_RECORDER_H_
@@ -45,9 +45,11 @@
 namespace trajectory_execution_monitor
 {
 
-// function that gets called when new state information arrives
-typedef boost::function<bool(const ros::Time& time, const std::map<std::string, double>&, const std::map<std::string,double>&)> NewStateCallbackFunction;
+/// \brief Function that gets called when new state information arrives
+typedef boost::function<bool(	const ros::Time& time, const std::map<std::string, double>&,
+                              const std::map<std::string,double>&)> NewStateCallbackFunction;
 
+/// \brief Records the trajectory by calling registered callback functions as new states arrive.
 class TrajectoryRecorder {
 
 public:
@@ -55,27 +57,32 @@ public:
   TrajectoryRecorder(const std::string& recorder_name) : recorder_name_(recorder_name) 
   {};
 
+  /// \brief Register a callback function to get called when a new state arrives.
   void registerCallback(const std::string& name, const NewStateCallbackFunction& callback) {
     callback_map_[name] = callback;
   };
 
-  // Do NOT call this from inside NewStateCallbackFunction,
-  // or you may find yourself invalidating an iterator and segfaulting.
+  /// \brief Deregisters a callback that is no longer to be called when a new state arrives.
+  /// Do NOT call this from inside NewStateCallbackFunction,
+  /// or you may find yourself invalidating an iterator and segfaulting.
   void deregisterCallback(const std::string& name) {
     callback_map_.erase(name);
   };
 
-  // This function is called to deregister a callback when the calling function is one of the NewStateCallbackFunctions.
+  /// \brief Deregisters a callback that is no longer to be called when a new state arrives.
+  /// This function is should be called when the calling function is a NewStateCallbackFunction.
   void delayedDeregisterCallback(const std::string& name) {
     deregister_list_.push_back(name);
   }
 
+  /// \brief The name of the recorder
   const std::string& getName() const {
     return recorder_name_;
   }
     
 protected:
 
+  /// \brief Call all of the registered callbacks.
   void callCallbacks(const ros::Time& time,
                      const std::map<std::string, double>& joint_positions,
                      const std::map<std::string, double>& joint_velocities) ;

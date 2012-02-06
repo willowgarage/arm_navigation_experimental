@@ -43,6 +43,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
 
+/// \brief Controller handler for joint state trajectories.
 class FollowJointTrajectoryControllerHandler : public trajectory_execution_monitor::TrajectoryControllerHandler {
 
 public:

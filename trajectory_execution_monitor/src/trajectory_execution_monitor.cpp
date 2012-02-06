@@ -215,8 +215,9 @@ bool TrajectoryExecutionMonitor::closeEnough(const TrajectoryExecutionRequest& t
 }
 
 void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExecutionRequest& last_ter,
-							    const TrajectoryExecutionRequest& next_ter,
-                                                            const TrajectoryExecutionData& ted) {
+                                                            const TrajectoryExecutionRequest& next_ter,
+                                                            const TrajectoryExecutionData& ted)
+{
   if(ted.recorded_trajectory_.points.size() == 0) {
     ROS_WARN_STREAM("No points in recorded trajectory for comparison");
     return;
@@ -270,6 +271,4 @@ void TrajectoryExecutionMonitor::compareLastRecordedToStart(const TrajectoryExec
 		  << fabs(recorded_pose.getOrigin().x()-next_requested_pose.getOrigin().x()) << " " 
                   << fabs(recorded_pose.getOrigin().y()-next_requested_pose.getOrigin().y()) << " " 
                   << fabs(recorded_pose.getOrigin().z()-next_requested_pose.getOrigin().z())); 
-
-
 }

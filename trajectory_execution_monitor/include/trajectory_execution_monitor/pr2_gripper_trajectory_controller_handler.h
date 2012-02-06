@@ -38,12 +38,11 @@
 #define _PR2_GRIPPER_TRAJECTORY_CONTROLLER_HANDLER_H_
 
 #include <trajectory_execution_monitor/trajectory_controller_handler.h>
-
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/simple_client_goal_state.h>
-
 #include <pr2_controllers_msgs/Pr2GripperCommandAction.h>
 
+/// \brief Trajectory controller handler for the pr2 gripper.
 class Pr2GripperTrajectoryControllerHandler : public trajectory_execution_monitor::TrajectoryControllerHandler {
 
 public:
@@ -62,7 +61,7 @@ public:
     }
   }
 
-  // Gripper does not monitor overshoot.
+  /// \brief Gripper does not monitor overshoot.  This function returns false;
   bool enableOvershoot( double max_overshoot_velocity_epsilon,
                         ros::Duration min_overshoot_time,
                         ros::Duration max_overshoot_time )
@@ -70,6 +69,7 @@ public:
     return false;
   }
 
+  /// \brief Start executing.  Gripper will either open or close.
   bool executeTrajectory(const trajectory_msgs::JointTrajectory& trajectory,
                          boost::shared_ptr<trajectory_execution_monitor::TrajectoryRecorder>& recorder,
                          const trajectory_execution_monitor::TrajectoryFinishedCallbackFunction& traj_callback)

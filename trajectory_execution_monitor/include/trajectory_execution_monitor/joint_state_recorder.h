@@ -42,6 +42,7 @@
 #include <trajectory_execution_monitor/trajectory_recorder.h>
 #include <sensor_msgs/JointState.h>
 
+/// \brief Recorder for joint state trajectories.
 class JointStateTrajectoryRecorder : public trajectory_execution_monitor::TrajectoryRecorder {
 
 public:
