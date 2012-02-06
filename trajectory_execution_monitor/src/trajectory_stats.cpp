@@ -37,6 +37,7 @@
 /* \author: Ken Anderson */
 
 #include <cmath>
+#include <ros/ros.h>
 #include <trajectory_execution_monitor/trajectory_stats.h>
 
 using namespace std;
@@ -70,7 +71,7 @@ double TrajectoryStats::getAngularDistance(const trajectory_msgs::JointTrajector
 
       if(point1.positions.size() != point2.positions.size())
       {
-        ROS_ERROR("Invalid Trajectory, the number of joints is inconsistent");
+        ROS_ERROR_STREAM("Invalid Trajectory, the number of joints is inconsistent");
         return 0.0;
       }
 
@@ -96,7 +97,7 @@ double TrajectoryStats::getMaxAngularVelocity(const trajectory_msgs::JointTrajec
 
       if(point1.positions.size() != point2.positions.size())
       {
-        ROS_ERROR("Invalid Trajectory, the number of joints is inconsistent");
+        ROS_ERROR_STREAM("Invalid Trajectory, the number of joints is inconsistent");
         return 0.0;
       }
 
