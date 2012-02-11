@@ -80,6 +80,7 @@ CollisionProximitySpace::CollisionProximitySpace(const std::string& robot_descri
   priv_handle_.param("max_self_distance", max_self_distance_, 0.1);
   priv_handle_.param("undefined_distance", undefined_distance_, 1.0);
 
+  vis_distance_field_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("visualization_marker", 128);
   vis_marker_publisher_ = root_handle_.advertise<visualization_msgs::Marker>("collision_proximity_body_spheres", 128);
   vis_marker_array_publisher_ = root_handle_.advertise<visualization_msgs::MarkerArray>("collision_proximity_body_spheres_array", 128);
 
@@ -1398,7 +1399,9 @@ void CollisionProximitySpace::visualizeDistanceField(distance_field::DistanceFie
 {
   tf::Transform ident;
   ident.setIdentity();
-  distance_field->visualize(0.0, 0.0, collision_models_interface_->getWorldFrameId(), ident, ros::Time::now());
+  visualization_msgs::Marker marker;
+  distance_field->getIsoSurfaceMarkers(0.0, 0.0, collision_models_interface_->getWorldFrameId(), ros::Time::now(), ident, marker);
+  vis_distance_field_marker_publisher_.publish(marker);
 }
 
 void CollisionProximitySpace::visualizeDistanceFieldPlane(distance_field::DistanceField<distance_field::PropDistanceFieldVoxel>* distance_field) const
@@ -1414,8 +1417,10 @@ void CollisionProximitySpace::visualizeDistanceFieldPlane(distance_field::Distan
       z < distance_field->getSize(distance_field::PropagationDistanceField::DIM_Z);
       z += distance_field->getResolution(distance_field::PropagationDistanceField::DIM_Z))
   {
-    distance_field->visualizePlane(distance_field::XYPlane, length, width,
-                                          z, origin,  collision_models_interface_->getWorldFrameId(), ros::Time::now());
+    visualization_msgs::Marker marker;
+    distance_field->getPlaneMarkers(distance_field::XYPlane, length, width,
+                                          z, origin,  collision_models_interface_->getWorldFrameId(), ros::Time::now(), marker);
+    vis_distance_field_marker_publisher_.publish(marker);
     ros::Time::sleepUntil(ros::Time::now() + ros::Duration(0.02));
     ros::spinOnce();
   }

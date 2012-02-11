@@ -250,6 +250,7 @@ private:
 
   ros::NodeHandle root_handle_, priv_handle_;
 
+  ros::Publisher vis_distance_field_marker_publisher_;
   ros::Publisher vis_marker_publisher_;
   ros::Publisher vis_marker_array_publisher_;
 
