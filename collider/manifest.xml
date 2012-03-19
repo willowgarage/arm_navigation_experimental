@@ -27,6 +27,7 @@
   <depend package="common_rosdeps"/>
 
   <rosdep name="eigen" />
+  <rosdep name="opencv2" />
 
 </package>
 

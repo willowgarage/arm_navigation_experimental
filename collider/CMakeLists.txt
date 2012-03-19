@@ -17,6 +17,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 find_package(Eigen REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIRS})
 
+find_package(OpenCV REQUIRED)
+
 # some optimization
 add_definitions(-Wall -DNDEBUG -DEIGEN_NO_DEBUG -O3 -msse3 -mssse3 -funroll-loops)
 
@@ -32,3 +34,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_add_executable(collider_node src/collider.cpp src/collider_node.cpp)
 rosbuild_add_openmp_flags(collider_node)
 rosbuild_link_boost(collider_node thread signals)
+target_link_libraries(collider_node ${OpenCV_LIBRARIES})
