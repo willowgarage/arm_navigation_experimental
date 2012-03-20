@@ -41,7 +41,7 @@ target_link_libraries(move_arm_simple_action move_arm_logging)
 rosbuild_add_executable(planning_scene_warehouse_viewer src/trajectory_stats.cpp ${QT_WIDGET_SOURCES} ${QT_WIDGET_HEADERS} ${moc_sources})
 target_link_libraries(planning_scene_warehouse_viewer ${QT_LIBRARIES} move_arm_utils)
 
-rosbuild_add_rostest_labeled(test_utils launch/test_warehouse_viewer.launch)
+#rosbuild_add_rostest_labeled(test_utils launch/test_warehouse_viewer.launch)
 rosbuild_add_executable(test_utils test/move_arm_utils_test.cpp)
 target_link_libraries(test_utils move_arm_utils)
 target_link_libraries(test_utils gtest)
