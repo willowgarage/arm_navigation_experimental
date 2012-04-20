@@ -1164,7 +1164,7 @@ void Collider::makeStaticCollisionMap(const arm_navigation_msgs::MakeStaticColli
   action_server_->setSucceeded();
 }
 
-bool Collider::octomapSrv(octomap_ros::GetOctomap::Request  &req, octomap_ros::GetOctomap::Response &res){
+bool Collider::octomapSrv(octomap_msgs::GetOctomap::Request  &req, octomap_msgs::GetOctomap::Response &res){
 	ROS_DEBUG("Sending map data on service request");
 
 	res.map.header.frame_id = fixed_frame_;

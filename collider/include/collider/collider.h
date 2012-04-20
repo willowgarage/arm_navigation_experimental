@@ -74,8 +74,8 @@
 
 #include <octomap/OcTreeStamped.h>
 #include <octomap_ros/OctomapROS.h>
-#include <octomap_ros/OctomapBinary.h>
-#include <octomap_ros/GetOctomap.h>
+#include <octomap_msgs/OctomapBinary.h>
+#include <octomap_msgs/GetOctomap.h>
 
 
 class Collider {
@@ -166,7 +166,7 @@ class Collider {
   void makeStaticCollisionMap(const arm_navigation_msgs::MakeStaticCollisionMapGoalConstPtr& goal);
   bool dummyReset(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
   // occupancy queries:
-  bool octomapSrv(octomap_ros::GetOctomap::Request  &req, octomap_ros::GetOctomap::Response &res);
+  bool octomapSrv(octomap_msgs::GetOctomap::Request  &req, octomap_msgs::GetOctomap::Response &res);
   bool occupancyPointSrv(collider::OccupancyPointQuery::Request &req, collider::OccupancyPointQuery::Response &res);
   bool occupancyBBXSrv(collider::OccupancyBBXQuery::Request &req, collider::OccupancyBBXQuery::Response &res);
   bool occupancyBBXSizeSrv(collider::OccupancyBBXSizeQuery::Request &req, collider::OccupancyBBXSizeQuery::Response &res);
