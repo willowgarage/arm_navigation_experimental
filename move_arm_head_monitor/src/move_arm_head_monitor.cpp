@@ -594,7 +594,7 @@ public:
   void monitorGoalCallback()
   {
     mutex_.lock();
-    ROS_INFO("In goal callback for monitor");
+    ROS_DEBUG("In goal callback for monitor");
     if(current_execution_status_.status == current_execution_status_.MONITOR_BEFORE_EXECUTION &&
        current_execution_status_.status == current_execution_status_.EXECUTING &&
        current_execution_status_.status == current_execution_status_.PAUSED) {

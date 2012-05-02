@@ -1264,7 +1264,7 @@ private:
   void monitorDoneCallback(const actionlib::SimpleClientGoalState& state,
                            const head_monitor_msgs::HeadMonitorResultConstPtr& result) {
     //TODO - parse goal state for success or failure
-    ROS_INFO("In monitor done callback");
+    ROS_DEBUG("In monitor done callback");
     head_monitor_done_ = true;
     if (result) {
       head_monitor_error_code_ = result->error_code;
