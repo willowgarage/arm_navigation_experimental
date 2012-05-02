@@ -66,6 +66,8 @@
 
 #include <tf/transform_listener.h>
 
+#include <boost/thread/mutex.hpp>
+
 static const std::string RIGHT_ARM_GROUP = "right_arm";
 static const std::string LEFT_ARM_GROUP = "left_arm";
 
@@ -137,6 +139,8 @@ protected:
   bool do_preplan_scan_;
 
   head_monitor_msgs::HeadMonitorStatus current_execution_status_;
+
+  boost::mutex mutex_;
 
 public:
 
@@ -589,16 +593,21 @@ public:
   // Called when a new monitoring goal is received
   void monitorGoalCallback()
   {
+    mutex_.lock();
+    ROS_INFO("In goal callback for monitor");
     if(current_execution_status_.status == current_execution_status_.MONITOR_BEFORE_EXECUTION &&
        current_execution_status_.status == current_execution_status_.EXECUTING &&
        current_execution_status_.status == current_execution_status_.PAUSED) {
       ROS_WARN_STREAM("Got new goal while executing");
+      mutex_.unlock();
       stopEverything();
+      mutex_.lock();
     }
 
     if(!head_monitor_action_server_.isNewGoalAvailable())
     {
       ROS_INFO_STREAM("Preempted, no new goal");
+      mutex_.unlock();
       return;
     }
     monitor_goal_ = head_monitor_msgs::HeadMonitorGoal(*head_monitor_action_server_.acceptNewGoal());
@@ -608,18 +617,21 @@ public:
       ROS_WARN_STREAM("Not configured for use with group name " << RIGHT_ARM_GROUP);
       monitor_result_.error_code.val = monitor_result_.error_code.INVALID_GROUP_NAME;
       head_monitor_action_server_.setAborted(monitor_result_);
+      mutex_.unlock();
       return;
     }
     if(current_group_name_ == LEFT_ARM_GROUP && !use_left_arm_) {
       ROS_WARN_STREAM("Not configured for use with group name " << LEFT_ARM_GROUP);
       monitor_result_.error_code.val = monitor_result_.error_code.INVALID_GROUP_NAME;
       head_monitor_action_server_.setAborted(monitor_result_);
+      mutex_.unlock();
       return;
     }
 
     if(current_group_name_.empty()) {
       ROS_WARN_STREAM("Group name doesn't have left or right arm in it, gonna be bad");
     }
+    mutex_.unlock();
 
     current_arm_controller_action_client_ = ((current_group_name_ == RIGHT_ARM_GROUP) ? right_arm_controller_action_client_ : left_arm_controller_action_client_);
 
@@ -665,19 +677,23 @@ public:
 
   void monitorPreemptCallback()
   {
+    mutex_.lock();
     if(current_execution_status_.status != current_execution_status_.MONITOR_BEFORE_EXECUTION &&
        current_execution_status_.status != current_execution_status_.EXECUTING &&
        current_execution_status_.status != current_execution_status_.PAUSED) {
       ROS_WARN_STREAM("Got preempt not in a relevant mode");
       return;
     }
+    mutex_.unlock();
     //no reason not to cancel
     stopEverything();
 
+    mutex_.lock();
     current_execution_status_.status = current_execution_status_.IDLE;
 
     ROS_INFO_STREAM(ros::this_node::getName() << ": Preempted");
     head_monitor_action_server_.setPreempted(monitor_result_);
+    mutex_.unlock();
   }
 
   void jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state) {
@@ -708,24 +724,30 @@ public:
   void controllerDoneCallback(const actionlib::SimpleClientGoalState& state,
                               const control_msgs::FollowJointTrajectoryResultConstPtr& result)
   {
+    mutex_.lock();
     if(current_execution_status_.status != current_execution_status_.EXECUTING) {
       //because we cancelled
+      mutex_.unlock();
       return;
     }
+
     ROS_INFO_STREAM("Trajectory reported done with state " << state.toString());
     current_execution_status_.status = current_execution_status_.IDLE;
     monitor_result_.actual_trajectory = logged_trajectory_;
     monitor_result_.error_code.val = monitor_result_.error_code.SUCCESS;
     head_monitor_action_server_.setSucceeded(monitor_result_);
+    mutex_.unlock();
   }
 
   void pauseTimeoutCallback() {
     ROS_INFO_STREAM("Paused trajectory timed out");
     stopEverything();
+    mutex_.lock();
     current_execution_status_.status = current_execution_status_.IDLE;
     monitor_result_.actual_trajectory = logged_trajectory_;
     monitor_result_.error_code.val = monitor_result_.error_code.TIMED_OUT;
     head_monitor_action_server_.setAborted(monitor_result_);
+    mutex_.unlock();
   }
 
   ///

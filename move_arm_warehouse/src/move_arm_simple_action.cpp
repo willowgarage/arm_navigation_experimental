@@ -1232,7 +1232,7 @@ private:
           }
           revertPlanningScene();
           resetStateMachine();
-          action_server_->setPreempted();
+          action_server_->setPreempted();//move_arm_action_result_);
           return;
         }
       }
@@ -1264,9 +1264,14 @@ private:
   void monitorDoneCallback(const actionlib::SimpleClientGoalState& state,
                            const head_monitor_msgs::HeadMonitorResultConstPtr& result) {
     //TODO - parse goal state for success or failure
+    ROS_INFO("In monitor done callback");
     head_monitor_done_ = true;
-    head_monitor_error_code_ = result->error_code;
-    ROS_DEBUG_STREAM("Actual trajectory with " << result->actual_trajectory.points.size());
+    if (result) {
+      head_monitor_error_code_ = result->error_code;
+      ROS_DEBUG_STREAM("Actual trajectory with " << result->actual_trajectory.points.size());
+    } else {
+      ROS_ERROR("Result was NULL in monitor done callback!");
+    }
     if(log_to_warehouse_) {
       warehouse_logger_->pushJointTrajectoryToWarehouse(current_planning_scene_id_,
                                                         "monitor",
