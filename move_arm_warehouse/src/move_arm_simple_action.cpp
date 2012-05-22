@@ -427,10 +427,18 @@ private:
     ros::Time smoothing_time = ros::Time::now();
     if(filter_trajectory_client_.call(req,res))
     {
-      move_arm_stats_.trajectory_duration = (res.trajectory.points.back().time_from_start-res.trajectory.points.front().time_from_start).toSec();
-      move_arm_stats_.smoothing_time = (ros::Time::now()-smoothing_time).toSec();
-      trajectory_out = res.trajectory;
-      return true;
+      if(res.error_code.val == res.error_code.SUCCESS)
+      {
+        move_arm_stats_.trajectory_duration = (res.trajectory.points.back().time_from_start-res.trajectory.points.front().time_from_start).toSec();
+        move_arm_stats_.smoothing_time = (ros::Time::now()-smoothing_time).toSec();
+        trajectory_out = res.trajectory;
+        return true;
+      }
+      else
+      {
+        ROS_ERROR("Trajectory filter failed!");
+        return false;
+      }
     }
     else
     {
