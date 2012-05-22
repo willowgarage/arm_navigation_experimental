@@ -73,9 +73,9 @@
 // #include <gazebo_msgs/SetLinkProperties.h>
 // #include <gazebo_msgs/GetLinkProperties.h>
 
-typedef map<std::string, interactive_markers::MenuHandler::EntryHandle> MenuEntryMap;
-typedef map<std::string, MenuEntryMap> MenuMap;
-typedef map<std::string, interactive_markers::MenuHandler> MenuHandlerMap;
+typedef std::map<std::string, interactive_markers::MenuHandler::EntryHandle> MenuEntryMap;
+typedef std::map<std::string, MenuEntryMap> MenuMap;
+typedef std::map<std::string, interactive_markers::MenuHandler> MenuHandlerMap;
 
 ////
 /// Namespace planning_scene_utils
@@ -1523,13 +1523,13 @@ protected:
   std::string selected_trajectory_name_;
   std::string logged_group_name_;
   std::string logged_motion_plan_request_;
-  std::map<string, MenuEntryMap> menu_entry_maps_;
+  std::map<std::string, MenuEntryMap> menu_entry_maps_;
   MenuHandlerMap menu_handler_map_;
 
-  std::map<string, ros::ServiceClient*>* collision_aware_ik_services_;
-  std::map<string, ros::ServiceClient*>* non_collision_aware_ik_services_;
-  std::map<string, ros::ServiceClient*>* interpolated_ik_services_;
-  std::map<string, arm_navigation_msgs::ArmNavigationErrorCodes> error_map_;
+  std::map<std::string, ros::ServiceClient*>* collision_aware_ik_services_;
+  std::map<std::string, ros::ServiceClient*>* non_collision_aware_ik_services_;
+  std::map<std::string, ros::ServiceClient*>* interpolated_ik_services_;
+  std::map<std::string, arm_navigation_msgs::ArmNavigationErrorCodes> error_map_;
   std::vector<StateRegistry> states_;
 
   interactive_markers::MenuHandler::EntryHandle last_resize_handle_;
@@ -1625,7 +1625,7 @@ public:
   /// @return true if the query to the warehouse was successful, false otherwise.
   /////
   bool getAllPlanningSceneTimes(std::vector<ros::Time>& planning_scene_times,
-                                vector<unsigned int>& planning_scene_ids);
+                                std::vector<unsigned int>& planning_scene_ids);
 
 
   //////
@@ -1655,7 +1655,7 @@ public:
   //////
   /// @brief loads all the error codes associated with a particular planning scene from the warehouse.
   /// @param time the time stamp of the planning scene
-  /// @param pipeline_stages vector of strings to be filled with all request stages (planner, filter, etc.)
+  /// @param pipeline_stages std:: of strings to be filled with all request stages (planner, filter, etc.)
   /// @param error_codes vector of arm navigation error codes to be filled by the warehouse.
   /// @param error_map associates each error code with a trajectory id. To be filled by the warehouse.
   /// @return true if the query to the warehouse was successful, false otherwise.
@@ -1921,7 +1921,7 @@ public:
   /// @param stamp the time stamp to apply to each transform.
   //////
   void getAllRobotStampedTransforms(const planning_models::KinematicState& state,
-                                    vector<geometry_msgs::TransformStamped>& trans_vector, const ros::Time& stamp);
+                                    std::vector<geometry_msgs::TransformStamped>& trans_vector, const ros::Time& stamp);
 
   //////
   /// @brief Fills the given array with mesh markers associated with all motion plan requests.
@@ -1987,7 +1987,7 @@ void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTra
   /// @param scale the size of the marker's radius, in meters.
   /// @param angle the initial angle of the marker about its axis.
   /////
-  void makeInteractive1DOFRotationMarker(tf::Transform transform, tf::Vector3 axis, string name, string description,
+  void makeInteractive1DOFRotationMarker(tf::Transform transform, tf::Vector3 axis, std::string name, std::string description,
                                          float scale = 1.0f, float angle = 0.0f);
 
   //////
@@ -1999,7 +1999,7 @@ void jointTrajectoryControllerStateCallback(const pr2_controllers_msgs::JointTra
   /// @param scale the size of the marker in meters.
   /// @param value the initial translation of the prismatic joint along its axis.
   //////
-  void makeInteractive1DOFTranslationMarker(tf::Transform transform, tf::Vector3 axis, string name, string description,
+  void makeInteractive1DOFTranslationMarker(tf::Transform transform, tf::Vector3 axis, std::string name, std::string description,
                                             float scale = 1.0f, float value = 0.0f);
 
   //////
