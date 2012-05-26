@@ -202,11 +202,12 @@ public:
         goal.trajectory.header.stamp = ros::Time::now()+ros::Duration(0.2);
         traj_action_client_->sendGoal(goal,boost::bind(&CollisionFreeArmTrajectoryController::controllerDoneCallback, this, _1, _2));
         state_ = MONITOR;
+        collision_models_interface_->bodiesUnlock();
         return;
       }
       else
       {
-        ROS_INFO_STREAM("Filter rejects trajectory based on current state");
+        ROS_INFO_STREAM("Filter rejects trajectory based on current state with status " << res.error_code.val);
         action_server_->setAborted();
         collision_models_interface_->bodiesUnlock();
         return;
