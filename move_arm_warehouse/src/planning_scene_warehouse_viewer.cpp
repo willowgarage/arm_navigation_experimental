@@ -3185,7 +3185,7 @@ int main(int argc, char** argv)
   param<string>("proximity_space_validity_name",  params.proximity_space_validity_name_,  PROXIMITY_SPACE_VALIDITY_NAME);
   param<string>("right_ik_name", params.right_ik_name_, RIGHT_IK_NAME);
   param<string>("right_interpolate_service_name", params.right_interpolate_service_name_, RIGHT_INTERPOLATE_SERVICE_NAME);
-  param<string>("trajectory_filter_1_service_name", params.trajectory_filter_1_service_name_, TRAJECTORY_FILTER_1_SERVICE_NAME);
+  param<string>("trajectory_filter_service_name", params.trajectory_filter_1_service_name_, TRAJECTORY_FILTER_1_SERVICE_NAME);
   param<string>("trajectory_filter_2_service_name", params.trajectory_filter_2_service_name_, TRAJECTORY_FILTER_2_SERVICE_NAME);
   param<string>("vis_topic_name", params.vis_topic_name_ , VIS_TOPIC_NAME);
   param<string>("right_ik_link", params.right_ik_link_ , RIGHT_IK_LINK);

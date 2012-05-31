@@ -1001,10 +1001,21 @@ void PlanningSceneEditor::jointStateCallback(const sensor_msgs::JointStateConstP
   std::map<std::string, double> joint_velocity_map;
   
   //message already been validated in kmsm
-  for(unsigned int i = 0; i < joint_state->position.size(); ++i)
+  if ( joint_state->velocity.size() == joint_state->position.size() )
   {
-    joint_state_map[joint_state->name[i]] = joint_state->position[i];
-    joint_velocity_map[joint_state->name[i]] = joint_state->velocity[i];
+    for(unsigned int i = 0; i < joint_state->position.size(); ++i)
+    {
+      joint_state_map[joint_state->name[i]] = joint_state->position[i];
+      joint_velocity_map[joint_state->name[i]] = joint_state->velocity[i];
+    }
+  }
+  else
+  {
+    for(unsigned int i = 0; i < joint_state->position.size(); ++i)
+    {
+      joint_state_map[joint_state->name[i]] = joint_state->position[i];
+      joint_velocity_map[joint_state->name[i]] = 0.0;
+    }
   }
   //getting base transform
   lockScene();

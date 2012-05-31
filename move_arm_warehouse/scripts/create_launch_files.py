@@ -13,10 +13,6 @@ if(len(sys.argv) != 2):
 robotName = sys.argv[1]
 directoryName = roslib.packages.get_pkg_dir(robotName + "_arm_navigation")
 
-if(not roslib.packages.is_pkg_dir(directoryName)):
-  print(robotName + " package does not exist ")
-  sys.exit(-2)
-
 # Plnning description yaml file
 yamlFileName = directoryName + '/config/' + robotName + '_planning_description.yaml'
 

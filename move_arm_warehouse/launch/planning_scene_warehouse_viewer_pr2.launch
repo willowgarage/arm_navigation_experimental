@@ -38,6 +38,7 @@
     <param name="group" type="string" value="left_arm" />
   </node>
   <node pkg="ompl_ros_interface" type="ompl_ros" name="ompl_planning" output="screen">
+    <param name="default_planner_config" type="string" value="SBLkConfig1"/>
     <rosparam command="load" file="$(find pr2_arm_navigation_planning)/config/ompl_planning.yaml" />
   </node>
   <node name="interpolated_ik_node_right" pkg="interpolated_ik_motion_planner" 
@@ -103,6 +104,7 @@
   
   <!-- Called to smooth and optimize a planner trajectory -->
   <param name="trajectory_filter_service_name" value="/trajectory_filter/filter_trajectory_with_constraints" />
+  <param name="trajectory_filter_2_service_name" value="/trajectory_filter/filter_trajectory_with_constraints" />
   
   <!-- Called to get the proximity space -->
   <param name="proximity_space_service_name" value="none"/>

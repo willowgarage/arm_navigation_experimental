@@ -112,7 +112,7 @@
   <param name="right_interpolate_service_name" value="/r_interpolated_ik_motion_plan" />
 
   <!-- Called to smooth and optimize a planner trajectory -->
-  <param name="trajectory_filter_1_service_name" value="/trajectory_shortcutting_filter_server/filter_trajectory_with_constraints" />
+  <param name="trajectory_filter_service_name" value="/trajectory_shortcutting_filter_server/filter_trajectory_with_constraints" />
   <param name="trajectory_filter_2_service_name" value="/trajectory_smoothing_filter_server/filter_trajectory_with_constraints" />
 
   <!-- Called to get the proximity space -->
