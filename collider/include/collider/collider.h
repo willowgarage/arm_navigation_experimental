@@ -74,7 +74,7 @@
 
 #include <octomap/OcTreeStamped.h>
 #include <octomap_ros/OctomapROS.h>
-#include <octomap_msgs/OctomapBinary.h>
+#include <octomap_msgs/Octomap.h>
 #include <octomap_msgs/GetOctomap.h>
 
 

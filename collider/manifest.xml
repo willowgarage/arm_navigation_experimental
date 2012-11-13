@@ -9,9 +9,6 @@
   <review status="unreviewed" notes=""/>
   
   <depend package="roscpp"/>
-  <depend package="octomap" />
-  <depend package="octomap_ros" />  
-  <depend package="octomap_msgs" />  
   <depend package="tf"/>
   <depend package="visualization_msgs"/>
   <depend package="arm_navigation_msgs"/>

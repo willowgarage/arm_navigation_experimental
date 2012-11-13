@@ -15,7 +15,9 @@
   <depend stack="filters" /> <!-- filters -->
   <depend stack="geometry" /> <!-- tf, tf_conversions, angles -->
   <depend stack="image_common" /> <!-- image_transport -->
-  <depend stack="octomap_mapping" /> <!-- octomap, octomap_ros -->
+  <depend stack="octomap_mapping" /> <!-- octomap_mapping- -->
+  <depend stack="octomap_msgs" /> <!-- octomap_mapping- -->
+  <depend stack="octomap_ros" /> <!-- octomap_ros-->
   <depend stack="orocos_kinematics_dynamics" /> <!-- kdl -->
   <depend stack="perception_pcl" /> <!-- pcl_ros -->
   <depend stack="pluginlib" /> <!-- pluginlib -->

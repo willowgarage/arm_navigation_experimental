@@ -37,7 +37,7 @@
 
 #include "collider/collider.h"
 #include <planning_environment/monitors/monitor_utils.h>
-
+#include <octomap_msgs/conversions.h>
 
 Collider::Collider(): root_handle_(""), pruning_counter_(0), transparent_freespace_(false) {
    
