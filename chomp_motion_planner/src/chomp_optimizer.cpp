@@ -41,6 +41,7 @@
 #include <planning_models/kinematic_model.h>
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Core>
+#include <rosconsole/macros_generated.h>
 using namespace std;
 using namespace Eigen;
 using namespace planning_models;

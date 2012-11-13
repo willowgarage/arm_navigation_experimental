@@ -36,6 +36,7 @@
 
 #include <chomp_motion_planner/chomp_trajectory.h>
 #include <iostream>
+#include <rosconsole/macros_generated.h>
 using namespace std;
 
 namespace chomp
