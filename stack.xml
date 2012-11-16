@@ -28,6 +28,6 @@
   <depend stack="ros_comm" /> <!-- std_msgs, rosconsole, rospy, roscpp, std_srvs -->
   <depend stack="vision_opencv" /> <!-- image_geometry -->
   <depend stack="visualization" /> <!-- interactive_markers -->
-  <depend stack="warehousewg" /> <!-- mongo_ros -->
+  <depend stack="warehouse_ros" />
 
 </stack>

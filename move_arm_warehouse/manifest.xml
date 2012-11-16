@@ -24,7 +24,6 @@ The move_arm package provides an implementation of a action (see the <a href="ht
   <depend package="tf_conversions"/>
   <depend package="pr2_controllers_msgs"/>
   <depend package="kinematics_msgs"/>
-  <depend package="mongo_ros"/>
   <depend package="move_arm_head_monitor" />
   <depend package="geometry_msgs" />
   <depend package="interactive_markers"/>
@@ -34,6 +33,7 @@ The move_arm package provides an implementation of a action (see the <a href="ht
   <depend package="ompl_ros_interface"/>
   <depend package="interpolated_ik_motion_planner"/>
   <depend package="constraint_aware_spline_smoother"/>
+  <depend package="warehouse_ros"/>
 
 
   <export>
