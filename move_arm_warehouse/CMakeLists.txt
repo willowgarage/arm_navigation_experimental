@@ -17,7 +17,9 @@ set( QT_WIDGET_HEADERS
 
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
-qt4_wrap_cpp(moc_sources ${QT_WIDGET_HEADERS})
+#Fix to address https://bugreports.qt-project.org/browse/QTBUG-22829
+qt4_wrap_cpp(moc_sources ${QT_WIDGET_HEADERS}
+  OPTIONS -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED)
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${QT_INCLUDE_DIR})
 
